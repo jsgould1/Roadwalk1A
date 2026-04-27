@@ -6642,21 +6642,6 @@ a { color: inherit; text-decoration: none; }
       aerialPicker.style.display = 'none';
     }
 
-    // --- Ribbon slot scaffold (mirrored L/R) ---
-    // 'line' is a generic slot near the centerline used for user-drawn
-    // lines (user_line, culvert, bridge_line) that don't belong to a road-edge
-    // slot like guardrail or curb.
-    const SLOT_ORDER = ['fence', 'swale', 'guardrail', 'sidewalk', 'curb', 'line'];
-    for (const side of ['L', 'R']) {
-      for (const slot of SLOT_ORDER) {
-        const el = document.createElement('div');
-        el.className = `strip-slot side-${side}`;
-        el.dataset.slot = slot;
-        el.dataset.side = side;
-        canvas.appendChild(el);
-      }
-    }
-
     // --- Continuous feature bars (any LineString pin with a known side) ---
     // Each line kind maps to a slot. guardrail/wall use the dedicated road-edge
     // slot they came from in the GIP/WIP source; everything else (user-drawn
@@ -6703,6 +6688,36 @@ a { color: inherit; text-decoration: none; }
       && p.geometry && p.geometry.type === 'LineString'
       && p.attrs && p.attrs.side
     );
+
+    // --- Ribbon slot scaffold — only for slots that have a bar in this window ---
+    // Pre-scan trackPins to find which (slot, side) pairs are actually visible,
+    // then render a scaffold guide only for those.  Empty slots stay hidden so
+    // the strip isn't cluttered with phantom guide lines.
+    const activeSlots = new Set();
+    for (const pin of trackPins) {
+      const startSta_ = pin.sta_ft != null
+        ? pin.sta_ft
+        : (pin.attrs.mp_start != null ? (pin.attrs.mp_start - sec.mpStart) * 5280 : 0);
+      const endSta_   = pin.sta_ft != null && pin.attrs.length_ft
+        ? pin.sta_ft + pin.attrs.length_ft
+        : (pin.attrs.mp_end != null
+            ? (pin.attrs.mp_end - sec.mpStart) * 5280
+            : startSta_ + (pin.attrs.length_ft || 0));
+      if (endSta_ < lo || startSta_ > hi) continue;  // bar not in window
+      activeSlots.add(`${KIND_TO_SLOT[pin.kind]||'line'}-${pin.attrs.side}`);
+    }
+    const SLOT_ORDER = ['fence', 'swale', 'guardrail', 'sidewalk', 'curb', 'line'];
+    for (const side of ['L', 'R']) {
+      for (const slot of SLOT_ORDER) {
+        if (!activeSlots.has(`${slot}-${side}`)) continue;
+        const el = document.createElement('div');
+        el.className = `strip-slot side-${side}`;
+        el.dataset.slot = slot;
+        el.dataset.side = side;
+        canvas.appendChild(el);
+      }
+    }
+
     for (const pin of trackPins) {
       // Polyline-derived sta_ft is the source of truth — it's the same arc
       // length the map uses to place the polyline geometry, so the strip
