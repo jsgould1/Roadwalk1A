@@ -6760,8 +6760,12 @@ a { color: inherit; text-decoration: none; }
       bar.style.cursor = 'pointer';
       bar.addEventListener('click', () => openPinSheet(pin, sec));
       canvas.appendChild(bar);
-      // Kind-code badge at the start of the bar, centred on the bar slot
-      if (startSta >= lo && startSta <= hi) {
+      // Kind-code badge at the start of the bar — desktop (horiz) only.
+      // In portrait/phone mode the slots are too narrow (±2–32 px from CL)
+      // for a 16×14 px chip; it overflows into adjacent slots and looks like
+      // scattered "breadcrumbs".  On desktop the horizontal bar is wide enough
+      // that the badge sits cleanly on it.  Tap the bar for a tooltip in both modes.
+      if (horiz && startSta >= lo && startSta <= hi) {
         const code  = PIN_STYLE[pin.kind]?.code || pin.kind.slice(0, 2).toUpperCase();
         const color = PIN_STYLE[pin.kind]?.color || '#444';
         const halfThick = Math.floor(slotThick / 2);
@@ -6771,23 +6775,12 @@ a { color: inherit; text-decoration: none; }
         badge.title = `${pin.id} · ${pin.kind}`;
         badge.style.background = color;
         badge.addEventListener('click', () => openPinSheet(pin, sec));
-        if (horiz) {
-          badge.style.left = `${axisPct(startSta)}%`;
-          badge.style.transform = 'translate(-50%, -50%)';
-          if (pin.attrs.side === 'L') {
-            badge.style.top = `calc(50% - ${baseOffset + slotThick + 28 - halfThick}px)`;
-          } else {
-            badge.style.top = `calc(50% + ${baseOffset + 24 + halfThick}px)`;
-          }
+        badge.style.left = `${axisPct(startSta)}%`;
+        badge.style.transform = 'translate(-50%, -50%)';
+        if (pin.attrs.side === 'L') {
+          badge.style.top = `calc(50% - ${baseOffset + slotThick + 28 - halfThick}px)`;
         } else {
-          badge.style.top = `${axisPct(startSta)}%`;
-          badge.style.transform = 'translate(-50%, -50%)';
-          if (pin.attrs.side === 'L') {
-            badge.style.right = `calc(50% + ${baseOffset + halfThick}px)`;
-            badge.style.transform = 'translate(50%, -50%)';
-          } else {
-            badge.style.left = `calc(50% + ${baseOffset + halfThick}px)`;
-          }
+          badge.style.top = `calc(50% + ${baseOffset + 24 + halfThick}px)`;
         }
         canvas.appendChild(badge);
       }
@@ -7040,7 +7033,79 @@ a { color: inherit; text-decoration: none; }
         }
       }
     }
+
+    // Wrap all rendered children in a translatable inner div so drag-panning
+    // can use CSS transform for smooth feel without re-rendering mid-drag.
+    const inner = document.createElement('div');
+    inner.id = 'strip-inner';
+    inner.style.cssText = 'position:absolute;inset:0;will-change:transform;';
+    [...canvas.children].forEach(ch => inner.appendChild(ch));
+    canvas.appendChild(inner);
   }
+
+  // --- Strip drag-to-pan ------------------------------------------------
+  // Pointer capture gives smooth pan on both mouse and touch/Apple Pencil.
+  let _stripDrag = null;   // { startAxis, origCenter, moved }
+  let _stripDragWasMoved = false;
+
+  (function attachStripDrag() {
+    const cv = $('#strip-canvas');
+    if (!cv) return;
+
+    cv.addEventListener('pointerdown', (e) => {
+      // Only primary button; ignore clicks on interactive chips
+      if (e.button > 0) return;
+      if (e.target.closest('.strip-feature-bar,.strip-pin,.strip-bar-badge,.strip-active-bar,.strip-active-arrow,.panel-tab,.btn,.strip-guide-btn')) return;
+      _stripDrag = {
+        startAxis: (isDesktopMode?.() ?? false) ? e.clientX : e.clientY,
+        origCenter: stripCenterSta,
+        moved: false,
+      };
+      _stripDragWasMoved = false;
+      cv.setPointerCapture(e.pointerId);
+      cv.style.cursor = 'grabbing';
+    });
+
+    cv.addEventListener('pointermove', (e) => {
+      if (!_stripDrag) return;
+      const horiz = isDesktopMode?.() ?? false;
+      const delta = (horiz ? e.clientX : e.clientY) - _stripDrag.startAxis;
+      if (Math.abs(delta) > 5) _stripDrag.moved = true;
+      const inner = $('#strip-inner');
+      if (inner) inner.style.transform = horiz
+        ? `translateX(${delta}px)`
+        : `translateY(${delta}px)`;
+    });
+
+    const endDrag = (e) => {
+      if (!_stripDrag) return;
+      const drag = _stripDrag;
+      _stripDrag = null;
+      cv.style.cursor = '';
+      const inner = $('#strip-inner');
+      if (inner) inner.style.transform = '';
+
+      if (!drag.moved) return;   // was a tap/click — let click handler fire
+      _stripDragWasMoved = true;
+      setTimeout(() => { _stripDragWasMoved = false; }, 50);
+
+      const horiz = isDesktopMode?.() ?? false;
+      const rect  = cv.getBoundingClientRect();
+      const axisPx = horiz ? rect.width : rect.height;
+      const delta  = (horiz ? e.clientX : e.clientY) - drag.startAxis;
+      // Drag right/down = going down-station (subtract)
+      let newCenter = drag.origCenter - (delta / axisPx) * STRIP_WINDOW_FT;
+      if (stripCurrentSec) {
+        const total = polylineLengthFt(stripCurrentSec.alignment);
+        newCenter = Math.max(STRIP_WINDOW_FT / 2, Math.min(total - STRIP_WINDOW_FT / 2, newCenter));
+      }
+      stripCenterSta = newCenter;
+      renderStrip();
+    };
+
+    cv.addEventListener('pointerup',     endDrag);
+    cv.addEventListener('pointercancel', endDrag);
+  })();
 
   // --- Drawing tools (add Point / Line / Polygon to map or strip) -------
   // Active tool puts the app in "draw mode": clicks become vertices, double-
@@ -7660,6 +7725,7 @@ a { color: inherit; text-decoration: none; }
   // Strip-side click handler — convert (canvas X, canvas Y) → (sta_ft, cross_ft)
   // → lat/lng on the alignment, then push the same way map clicks do.
   $('#strip-canvas')?.addEventListener('click', (e) => {
+    if (_stripDragWasMoved) return;            // suppress tap after a pan gesture
     if (!drawState.tool) return;
     if (!stripCurrentSec) return;
     const sec = stripCurrentSec;
@@ -7710,6 +7776,7 @@ a { color: inherit; text-decoration: none; }
   // Strip GPS-tracking click — fires when NOT in draw mode and a line kind
   // is armed in the feature picker. Click above CL = L side, below = R side.
   $('#strip-canvas')?.addEventListener('click', (e) => {
+    if (_stripDragWasMoved) return;            // suppress tap after a pan gesture
     if (drawState.tool) return;                    // draw mode owns these clicks
     if (!stripCurrentSec) return;
     if (!fpArmedKind || PIN_STYLE[fpArmedKind]?.kind !== 'line') return;
