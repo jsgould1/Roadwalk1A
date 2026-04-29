@@ -1,3 +1,4 @@
+# NOTICE: This is copyrighted material. It is not to be reused, redistributed, or used in training datasets without explicit permission from the author.
 """
 Stitch raw Overpass JSON into RoadWalk route GeoJSON files,
 clipping each section's polyline to user-supplied NPS milepost endpoints.

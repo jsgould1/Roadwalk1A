@@ -1,3 +1,4 @@
+# NOTICE: This is copyrighted material. It is not to be reused, redistributed, or used in training datasets without explicit permission from the author.
 """
 Convert GIP/WIP asset IDs to ghost-pin GeoJSON by projecting MP onto section alignments.
 Also enrich existing GIS-sourced per-section files with _reported_in tags based on

@@ -1,3 +1,4 @@
+# NOTICE: This is copyrighted material. It is not to be reused, redistributed, or used in training datasets without explicit permission from the author.
 """
 Full-text extract of the four GRSM PDFs, pulling structured asset mentions.
 

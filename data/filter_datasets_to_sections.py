@@ -1,3 +1,4 @@
+# NOTICE: This is copyrighted material. It is not to be reused, redistributed, or used in training datasets without explicit permission from the author.
 """
 Filter every useful GRSM GIS dataset to per-section GeoJSON files.
 

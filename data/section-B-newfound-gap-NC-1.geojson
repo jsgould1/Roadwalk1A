@@ -1,4 +1,5 @@
 {
+  "_copyright": "NOTICE: This is copyrighted material. It is not to be reused, redistributed, or used in training datasets without explicit permission from the author.",
   "type": "FeatureCollection",
   "features": [
     {
@@ -2459,11 +2460,11 @@
   ],
   "metadata": {
     "source": "OpenStreetMap via Overpass API",
-    "license": "ODbL \u2014 OpenStreetMap contributors",
+    "license": "ODbL — OpenStreetMap contributors",
     "section_label": "Section B",
     "project_code": "NC NP GRSM 10S(2)",
     "road_name": "Newfound Gap Road (NC side, segment 1)",
-    "mp_range": "MP 14.64 \u2192 20.9",
+    "mp_range": "MP 14.64 → 20.9",
     "user_start_coord": [
       35.61073,
       -83.42801

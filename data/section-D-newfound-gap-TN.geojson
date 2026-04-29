@@ -1,4 +1,5 @@
 {
+  "_copyright": "NOTICE: This is copyrighted material. It is not to be reused, redistributed, or used in training datasets without explicit permission from the author.",
   "type": "FeatureCollection",
   "features": [
     {
@@ -1083,11 +1084,11 @@
   ],
   "metadata": {
     "source": "OpenStreetMap via Overpass API",
-    "license": "ODbL \u2014 OpenStreetMap contributors",
+    "license": "ODbL — OpenStreetMap contributors",
     "section_label": "Section D",
     "project_code": "TN NP GRSM 10N(4)",
     "road_name": "Newfound Gap Road (TN side)",
-    "mp_range": "MP 1.86 \u2192 6.5",
+    "mp_range": "MP 1.86 → 6.5",
     "user_start_coord": [
       35.68303,
       -83.53397

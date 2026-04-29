@@ -1,4 +1,5 @@
 {
+  "_copyright": "NOTICE: This is copyrighted material. It is not to be reused, redistributed, or used in training datasets without explicit permission from the author.",
   "type": "FeatureCollection",
   "features": [
     {
@@ -1338,7 +1339,7 @@
       "type": "Feature",
       "properties": {
         "role": "ramp",
-        "name": "Gatlinburg Bypass Road \u00b7 Ramp 1 (OSM way 51253659)",
+        "name": "Gatlinburg Bypass Road · Ramp 1 (OSM way 51253659)",
         "osm_way_id": 51253659,
         "highway": "trunk",
         "lanes": "1",
@@ -1382,7 +1383,7 @@
       "type": "Feature",
       "properties": {
         "role": "ramp",
-        "name": "Gatlinburg Bypass Road \u00b7 Ramp 2 (OSM way 51253660)",
+        "name": "Gatlinburg Bypass Road · Ramp 2 (OSM way 51253660)",
         "osm_way_id": 51253660,
         "highway": "trunk",
         "lanes": "1",
@@ -1438,7 +1439,7 @@
       "type": "Feature",
       "properties": {
         "role": "ramp",
-        "name": "Gatlinburg Bypass Road \u00b7 Ramp 3 (OSM way 138639689)",
+        "name": "Gatlinburg Bypass Road · Ramp 3 (OSM way 138639689)",
         "osm_way_id": 138639689,
         "highway": "trunk_link",
         "lanes": "",
@@ -1554,7 +1555,7 @@
       "type": "Feature",
       "properties": {
         "role": "ramp",
-        "name": "Gatlinburg Bypass Road \u00b7 Ramp 4 (OSM way 460714353)",
+        "name": "Gatlinburg Bypass Road · Ramp 4 (OSM way 460714353)",
         "osm_way_id": 460714353,
         "highway": "trunk",
         "lanes": "2",
@@ -1581,7 +1582,7 @@
   ],
   "metadata": {
     "source": "OpenStreetMap via Overpass API",
-    "license": "ODbL \u2014 OpenStreetMap contributors",
+    "license": "ODbL — OpenStreetMap contributors",
     "route_name": "Gatlinburg Bypass Road",
     "user_start_coord": [
       35.7258314883774,

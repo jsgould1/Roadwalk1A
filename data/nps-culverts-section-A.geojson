@@ -1,4 +1,5 @@
 {
+  "_copyright": "NOTICE: This is copyrighted material. It is not to be reused, redistributed, or used in training datasets without explicit permission from the author.",
   "type": "FeatureCollection",
   "metadata": {
     "source": "GRSM Road Culverts (NPS ArcGIS Hub)",
@@ -7,7 +8,7 @@
     "count": 23,
     "geometry_note": "Culverts rendered as perpendicular LineStrings synthesized from GIS points + road tangent.",
     "perpendicular_length_ft": 40.0,
-    "endpoint_role_assignment": "unassigned \u2014 field walk determines inlet vs outlet"
+    "endpoint_role_assignment": "unassigned — field walk determines inlet vs outlet"
   },
   "features": [
     {

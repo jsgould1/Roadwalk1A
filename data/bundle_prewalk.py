@@ -1,3 +1,4 @@
+# NOTICE: This is copyrighted material. It is not to be reused, redistributed, or used in training datasets without explicit permission from the author.
 """
 Consolidate all alignments + ghost pins into a single JSON bundle for RoadWalk.
 

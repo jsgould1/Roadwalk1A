@@ -1,3 +1,4 @@
+# NOTICE: This is copyrighted material. It is not to be reused, redistributed, or used in training datasets without explicit permission from the author.
 """
 Extract per-asset details (length, type, dates, etc.) from the GIP and WIP
 PDF text layer.

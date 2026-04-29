@@ -1,4 +1,5 @@
 {
+  "_copyright": "NOTICE: This is copyrighted material. It is not to be reused, redistributed, or used in training datasets without explicit permission from the author.",
   "type": "FeatureCollection",
   "metadata": {
     "dataset": "mile-markers",
@@ -957,9 +958,9 @@
         "X_COORD": 270955,
         "LAT": 35.69404809,
         "LON": -83.53133665,
-        "DDMLAT": "35\u00b0 41.643' N",
-        "DDMLON": "083\u00b0 31.88' W",
-        "DMSLAT": "35\u00b0 41' 38.57\" N",
+        "DDMLAT": "35° 41.643' N",
+        "DDMLON": "083° 31.88' W",
+        "DMSLAT": "35° 41' 38.57\" N",
         "DMSLON": "-83.5313366524147",
         "DATAACCESS": "Unrestricted",
         "SOURCEDATE": null,

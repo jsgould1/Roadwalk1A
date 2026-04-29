@@ -1,4 +1,5 @@
 {
+  "_copyright": "NOTICE: This is copyrighted material. It is not to be reused, redistributed, or used in training datasets without explicit permission from the author.",
   "type": "FeatureCollection",
   "features": [
     {
@@ -1371,11 +1372,11 @@
   ],
   "metadata": {
     "source": "OpenStreetMap via Overpass API",
-    "license": "ODbL \u2014 OpenStreetMap contributors",
+    "license": "ODbL — OpenStreetMap contributors",
     "section_label": "Section A",
     "project_code": "TN NP GRSM 12(4)",
     "road_name": "Gatlinburg Bypass Road",
-    "mp_range": "MP 0.0 \u2192 4.64",
+    "mp_range": "MP 0.0 → 4.64",
     "user_start_coord": [
       35.72596,
       -83.51609
