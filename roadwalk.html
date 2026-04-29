@@ -1771,6 +1771,146 @@ a { color: inherit; text-decoration: none; }
   cursor: pointer;
 }
 
+/* --- Alignment trace banner (shown during new-section draw mode) --- */
+.trace-banner {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 700;
+  background: #1a5276;   /* dark teal-blue — distinct from orange relocate banner */
+  color: #fff;
+  padding: 8px 12px 8px 14px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  display: none;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+  text-transform: uppercase;
+  white-space: nowrap;
+  border-radius: 3px;
+}
+.trace-banner.open { display: inline-flex; }
+.trace-banner .tb-sep   { opacity: 0.45; }
+.trace-banner .tb-stats { opacity: 0.8; min-width: 90px; }
+.trace-banner .tb-btn {
+  background: rgba(255,255,255,0.15);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.4);
+  padding: 3px 9px;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  border-radius: 2px;
+  letter-spacing: 0.5px;
+}
+.trace-banner .tb-btn:hover { background: rgba(255,255,255,0.28); }
+.trace-banner .tb-done { border-color: rgba(100,220,100,0.7); }
+
+/* --- New section dialog (shown after trace is finished) --- */
+.nsd-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 850;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.nsd-overlay[hidden] { display: none; }
+.nsd-card {
+  background: var(--paper);
+  border-radius: 10px;
+  width: min(380px, calc(100vw - 32px));
+  padding: 22px 20px 18px;
+  box-shadow: 0 8px 36px rgba(0,0,0,0.3);
+}
+.nsd-title {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 1.8px;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  margin-bottom: 16px;
+}
+.nsd-traced {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--ink-3);
+  margin-bottom: 14px;
+}
+.nsd-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+.nsd-row label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  color: var(--ink-3);
+  text-transform: uppercase;
+}
+.nsd-row input {
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 8px 10px;
+  font-family: 'IBM Plex Serif', serif;
+  font-size: 15px;
+  color: var(--ink);
+  background: var(--paper);
+  outline: none;
+}
+.nsd-row input:focus { border-color: var(--ink-3); }
+.nsd-two { display: flex; gap: 10px; }
+.nsd-two .nsd-row { flex: 1; }
+.nsd-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+}
+.nsd-err {
+  flex: 1;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: #B33A2F;
+  min-height: 14px;
+}
+.nsd-cancel-btn {
+  padding: 8px 14px;
+  background: none;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: var(--ink-3);
+  cursor: pointer;
+}
+.nsd-save-btn {
+  padding: 8px 16px;
+  background: var(--ink);
+  border: none;
+  border-radius: 4px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  color: var(--paper);
+  cursor: pointer;
+  text-transform: uppercase;
+}
+.nsd-save-btn:hover { background: var(--ink-2); }
+
 /* Feature-picker — anchored as a topleft L.Control inside the map */
 .fp-left-stack {
   display: flex;
@@ -3252,6 +3392,18 @@ a { color: inherit; text-decoration: none; }
           <button class="cancel-btn" id="relocate-cancel">Cancel</button>
         </div>
 
+        <!-- Alignment trace banner (shown when drawing a new section's centerline/boundary) -->
+        <div class="trace-banner" id="trace-banner">
+          <span id="trace-banner-type">TRACING LINEAR</span>
+          <span class="tb-sep">·</span>
+          <span>Tap map vertices</span>
+          <span class="tb-sep">·</span>
+          <span>Double-tap to finish</span>
+          <span class="tb-stats" id="trace-stats"></span>
+          <button class="tb-btn tb-done" id="trace-done-btn">✓ Done</button>
+          <button class="tb-btn" id="trace-cancel-btn">✕ Cancel</button>
+        </div>
+
         <!-- Feature picker — toggle button + collapsible panel, anchored topleft -->
         <div class="fp-left-stack" id="fp-left-stack">
           <button class="map-ctl-btn" id="fp-toggle-btn" title="Add Feature (Insert)">
@@ -4255,8 +4407,9 @@ a { color: inherit; text-decoration: none; }
     state.sectionId = sectionId;
 
     // Toggle each view on/off
+    // 'trace' reuses #view-field (the map stage) — no separate HTML needed
     $('#view-list').classList.toggle('active', name === 'list');
-    $('#view-field').classList.toggle('active', name === 'field');
+    $('#view-field').classList.toggle('active', name === 'field' || name === 'trace');
     $('#view-kickoff').classList.toggle('active', name === 'kickoff');
     $('#view-ko-picker').classList.toggle('active', name === 'ko-picker');
     $('#view-settings').classList.toggle('active', name === 'settings');
@@ -4268,7 +4421,8 @@ a { color: inherit; text-decoration: none; }
     if (name === 'list') {
       els.backBtn.style.visibility = 'hidden';
       els.headerKicker.textContent = 'PROJECT';
-      els.headerName.textContent = 'CN Yard · Houston';
+      const shortName = BUNDLE?.short_name || (PROJECT?.name || '').split('·')[0].trim().slice(0, 20) || 'RoadWalk';
+      els.headerName.textContent = shortName;
     } else if (name === 'ko-picker') {
       els.backBtn.style.visibility = 'visible';
       els.headerKicker.textContent = 'NEW SECTION';
@@ -4291,8 +4445,30 @@ a { color: inherit; text-decoration: none; }
       els.headerName.textContent = sec.name;
       // Defer Leaflet init to next paint so the container has its real size
       requestAnimationFrame(() => initOrUpdateMap(sec));
+    } else if (name === 'trace') {
+      els.backBtn.style.visibility = 'visible';
+      const typeLabel = traceState.type === 'area' ? 'AREA' : 'LINEAR';
+      els.headerKicker.textContent = `TRACE · ${typeLabel}`;
+      els.headerName.textContent = 'Draw alignment';
+      requestAnimationFrame(() => {
+        if (!state.map) {
+          // Bootstrap map with the first known section center, or a GRSM default
+          const fallbackCenter = SECTIONS.length ? SECTIONS[0].center : [35.68, -83.52];
+          // Reuse initOrUpdateMap with a minimal stub so all controls wire up
+          const stub = { id: '__trace__', center: fallbackCenter, alignment: null, pins: [] };
+          initOrUpdateMap(stub);
+          state.mapLayers._lastSecId = null; // don't treat stub as a real section
+        } else {
+          state.map.invalidateSize();
+        }
+        $('#trace-banner').classList.add('open');
+        $('#trace-banner-type').textContent = `TRACING ${typeLabel}`;
+        document.querySelector('.app')?.classList.add('drawing');
+        if (state.map?.doubleClickZoom) state.map.doubleClickZoom.disable();
+      });
     }
-    if (name !== 'field' && typeof cancelDraw === 'function') cancelDraw();
+    // cancelDraw when leaving field/trace (but not when entering trace — that's intentional)
+    if (name !== 'field' && name !== 'trace' && typeof cancelDraw === 'function') cancelDraw();
   }
 
   // --- Section list rendering --------------------------------------------
@@ -7294,6 +7470,138 @@ a { color: inherit; text-decoration: none; }
     tempLayers: [],    // Leaflet layers (markers + temp polyline) shown while drawing
   };
 
+  // --- Alignment trace state + functions -----------------------------------
+  // Used for Track 2: drawing a new section's centerline/boundary on the map.
+  // Separate from drawState — no current section is required.
+  const traceState = {
+    active:    false,
+    type:      null,   // 'linear' | 'area'
+    vertices:  [],     // [[lat, lng], ...]
+    layers:    [],     // Leaflet vertex circle layers
+    polyLayer: null,   // preview polyline/polygon layer
+  };
+
+  function _fmtTraceDist(ft) {
+    if (ft < 100) return `${ft.toFixed(0)} ft`;
+    const mi = ft / 5280;
+    return `${Math.round(ft).toLocaleString()} ft (${mi.toFixed(2)} mi)`;
+  }
+
+  function _updateTraceBanner() {
+    const n = traceState.vertices.length;
+    let distFt = 0;
+    for (let i = 1; i < n; i++) distFt += havFt(traceState.vertices[i-1], traceState.vertices[i]);
+    $('#trace-stats').textContent = n === 0 ? '' : `${n} pt${n !== 1 ? 's' : ''} · ${_fmtTraceDist(distFt)}`;
+  }
+
+  function _redrawTracePreview() {
+    if (traceState.polyLayer) { state.map.removeLayer(traceState.polyLayer); traceState.polyLayer = null; }
+    const v = traceState.vertices;
+    if (v.length < 2) return;
+    const latlngs = traceState.type === 'area' ? [...v, v[0]] : v;
+    traceState.polyLayer = L.polyline(latlngs, {
+      color: '#1a5276', weight: 3, opacity: 0.85, dashArray: '6 4', interactive: false,
+    }).addTo(state.map);
+  }
+
+  function addTraceVertex(latlng) {
+    traceState.vertices.push([latlng.lat, latlng.lng]);
+    const m = L.circleMarker(latlng, {
+      radius: 5, color: '#1a5276', fillColor: '#fff', fillOpacity: 1, weight: 2,
+      interactive: false,
+    }).addTo(state.map);
+    traceState.layers.push(m);
+    _redrawTracePreview();
+    _updateTraceBanner();
+  }
+
+  function startAlignmentTrace(type) {
+    traceState.active   = true;
+    traceState.type     = type;
+    traceState.vertices = [];
+    traceState.layers   = [];
+    traceState.polyLayer = null;
+    showView('trace');
+  }
+
+  function cancelAlignmentTrace() {
+    if (state.map) {
+      traceState.layers.forEach(l => state.map.removeLayer(l));
+      if (traceState.polyLayer) state.map.removeLayer(traceState.polyLayer);
+    }
+    Object.assign(traceState, { active: false, type: null, vertices: [], layers: [], polyLayer: null });
+    $('#trace-banner').classList.remove('open');
+    $('#nsd-overlay').hidden = true;
+    document.querySelector('.app')?.classList.remove('drawing');
+    if (state.map?.doubleClickZoom) state.map.doubleClickZoom.enable();
+    showView('ko-picker');
+  }
+
+  function finishAlignmentTrace() {
+    const n = traceState.vertices.length;
+    const minPts = traceState.type === 'area' ? 3 : 2;
+    if (n < minPts) return; // not enough points — silently ignore
+    // Hide banner but keep preview so user can see their trace while filling in the dialog
+    $('#trace-banner').classList.remove('open');
+    // Populate and show the New Section dialog
+    const isLinear = traceState.type === 'linear';
+    $('#nsd-linear-fields').style.display = isLinear ? '' : 'none';
+    let distFt = 0;
+    for (let i = 1; i < n; i++) distFt += havFt(traceState.vertices[i-1], traceState.vertices[i]);
+    $('#nsd-traced').textContent = `${n} vertices · ${_fmtTraceDist(distFt)}`;
+    $('#nsd-name').value = $('#nsd-code').value = $('#nsd-mp-start').value = $('#nsd-mp-end').value = '';
+    $('#nsd-err').textContent = '';
+    $('#nsd-overlay').hidden = false;
+    setTimeout(() => $('#nsd-name').focus(), 80);
+  }
+
+  function _commitNewSection() {
+    const name = $('#nsd-name').value.trim();
+    if (!name) { $('#nsd-err').textContent = 'Section name is required.'; return; }
+
+    const isLinear = traceState.type === 'linear';
+    const code     = $('#nsd-code').value.trim();
+    const mpStart  = isLinear ? (parseFloat($('#nsd-mp-start').value) || 0) : 0;
+    const mpEnd    = isLinear ? (parseFloat($('#nsd-mp-end').value)   || 0) : 0;
+    const verts    = traceState.vertices.slice();
+    const mid      = verts[Math.floor(verts.length / 2)];
+    let lenFt = 0;
+    for (let i = 1; i < verts.length; i++) lenFt += havFt(verts[i-1], verts[i]);
+    const lenMi = (lenFt / 5280).toFixed(2);
+
+    const newId = 's' + Date.now().toString(36);
+    SECTIONS.push({
+      id:           newId,
+      name,
+      type:         traceState.type,
+      status:       'not',    // kickoff pending
+      featureCount: 0,
+      meta: isLinear
+        ? `${code || '—'} · ${mpStart.toFixed(3)} → ${mpEnd.toFixed(3)} MP · ${lenMi} mi`
+        : `Traced · ${lenMi} mi`,
+      kickoff:      false,    // user fills out kickoff form when ready
+      center:       mid,
+      alignment:    verts,
+      projectCode:  code,
+      mpStart, mpEnd,
+      pins:         [],
+      kickoffAnswers: { basics: { name } },
+    });
+
+    // Tear down trace
+    $('#nsd-overlay').hidden = true;
+    if (state.map) {
+      traceState.layers.forEach(l => state.map.removeLayer(l));
+      if (traceState.polyLayer) state.map.removeLayer(traceState.polyLayer);
+    }
+    Object.assign(traceState, { active: false, type: null, vertices: [], layers: [], polyLayer: null });
+    document.querySelector('.app')?.classList.remove('drawing');
+    if (state.map?.doubleClickZoom) state.map.doubleClickZoom.enable();
+
+    renderSectionList('all');
+    showView('field', newId);
+  }
+
   function _drawHintText(tool) {
     if (tool === 'point')   return 'Click on map or strip to drop point · Esc to cancel';
     if (tool === 'line')    return 'Click vertices · double-click / Enter to finish · Esc to cancel';
@@ -7848,11 +8156,25 @@ a { color: inherit; text-decoration: none; }
     inp.setAttribute('pattern', '[0-9]*');
   });
 
-  // Keyboard: Esc cancel, Enter finish
+  // Keyboard: Esc cancel, Enter finish — handles both feature draw and alignment trace
   document.addEventListener('keydown', (e) => {
-    if (!drawState.tool) return;
-    if (e.key === 'Escape') { cancelDraw(); }
-    else if (e.key === 'Enter') { finishDraw(); }
+    if (drawState.tool) {
+      if (e.key === 'Escape') cancelDraw();
+      else if (e.key === 'Enter') finishDraw();
+    } else if (traceState.active) {
+      const nsdOpen = !$('#nsd-overlay').hidden;
+      if (e.key === 'Escape') {
+        if (nsdOpen) {
+          // Close dialog, re-show banner so user can keep tracing or cancel
+          $('#nsd-overlay').hidden = true;
+          $('#trace-banner').classList.add('open');
+        } else {
+          cancelAlignmentTrace();
+        }
+      } else if (e.key === 'Enter' && !nsdOpen) {
+        finishAlignmentTrace();
+      }
+    }
   });
 
   // Map-side click handler — wired once per map instance.
@@ -7865,33 +8187,42 @@ a { color: inherit; text-decoration: none; }
 
     const container = state.map.getContainer();
 
+    const _uiSelectors = '.leaflet-control, .map-ctl-stack, .basemap-ctrl, .rw-ks-toast, .fp-left-stack, .trace-banner';
+
     container.addEventListener('click', (e) => {
-      if (!drawState.tool) return;
       if (relocateState && relocateState.active) return;
       if (endpointPlaceState && endpointPlaceState.active) return;
-      // Skip clicks on UI elements inside the map (buttons, controls)
-      if (e.target.closest('.leaflet-control, .map-ctl-stack, .basemap-ctrl, .rw-ks-toast, .fp-left-stack')) return;
-      const rect = container.getBoundingClientRect();
-      const point = L.point(e.clientX - rect.left, e.clientY - rect.top);
-      const latlng = state.map.containerPointToLatLng(point);
-      drawState.source = drawState.source || 'map';
-      drawState.vertices.push([latlng.lat, latlng.lng]);
-      const m = L.circleMarker(latlng, {
-        radius: 4, color: '#c85a2b', fillColor: '#fff', fillOpacity: 1, weight: 2,
-        interactive: false,
-      }).addTo(state.map);
-      drawState.tempLayers.push(m);
-      if (drawState.tool === 'point') {
-        finishDraw();
-      } else {
-        _redrawTempPolyline();
+      if (e.target.closest(_uiSelectors)) return;
+
+      // Feature draw mode
+      if (drawState.tool) {
+        const rect = container.getBoundingClientRect();
+        const latlng = state.map.containerPointToLatLng(L.point(e.clientX - rect.left, e.clientY - rect.top));
+        drawState.source = drawState.source || 'map';
+        drawState.vertices.push([latlng.lat, latlng.lng]);
+        const m = L.circleMarker(latlng, {
+          radius: 4, color: '#c85a2b', fillColor: '#fff', fillOpacity: 1, weight: 2,
+          interactive: false,
+        }).addTo(state.map);
+        drawState.tempLayers.push(m);
+        if (drawState.tool === 'point') finishDraw();
+        else _redrawTempPolyline();
+        return;
+      }
+
+      // Alignment trace mode — ignore if NSD dialog is open
+      if (traceState.active && $('#nsd-overlay').hidden) {
+        const rect = container.getBoundingClientRect();
+        addTraceVertex(state.map.containerPointToLatLng(L.point(e.clientX - rect.left, e.clientY - rect.top)));
       }
     });
 
     container.addEventListener('dblclick', (e) => {
+      if (e.target.closest(_uiSelectors)) return;
       if (drawState.tool === 'line' || drawState.tool === 'polygon') {
-        if (e.target.closest('.leaflet-control, .map-ctl-stack, .basemap-ctrl, .fp-left-stack')) return;
         finishDraw();
+      } else if (traceState.active && $('#nsd-overlay').hidden) {
+        finishAlignmentTrace();
       }
     });
   };
@@ -9302,10 +9633,11 @@ a { color: inherit; text-decoration: none; }
 
   // Back button (context-aware)
   els.backBtn.addEventListener('click', () => {
-    if (state.view === 'field')      showView('list');
-    else if (state.view === 'kickoff')    { state.draftKickoff = null; showView('list'); }
-    else if (state.view === 'ko-picker')  showView('list');
-    else if (state.view === 'settings')   showView('list');
+    if (state.view === 'field')          showView('list');
+    else if (state.view === 'trace')     cancelAlignmentTrace();
+    else if (state.view === 'kickoff')   { state.draftKickoff = null; showView('list'); }
+    else if (state.view === 'ko-picker') showView('list');
+    else if (state.view === 'settings')  showView('list');
   });
 
   // Tabs
@@ -9319,20 +9651,28 @@ a { color: inherit; text-decoration: none; }
     showView('ko-picker');
   });
 
-  // Type-picker cards → start a fresh kickoff draft
+  // Type-picker cards → start alignment trace for the chosen type
   $$('.ko-type-card').forEach(card => card.addEventListener('click', () => {
-    state.draftKickoff = {
-      sectionId: null,  // becomes a new section on commit
-      type: card.dataset.type,
-      answers: {},
-    };
-    showView('kickoff');
+    startAlignmentTrace(card.dataset.type);
   }));
 
   // Kickoff "Start collection" button → commit and transition to field view
   $('#ko-start').addEventListener('click', () => {
     commitKickoff();
   });
+
+  // --- Alignment trace: Done / Cancel buttons in the trace banner ---
+  $('#trace-done-btn').addEventListener('click', () => finishAlignmentTrace());
+  $('#trace-cancel-btn').addEventListener('click', () => cancelAlignmentTrace());
+
+  // --- New Section dialog: Save / Cancel ---
+  $('#nsd-save-btn').addEventListener('click', () => _commitNewSection());
+  $('#nsd-cancel-btn').addEventListener('click', () => cancelAlignmentTrace());
+  // Enter in name field commits form
+  $('#nsd-name').addEventListener('keydown', e => { if (e.key === 'Enter') _commitNewSection(); });
+
+  // Also: back button from 'trace' view should cancel the trace
+  // (handled in the back-button context-aware listener below)
 
   // Tally buttons
   els.tallyBtns.forEach(b => b.addEventListener('click', () => {
@@ -10622,6 +10962,39 @@ a { color: inherit; text-decoration: none; }
 
 })();
 </script>
+
+  <!-- ============ NEW SECTION DIALOG (shown after alignment trace) ============ -->
+  <div class="nsd-overlay" id="nsd-overlay" hidden>
+    <div class="nsd-card">
+      <div class="nsd-title">New section</div>
+      <div class="nsd-traced" id="nsd-traced"><!-- e.g. "4 vertices · 1,240 ft (0.23 mi)" --></div>
+      <div class="nsd-row">
+        <label for="nsd-name">Section name *</label>
+        <input id="nsd-name" type="text" placeholder="e.g. Gatlinburg Bypass — On-ramp A" autocomplete="off">
+      </div>
+      <div id="nsd-linear-fields">
+        <div class="nsd-row">
+          <label for="nsd-code">Project code</label>
+          <input id="nsd-code" type="text" placeholder="e.g. TN NP GRSM 12(4)" autocomplete="off">
+        </div>
+        <div class="nsd-two">
+          <div class="nsd-row">
+            <label for="nsd-mp-start">MP start</label>
+            <input id="nsd-mp-start" type="number" step="0.001" min="0" placeholder="0.000">
+          </div>
+          <div class="nsd-row">
+            <label for="nsd-mp-end">MP end</label>
+            <input id="nsd-mp-end" type="number" step="0.001" min="0" placeholder="1.000">
+          </div>
+        </div>
+      </div>
+      <div class="nsd-foot">
+        <span class="nsd-err" id="nsd-err"></span>
+        <button class="nsd-cancel-btn" id="nsd-cancel-btn">Cancel</button>
+        <button class="nsd-save-btn" id="nsd-save-btn">Save section →</button>
+      </div>
+    </div>
+  </div>
 
   <!-- ============ PROJECT PICKER OVERLAY ============ -->
   <!-- Shown at boot when no project is cached, and when "Change project" is tapped. -->
