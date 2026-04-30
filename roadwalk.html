@@ -3837,6 +3837,54 @@ a { color: inherit; text-decoration: none; }
   </div>
 </div>
 
+<!-- ============ CL REPLACE CONFIRM (shown after adjust-CL trace) ============ -->
+<!-- Must be BEFORE <script> so the synchronous event-wiring block can find these elements. -->
+<div class="nsd-overlay" id="cl-confirm-overlay" hidden>
+  <div class="nsd-card">
+    <div class="nsd-title">Replace alignment?</div>
+    <div id="cl-confirm-body" style="font-family:'IBM Plex Mono',monospace;font-size:11px;
+         color:var(--ink-2);line-height:1.7;margin-bottom:16px;"></div>
+    <div class="nsd-foot">
+      <span class="nsd-err" id="cl-confirm-err"></span>
+      <button class="nsd-cancel-btn" id="cl-confirm-cancel">Cancel</button>
+      <button class="nsd-save-btn"   id="cl-confirm-ok">Replace →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ NEW SECTION DIALOG (shown after alignment trace) ============ -->
+<!-- Must be BEFORE <script> so the synchronous event-wiring block can find these elements. -->
+<div class="nsd-overlay" id="nsd-overlay" hidden>
+  <div class="nsd-card">
+    <div class="nsd-title">New section</div>
+    <div class="nsd-traced" id="nsd-traced"><!-- e.g. "4 vertices · 1,240 ft (0.23 mi)" --></div>
+    <div class="nsd-row">
+      <label for="nsd-name">Section name *</label>
+      <input id="nsd-name" type="text" placeholder="e.g. Gatlinburg Bypass — On-ramp A" autocomplete="off">
+    </div>
+    <div id="nsd-linear-fields">
+      <div class="nsd-row">
+        <label for="nsd-code">Project code</label>
+        <input id="nsd-code" type="text" placeholder="e.g. TN NP GRSM 12(4)" autocomplete="off">
+      </div>
+      <div class="nsd-two">
+        <div class="nsd-row">
+          <label for="nsd-mp-start">MP start</label>
+          <input id="nsd-mp-start" type="number" step="0.001" min="0" placeholder="0.000">
+        </div>
+        <div class="nsd-row">
+          <label for="nsd-mp-end">MP end</label>
+          <input id="nsd-mp-end" type="number" step="0.001" min="0" placeholder="1.000">
+        </div>
+      </div>
+    </div>
+    <div class="nsd-foot">
+      <span class="nsd-err" id="nsd-err"></span>
+      <button class="nsd-cancel-btn" id="nsd-cancel-btn">Cancel</button>
+      <button class="nsd-save-btn" id="nsd-save-btn">Save section →</button>
+    </div>
+  </div>
+</div>
 
 <script>
 /* ============================================================
@@ -11163,53 +11211,6 @@ a { color: inherit; text-decoration: none; }
 
 })();
 </script>
-
-  <!-- ============ CL REPLACE CONFIRM (shown after adjust-CL trace) ============ -->
-  <div class="nsd-overlay" id="cl-confirm-overlay" hidden>
-    <div class="nsd-card">
-      <div class="nsd-title">Replace alignment?</div>
-      <div id="cl-confirm-body" style="font-family:'IBM Plex Mono',monospace;font-size:11px;
-           color:var(--ink-2);line-height:1.7;margin-bottom:16px;"></div>
-      <div class="nsd-foot">
-        <span class="nsd-err" id="cl-confirm-err"></span>
-        <button class="nsd-cancel-btn" id="cl-confirm-cancel">Cancel</button>
-        <button class="nsd-save-btn"   id="cl-confirm-ok">Replace →</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ============ NEW SECTION DIALOG (shown after alignment trace) ============ -->
-  <div class="nsd-overlay" id="nsd-overlay" hidden>
-    <div class="nsd-card">
-      <div class="nsd-title">New section</div>
-      <div class="nsd-traced" id="nsd-traced"><!-- e.g. "4 vertices · 1,240 ft (0.23 mi)" --></div>
-      <div class="nsd-row">
-        <label for="nsd-name">Section name *</label>
-        <input id="nsd-name" type="text" placeholder="e.g. Gatlinburg Bypass — On-ramp A" autocomplete="off">
-      </div>
-      <div id="nsd-linear-fields">
-        <div class="nsd-row">
-          <label for="nsd-code">Project code</label>
-          <input id="nsd-code" type="text" placeholder="e.g. TN NP GRSM 12(4)" autocomplete="off">
-        </div>
-        <div class="nsd-two">
-          <div class="nsd-row">
-            <label for="nsd-mp-start">MP start</label>
-            <input id="nsd-mp-start" type="number" step="0.001" min="0" placeholder="0.000">
-          </div>
-          <div class="nsd-row">
-            <label for="nsd-mp-end">MP end</label>
-            <input id="nsd-mp-end" type="number" step="0.001" min="0" placeholder="1.000">
-          </div>
-        </div>
-      </div>
-      <div class="nsd-foot">
-        <span class="nsd-err" id="nsd-err"></span>
-        <button class="nsd-cancel-btn" id="nsd-cancel-btn">Cancel</button>
-        <button class="nsd-save-btn" id="nsd-save-btn">Save section →</button>
-      </div>
-    </div>
-  </div>
 
   <!-- ============ PROJECT PICKER OVERLAY ============ -->
   <!-- Shown at boot when no project is cached, and when "Change project" is tapped. -->
