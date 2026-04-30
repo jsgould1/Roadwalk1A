@@ -3849,15 +3849,17 @@ a { color: inherit; text-decoration: none; }
 
   // --- Dependency guard ---------------------------------------------------
   // If Leaflet failed to load (network blocked, file missing) every map op
-  // would silently fail. Surface it immediately so it's obvious what's wrong.
+  // would silently fail. Show a top-banner warning but DO NOT block the page.
   if (typeof L === 'undefined') {
-    document.body.insertAdjacentHTML('afterbegin',
-      '<div style="position:fixed;inset:0;z-index:9999;background:#fff;display:flex;' +
-      'align-items:center;justify-content:center;font-family:monospace;font-size:14px;' +
-      'color:#b00;padding:32px;text-align:center">' +
-      '⚠ Leaflet failed to load.<br>Check that <strong>lib/leaflet.js</strong> exists ' +
-      'next to roadwalk.html, or reload the page.</div>'
-    );
+    const _warn = document.createElement('div');
+    _warn.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;' +
+      'background:#b00;color:#fff;font-family:monospace;font-size:12px;padding:8px 12px;' +
+      'display:flex;align-items:center;gap:12px;';
+    _warn.innerHTML = '⚠ <strong>lib/leaflet.js missing or failed to load</strong> — ' +
+      'map controls will not work. Hard-reload (Ctrl+Shift+R) after a GitHub Pages deploy.' +
+      '<button onclick="this.parentElement.remove()" style="margin-left:auto;background:none;' +
+      'border:1px solid #fff;color:#fff;padding:2px 8px;cursor:pointer;border-radius:3px">✕</button>';
+    document.body.appendChild(_warn);
   }
 
   // --- Project + sections -----------------------------------------------
