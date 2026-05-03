@@ -1709,6 +1709,131 @@ a { color: inherit; text-decoration: none; }
 }
 .strip-nav-btn:hover { opacity: 1; }
 
+/* ── SLD zoom toggle button ──────────────────────────────────────────────── */
+.strip-zoom-btn {
+  background: var(--paper-3);
+  border: 1px solid var(--rule);
+  color: var(--ink-2);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 2px 5px;
+  border-radius: 3px;
+  cursor: pointer;
+  line-height: 1.6;
+  margin-top: 4px;
+  white-space: nowrap;
+  transition: background 0.1s;
+}
+.strip-zoom-btn:hover { background: var(--rule); }
+.strip-zoom-btn.zoom-wide { background: var(--ink-1); color: var(--paper-1); border-color: var(--ink-1); }
+
+/* Hide text labels + badges in the 1000′ view (only visible at 500′) */
+.alignment-strip[data-zoom="1000"] .strip-bar-badge,
+.alignment-strip[data-zoom="1000"] .strip-bar-label,
+.alignment-strip[data-zoom="1000"] .strip-pin-label { display: none !important; }
+
+/* ── Feature context popup (SLD + map clicks) ────────────────────────────── */
+.feature-popup {
+  position: fixed;
+  z-index: 9000;
+  background: var(--paper-1, #fefefe);
+  border: 1px solid var(--rule, #ddd);
+  border-radius: 6px;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.20);
+  width: 192px;
+  overflow: hidden;
+  display: none;
+}
+.feature-popup.fp-visible { display: block; }
+.fp-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px 7px;
+  border-bottom: 1px solid var(--rule, #ddd);
+}
+.fp-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 3px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+.fp-name {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--ink-1, #222);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+#fp-close {
+  background: none;
+  border: none;
+  color: var(--ink-3, #888);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 0;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.fp-actions { padding: 4px 0; }
+.fp-btn {
+  display: block;
+  width: 100%;
+  background: none;
+  border: none;
+  text-align: left;
+  padding: 7px 12px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--ink-1, #222);
+  cursor: pointer;
+  line-height: 1.2;
+  transition: background 0.1s;
+}
+.fp-btn:hover { background: var(--paper-3, #f4f2ee); }
+.fp-btn.fp-danger { color: #c0392b; }
+.fp-btn.fp-danger:hover { background: #fdf0ee; }
+.fp-confirm {
+  padding: 8px 12px;
+  border-top: 1px solid var(--rule, #ddd);
+  background: #fdf0ee;
+  display: none;
+  flex-direction: column;
+  gap: 6px;
+}
+.fp-confirm.fp-conf-visible { display: flex; }
+.fp-confirm-msg {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: #c0392b;
+  font-weight: 600;
+}
+.fp-confirm-btns { display: flex; gap: 6px; }
+.fp-confirm-btns button {
+  flex: 1;
+  padding: 5px 0;
+  border-radius: 3px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+#fp-yes { background: #c0392b; color: #fff; border-color: #a93226; }
+#fp-no  { background: var(--paper-3, #f4f2ee); color: var(--ink-1, #222); border-color: var(--rule, #ddd); }
+
 /* Strip internals on wide screens (≥1100px, non-phone-preview).
    Layout-position of the strip is now purely data-pos-driven (no forced top).
    These rules only add visual polish / header compactness at wide widths. */
@@ -4151,6 +4276,7 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
               <span>Aerial:</span>
               <select id="strip-aerial-select"></select>
             </div>
+            <button class="strip-zoom-btn" id="strip-zoom-btn" type="button" title="Toggle 500ft / 1000ft view window">500′</button>
           </div>
           <div class="strip-canvas" id="strip-canvas">
             <!-- populated by renderStrip() -->
@@ -4359,6 +4485,28 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
     <p id="sheet-body">This screen is a placeholder for the next build pass. The spec describes the full behavior in § 6.</p>
     <div class="row">
       <button class="btn alt" id="sheet-close">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ FEATURE CONTEXT POPUP (SLD + map clicks) ============ -->
+<div class="feature-popup" id="feature-popup">
+  <div class="fp-head">
+    <span class="fp-chip" id="fp-chip">??</span>
+    <span class="fp-name" id="fp-name">Feature</span>
+    <button id="fp-close" type="button" title="Close">✕</button>
+  </div>
+  <div class="fp-actions">
+    <button class="fp-btn" id="fp-move"     type="button">⊹ Move</button>
+    <button class="fp-btn" id="fp-vertices" type="button">⬡ Edit Vertices</button>
+    <button class="fp-btn" id="fp-edit"     type="button">✎ Edit Data</button>
+    <button class="fp-btn fp-danger" id="fp-del" type="button">✕ Delete</button>
+  </div>
+  <div class="fp-confirm" id="fp-confirm">
+    <div class="fp-confirm-msg">Delete this feature?</div>
+    <div class="fp-confirm-btns">
+      <button id="fp-yes" type="button">Delete</button>
+      <button id="fp-no"  type="button">Cancel</button>
     </div>
   </div>
 </div>
@@ -5351,20 +5499,14 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
             if (e && e.originalEvent && L.DomEvent && L.DomEvent.stopPropagation) {
               L.DomEvent.stopPropagation(e.originalEvent);
             }
-            startVertexEdit(pin, sec);
-            // Desktop: also open the feature data panel (right nav). The
-            // panel is non-modal so it doesn't block the user from dragging
-            // vertices on the map.
-            if (typeof isDesktopMode === 'function' && isDesktopMode()) {
-              openPinSheet(pin, sec);
-            }
+            openFeaturePopup(pin, sec, e.originalEvent || e);
           });
         } else {
           marker.on('click', (e) => {
             if (e && e.originalEvent && L.DomEvent && L.DomEvent.stopPropagation) {
               L.DomEvent.stopPropagation(e.originalEvent);
             }
-            openPinSheet(pin, sec);
+            openFeaturePopup(pin, sec, e.originalEvent || e);
           });
         }
         // Hover tooltip — quick read of who/what/where without opening the panel
@@ -6295,6 +6437,125 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
   // --- Pin inspection sheet ---------------------------------------------
   // Tracks which pin/sec is currently open in the side sheet so keyboard
   // shortcuts (Delete to discard) can act on it.
+  // ── Feature context popup ─────────────────────────────────────────────────
+  // Shown when the user clicks any feature in the SLD or on the Leaflet map.
+  // Replaces the direct openPinSheet call on tap/click; Edit Data still opens
+  // the full sheet.  Delete splices the pin and refreshes both views.
+  let _fpPin = null, _fpSec = null;
+
+  function openFeaturePopup(pin, sec, e) {
+    _fpPin = pin;
+    _fpSec = sec;
+    const popup = $('#feature-popup');
+    if (!popup) { openPinSheet(pin, sec); return; }
+
+    // Chip code + colour
+    const style = PIN_STYLE[pin.kind] || { code: '?', color: '#666' };
+    const chip  = $('#fp-chip');
+    chip.textContent    = style.code || '?';
+    chip.style.background = style.color || '#666';
+
+    // Display name: first populated descriptive field, fall back to id
+    const name = pin.attrs?.name || pin.attrs?.loc_name || pin.attrs?.material ||
+                 pin.attrs?.barrier_material || pin.attrs?.wall_material ||
+                 pin.attrs?.asset_id || pin.id;
+    $('#fp-name').textContent = name;
+
+    // "Edit Vertices" only makes sense for line / polygon geometry
+    const isShape = pin.geometry &&
+      (pin.geometry.type === 'LineString' || pin.geometry.type === 'Polygon' ||
+       pin.geometry.type === 'MultiLineString');
+    const vertBtn = $('#fp-vertices');
+    if (vertBtn) vertBtn.style.display = isShape ? '' : 'none';
+
+    // Reset any open inline-confirm row
+    const conf = $('#fp-confirm');
+    if (conf) conf.classList.remove('fp-conf-visible');
+
+    // Position near the click point (avoids going off-screen)
+    if (e) {
+      const raw = e.originalEvent || e;   // Leaflet wraps in .originalEvent
+      const px  = raw.clientX != null ? raw.clientX : window.innerWidth  / 2;
+      const py  = raw.clientY != null ? raw.clientY : window.innerHeight / 2;
+      const pw = 196, ph = 180;
+      popup.style.left = Math.max(8, Math.min(px + 4, window.innerWidth  - pw - 8)) + 'px';
+      popup.style.top  = Math.max(8, Math.min(py + 4, window.innerHeight - ph - 8)) + 'px';
+    }
+
+    popup.classList.add('fp-visible');
+  }
+
+  function closeFeaturePopup() {
+    const popup = $('#feature-popup');
+    if (popup) popup.classList.remove('fp-visible');
+    _fpPin = null;
+    _fpSec = null;
+  }
+
+  // ── Wire feature-popup button actions (once, at boot) ────────────────────
+  {
+    $('#fp-close').addEventListener('click', closeFeaturePopup);
+
+    // Click outside → dismiss
+    document.addEventListener('pointerdown', (e) => {
+      const popup = $('#feature-popup');
+      if (popup && popup.classList.contains('fp-visible') && !popup.contains(e.target)) {
+        closeFeaturePopup();
+      }
+    }, true);
+
+    // Move: hand off to existing relocate mode
+    $('#fp-move').addEventListener('click', () => {
+      const pin = _fpPin, sec = _fpSec;
+      closeFeaturePopup();
+      if (!pin || !sec) return;
+      if (window._rwStartRelocate) window._rwStartRelocate(pin, sec);
+    });
+
+    // Edit Vertices: enter vertex-edit mode (lines/polygons only)
+    $('#fp-vertices').addEventListener('click', () => {
+      const pin = _fpPin, sec = _fpSec;
+      closeFeaturePopup();
+      if (!pin || !sec) return;
+      if (typeof startVertexEdit === 'function') startVertexEdit(pin, sec);
+    });
+
+    // Edit Data: open the full detail sheet
+    $('#fp-edit').addEventListener('click', () => {
+      const pin = _fpPin, sec = _fpSec;
+      closeFeaturePopup();
+      if (!pin || !sec) return;
+      openPinSheet(pin, sec);
+    });
+
+    // Delete: show inline confirmation row
+    $('#fp-del').addEventListener('click', () => {
+      const conf = $('#fp-confirm');
+      if (conf) conf.classList.add('fp-conf-visible');
+    });
+
+    // Cancel delete
+    $('#fp-no').addEventListener('click', () => {
+      const conf = $('#fp-confirm');
+      if (conf) conf.classList.remove('fp-conf-visible');
+    });
+
+    // Confirm delete: splice pin, refresh map + SLD, autosave handles persistence
+    $('#fp-yes').addEventListener('click', () => {
+      const pin = _fpPin, sec = _fpSec;
+      closeFeaturePopup();
+      if (!pin || !sec) return;
+      const idx = sec.pins.indexOf(pin);
+      if (idx !== -1) {
+        sec.pins.splice(idx, 1);
+        initOrUpdateMap(sec);
+        if (typeof renderStrip === 'function' && stripOpen && stripCurrentSec === sec) {
+          renderStrip();
+        }
+      }
+    });
+  }
+
   const sheetState = { pin: null, sec: null };
 
   function openPinSheet(pin, sec) {
@@ -7210,7 +7471,12 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
   // neighborhood (± 250 ft from click) with all pins plotted on a vertical
   // axis. Click a pin in the strip → opens that pin's sheet (same as tapping
   // it on the map).
-  const STRIP_WINDOW_FT = 250;
+  // Viewport half-width in feet. Default 500 (shows ±250ft around click STA).
+  // Toggled to 1000 via the zoom button; persisted in localStorage.
+  let STRIP_WINDOW_FT = (() => {
+    const v = parseInt(localStorage.getItem('rw_strip_zoom') || '500', 10);
+    return v === 1000 ? 1000 : 500;
+  })();
   let stripOpen = false;
   let stripCenterSta = 0;
   let stripCurrentSec = null;
@@ -7419,7 +7685,14 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
     stripOpen = true;
     // Restore saved dock position (default: top for the horizontal SLD view)
     const savedPos = localStorage.getItem('rw_strip_pos') || 'top';
-    strip.dataset.pos = savedPos;
+    strip.dataset.pos  = savedPos;
+    strip.dataset.zoom = String(STRIP_WINDOW_FT);
+    // Sync zoom button text
+    const _zBtn = $('#strip-zoom-btn');
+    if (_zBtn) {
+      _zBtn.textContent = STRIP_WINDOW_FT === 500 ? "500′" : "1000′";
+      _zBtn.classList.toggle('zoom-wide', STRIP_WINDOW_FT === 1000);
+    }
     // Always offset map to make room for the strip
     $('#map-stage').dataset.strip = savedPos;
     _updateCollapseBtn();
@@ -7448,6 +7721,19 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
   $('#strip-aerial-select')?.addEventListener('change', (e) => {
     if (!stripCurrentSec) return;
     setAerialChoiceFor(stripCurrentSec.id, e.target.value);
+    renderStrip();
+  });
+  // SLD zoom toggle: 500′ ↔ 1000′ (labels hidden at 1000′ by CSS)
+  $('#strip-zoom-btn')?.addEventListener('click', () => {
+    STRIP_WINDOW_FT = STRIP_WINDOW_FT === 500 ? 1000 : 500;
+    localStorage.setItem('rw_strip_zoom', String(STRIP_WINDOW_FT));
+    const strip = $('#alignment-strip');
+    if (strip) strip.dataset.zoom = String(STRIP_WINDOW_FT);
+    const btn = $('#strip-zoom-btn');
+    if (btn) {
+      btn.textContent = STRIP_WINDOW_FT === 500 ? "500′" : "1000′";
+      btn.classList.toggle('zoom-wide', STRIP_WINDOW_FT === 1000);
+    }
     renderStrip();
   });
   // Collapse/expand toggle — works on both desktop (height) and non-desktop (width)
@@ -8118,7 +8404,7 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
       }
       bar.title = `${pin.id} · ${pin.kind} · ${pin.attrs.length_ft || '?'} ft ${pin.attrs.length_source === 'estimated_pending_ocr' ? '(est)' : ''}`;
       bar.style.pointerEvents = 'auto'; bar.style.cursor = 'pointer';
-      bar.addEventListener('click', () => openPinSheet(pin, sec));
+      bar.addEventListener('click', (e) => { e.stopPropagation(); openFeaturePopup(pin, sec, e); });
       inner.appendChild(bar);
       // ── Vertex labels: start badge, mid text, end text ─────────────────────
       const _BL      = state.settings?.labelSettings?.barLabels || {};
@@ -8147,7 +8433,7 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
         badge.style.color = '#fff';   // always white — badge is a colored chip, not a text label
         badge.style.transform = 'translate(-50%, -50%)';
         if (blStart.size) badge.style.fontSize = blStart.size + 'px';
-        badge.addEventListener('click', () => openPinSheet(pin, sec));
+        badge.addEventListener('click', (e) => { e.stopPropagation(); openFeaturePopup(pin, sec, e); });
         if (horiz) {
           badge.style.left = `${axisPct(startSta)}%`;
           badge.style.top = pin.attrs.side === 'L'
@@ -8238,7 +8524,7 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
       el.style.cssText = wStyle;
       el.title = `${pin.id} · culvert · ${pin.sta || fmtSta(pin.sta_ft)}`;
       el.innerHTML = svgMarkup;
-      el.addEventListener('click', () => openPinSheet(pin, sec));
+      el.addEventListener('click', (e) => { e.stopPropagation(); openFeaturePopup(pin, sec, e); });
       inner.appendChild(el);
       const culCode = pin.kind === 'ln_box_culvert' ? 'BC' : 'CL';
       const badge = document.createElement('div');
@@ -8246,7 +8532,7 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
       badge.textContent = culCode;
       badge.title = `${pin.id} · culvert · ${pin.sta || fmtSta(pin.sta_ft)}`;
       badge.style.background = '#0B3D66'; badge.style.transform = 'translate(-50%, -50%)';
-      badge.addEventListener('click', () => openPinSheet(pin, sec));
+      badge.addEventListener('click', (e) => { e.stopPropagation(); openFeaturePopup(pin, sec, e); });
       if (horiz) { badge.style.left = `${pSta}%`; badge.style.top = '50%'; }
       else        { badge.style.top  = `${pSta}%`; badge.style.left = '50%'; }
       inner.appendChild(badge);
@@ -8287,7 +8573,7 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
       if (pin.attrs.length_source === 'estimated_pending_ocr') el.classList.add('est-length');
       el.title = `${pin.id} · ${pin.kind}`;
       el.style.pointerEvents = 'auto'; el.style.cursor = 'pointer';
-      el.addEventListener('click', () => openPinSheet(pin, sec));
+      el.addEventListener('click', (e) => { e.stopPropagation(); openFeaturePopup(pin, sec, e); });
 
       if (horiz) {
         // Along-road axis = left; cross-road axis = top
@@ -8313,7 +8599,7 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
       badge.title = `${pin.id} · ${pin.kind}`;
       badge.style.background = _xColor;
       badge.style.transform = 'translate(-50%, -50%)';
-      badge.addEventListener('click', () => openPinSheet(pin, sec));
+      badge.addEventListener('click', (e) => { e.stopPropagation(); openFeaturePopup(pin, sec, e); });
       const badgeCross = side === 'R' ? `calc(50% + ${span / 2}px)`
                        : side === 'L' ? `calc(50% - ${span / 2}px)` : '50%';
       if (horiz) { badge.style.left = `${pSta}%`; badge.style.top  = badgeCross; }
@@ -8461,7 +8747,7 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
       el.style.cursor = 'pointer';
       el.textContent = style.code;
       el.title = `${pin.id} · ${pin.kind.replace('_',' ')} · STA ${pin.sta} · ${pin.attrs?.side || ''}`;
-      el.addEventListener('click', () => openPinSheet(pin, sec));
+      el.addEventListener('click', (e) => { e.stopPropagation(); openFeaturePopup(pin, sec, e); });
       inner.appendChild(el);
       const labelText = getStripLabelText(pin);
       if (labelText) {
