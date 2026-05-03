@@ -1590,6 +1590,59 @@ a { color: inherit; text-decoration: none; }
   background: var(--blue); color: #fff; border-color: var(--blue);
 }
 
+/* ── Resize handle — drag the inner edge to grow/shrink the SLD ─────────────
+   Sits at the edge of the strip that faces the map.
+   6px hit zone; a 2px line appears on hover as a visual affordance. */
+.strip-resize-handle {
+  position: absolute;
+  z-index: 20;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.strip-resize-handle::after {
+  content: '';
+  position: absolute;
+  background: var(--blue);
+  border-radius: 2px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.strip-resize-handle:hover::after { opacity: 0.5; }
+.strip-resize-handle:active::after { opacity: 1; }
+/* right dock — handle at left edge */
+.alignment-strip:not([data-pos]) .strip-resize-handle,
+.alignment-strip[data-pos="right"] .strip-resize-handle {
+  left: 0; top: 0; bottom: 0; width: 6px; cursor: ew-resize;
+}
+.alignment-strip:not([data-pos]) .strip-resize-handle::after,
+.alignment-strip[data-pos="right"] .strip-resize-handle::after {
+  left: 2px; top: 20%; bottom: 20%; width: 2px;
+}
+/* left dock — handle at right edge */
+.alignment-strip[data-pos="left"] .strip-resize-handle {
+  right: 0; top: 0; bottom: 0; width: 6px; cursor: ew-resize;
+}
+.alignment-strip[data-pos="left"] .strip-resize-handle::after {
+  right: 2px; top: 20%; bottom: 20%; width: 2px;
+}
+/* top dock — handle at bottom edge */
+.alignment-strip[data-pos="top"] .strip-resize-handle {
+  bottom: 0; left: 0; right: 0; height: 6px; cursor: ns-resize;
+}
+.alignment-strip[data-pos="top"] .strip-resize-handle::after {
+  bottom: 2px; left: 20%; right: 20%; height: 2px;
+}
+/* bottom dock — handle at top edge */
+.alignment-strip[data-pos="bottom"] .strip-resize-handle {
+  top: 0; left: 0; right: 0; height: 6px; cursor: ns-resize;
+}
+.alignment-strip[data-pos="bottom"] .strip-resize-handle::after {
+  top: 2px; left: 20%; right: 20%; height: 2px;
+}
+/* hide when collapsed */
+.alignment-strip.collapsed .strip-resize-handle { display: none; }
+
 /* Strip internals on wide screens (≥1100px, non-phone-preview).
    Layout-position of the strip is now purely data-pos-driven (no forced top).
    These rules only add visual polish / header compactness at wide widths. */
@@ -3786,6 +3839,7 @@ a { color: inherit; text-decoration: none; }
             <!-- populated by renderStrip() -->
             <div id="strip-guide-overlay" class="strip-guide-overlay" hidden></div>
           </div>
+          <div class="strip-resize-handle" id="strip-resize-handle" title="Drag to resize"></div>
           <button class="strip-collapse" id="strip-collapse" aria-label="Collapse strip" title="Collapse">▲</button>
         </aside>
 
@@ -6730,6 +6784,14 @@ a { color: inherit; text-decoration: none; }
   let stripCenterSta = 0;
   let stripCurrentSec = null;
 
+  // Restore saved strip sizes from previous session
+  {
+    const sv = localStorage.getItem('rw_strip_v_w');
+    if (sv) document.documentElement.style.setProperty('--strip-v-w', parseFloat(sv) + 'px');
+    const sh = localStorage.getItem('rw_strip_h_h');
+    if (sh) document.documentElement.style.setProperty('--strip-h-h', parseFloat(sh) + 'px');
+  }
+
   // --- Active GPS-tracked lines -----------------------------------------
   // Each entry: { id, kind, side, sec, staStart, vertices[[lat,lng],...],
   //              mapLayer: L.polyline, arrowMarker: L.marker }
@@ -7086,6 +7148,75 @@ a { color: inherit; text-decoration: none; }
     refreshActive();   // set initial active state
     // Re-apply after any external setStripPos call
     window._refreshDockArrows = refreshActive;
+  })();
+
+  // --- Strip resize handle -----------------------------------------------
+  (function wireStripResize() {
+    const strip  = $('#alignment-strip');
+    const handle = $('#strip-resize-handle');
+    if (!strip || !handle) return;
+
+    const MIN_V = 160, MIN_H = 120;   // px minimums
+    const MAX_FRAC = 0.70;             // max fraction of viewport
+    let _startClient, _startSize, _pos, _isHoriz;
+
+    function getVar(name) {
+      return parseFloat(
+        getComputedStyle(document.documentElement).getPropertyValue(name)
+      ) || 0;
+    }
+
+    function onDown(e) {
+      if (strip.classList.contains('collapsed')) return;
+      _pos     = strip.dataset.pos || 'right';
+      _isHoriz = _pos === 'top' || _pos === 'bottom';
+      const touch = e.touches ? e.touches[0] : e;
+      _startClient = _isHoriz ? touch.clientY : touch.clientX;
+      // Read the live CSS-variable value; fall back to rendered size
+      _startSize = _isHoriz
+        ? (getVar('--strip-h-h') || strip.offsetHeight)
+        : (getVar('--strip-v-w') || strip.offsetWidth);
+
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('touchmove', onMove, { passive: false });
+      document.addEventListener('mouseup',   onUp);
+      document.addEventListener('touchend',  onUp);
+      if (e.cancelable) e.preventDefault();
+    }
+
+    function onMove(e) {
+      const touch = e.touches ? e.touches[0] : e;
+      const delta = (_isHoriz ? touch.clientY : touch.clientX) - _startClient;
+      let newSize;
+      if (_pos === 'top')    newSize = _startSize + delta;
+      else if (_pos === 'bottom') newSize = _startSize - delta;
+      else if (_pos === 'left')   newSize = _startSize + delta;
+      else                        newSize = _startSize - delta;  // right
+
+      if (_isHoriz) {
+        newSize = Math.max(MIN_H, Math.min(Math.round(window.innerHeight * MAX_FRAC), newSize));
+        document.documentElement.style.setProperty('--strip-h-h', newSize + 'px');
+        localStorage.setItem('rw_strip_h_h', newSize);
+      } else {
+        newSize = Math.max(MIN_V, Math.min(Math.round(window.innerWidth * MAX_FRAC), newSize));
+        document.documentElement.style.setProperty('--strip-v-w', newSize + 'px');
+        localStorage.setItem('rw_strip_v_w', newSize);
+      }
+      if (e.cancelable) e.preventDefault();
+    }
+
+    function onUp() {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('touchmove', onMove);
+      document.removeEventListener('mouseup',   onUp);
+      document.removeEventListener('touchend',  onUp);
+      // Re-render so pxPerFt is recomputed for the new canvas dimensions
+      if (stripOpen) renderStrip();
+      if (state.map) setTimeout(() => state.map.invalidateSize(), 60);
+    }
+
+    handle.addEventListener('mousedown',  onDown);
+    handle.addEventListener('touchstart', onDown, { passive: false });
   })();
 
   // --- Strip layout guide ------------------------------------------------
