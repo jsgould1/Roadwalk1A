@@ -8242,6 +8242,7 @@ a { color: inherit; text-decoration: none; }
     drawState.tempLayers = [];
     $$('.feature-picker .fp-btn').forEach(b => b.classList.remove('active'));
     document.querySelector('.app')?.classList.remove('drawing');
+    fpArmedKind = null;   // clear armed kind so no stale state persists
     const hint = $('#draw-hint');
     if (hint) hint.hidden = true;
     $('#draw-banner')?.classList.remove('open');
@@ -8880,37 +8881,10 @@ a { color: inherit; text-decoration: none; }
     }
   });
 
-  // Strip GPS-tracking click — fires when NOT in draw mode and a line kind
-  // is armed in the feature picker. Click above CL = L side, below = R side.
-  $('#strip-canvas')?.addEventListener('click', (e) => {
-    if (_stripDragWasMoved) return;            // suppress tap after a pan gesture
-    if (drawState.tool) return;                    // draw mode owns these clicks
-    if (!stripCurrentSec) return;
-    if (!fpArmedKind || PIN_STYLE[fpArmedKind]?.kind !== 'line') return;
-    // Don't steal clicks on existing pins / bars
-    if (e.target.closest('.strip-feature-bar, .strip-pin, .strip-bar-label, .strip-pin-label, .strip-active-bar, .strip-active-arrow')) return;
-    const sec    = stripCurrentSec;
-    const canvas = e.currentTarget;
-    const rect   = canvas.getBoundingClientRect();
-    const _tpos  = $('#alignment-strip')?.dataset.pos || 'right';
-    const horiz  = (typeof isDesktopMode === 'function' && isDesktopMode()) ||
-                   _tpos === 'top' || _tpos === 'bottom';
-    const scrlr   = canvas.querySelector('#strip-scroller');
-    const pxPerFt = parseFloat(canvas.dataset.pxPerFt) || (STRIP_WINDOW_FT / (horiz ? rect.width : rect.height));
-    let staFt, side;
-    if (horiz) {
-      const scroll = scrlr ? scrlr.scrollLeft : 0;
-      staFt = ((e.clientX - rect.left) + scroll) / pxPerFt;
-      side  = (e.clientY - rect.top) < rect.height / 2 ? 'L' : 'R';
-    } else {
-      const scroll = scrlr ? scrlr.scrollTop : 0;
-      staFt = ((e.clientY - rect.top) + scroll) / pxPerFt;
-      side  = (e.clientX - rect.left) < rect.width / 2 ? 'L' : 'R';
-    }
-    const total = polylineLengthFt(sec.alignment);
-    staFt = Math.max(0, Math.min(total, staFt));
-    startActiveLine(fpArmedKind, sec, staFt, side);
-  });
+  // NOTE: The GPS-tracking auto-start handler (startActiveLine on background strip
+  // click when fpArmedKind was set) was removed. Background clicks on the strip
+  // now only add draw-mode vertices (first handler above, guarded by drawState.tool).
+  // Features must be started explicitly via the ⚡ feature picker → draw mode.
 
   // --- Media popup (Street View in-app iframe) ------------------------
   // Sources available:
