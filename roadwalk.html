@@ -1690,88 +1690,6 @@ a { color: inherit; text-decoration: none; }
     color: var(--ink-1);
     border-radius: 3px;
   }
-  body:not(.phone-preview) .strip-labels-btn {
-    margin-left: 8px;
-    font-family: 'IBM Plex Sans', sans-serif;
-    font-size: 11px;
-    padding: 2px 8px;
-    border: 1px solid var(--rule);
-    background: var(--paper-2);
-    color: var(--ink-1);
-    border-radius: 3px;
-    cursor: pointer;
-  }
-  body:not(.phone-preview) .strip-labels-btn:hover { background: var(--paper-3); }
-  body:not(.phone-preview) .strip-labels-btn.open  { background: var(--blue); color: #fff; border-color: var(--blue); }
-  body:not(.phone-preview) .strip-labels-panel {
-    position: absolute;
-    top: 100%;
-    right: 8px;
-    margin-top: 4px;
-    background: var(--paper-1);
-    border: 1px solid var(--rule);
-    box-shadow: 0 4px 14px rgba(0,0,0,0.15);
-    padding: 8px 10px;
-    z-index: 6000;
-    min-width: 240px;
-    font-size: 11px;
-  }
-  body:not(.phone-preview) .strip-labels-panel h4 {
-    margin: 0 0 6px 0;
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--ink-2);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-  body:not(.phone-preview) .strip-labels-panel .slp-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    align-items: center;
-    gap: 6px;
-    margin: 3px 0;
-  }
-  body:not(.phone-preview) .strip-labels-panel .slp-row label {
-    font-size: 11px;
-    color: var(--ink-2);
-    text-transform: capitalize;
-  }
-  body:not(.phone-preview) .strip-labels-panel select {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 10px;
-    padding: 1px 3px;
-    border: 1px solid var(--rule);
-    background: var(--paper-2);
-    color: var(--ink-1);
-    border-radius: 3px;
-    width: 100%;
-  }
-  /* Strip layout guide overlay */
-  .strip-guide-overlay {
-    position: absolute;
-    inset: 0;
-    z-index: 10;
-    overflow: hidden;
-    pointer-events: none;
-  }
-  body:not(.phone-preview) .strip-guide-btn {
-    margin-left: 8px;
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 9px;
-    font-weight: 700;
-    letter-spacing: 0.5px;
-    color: var(--ink-2);
-    padding: 2px 7px;
-    background: var(--paper);
-    border: 1px solid var(--rule);
-    cursor: pointer;
-    white-space: nowrap;
-    border-radius: 2px;
-    text-transform: uppercase;
-  }
-  body:not(.phone-preview) .strip-guide-btn:hover { background: var(--paper-3); }
-  body:not(.phone-preview) .strip-guide-btn.on { background: var(--blue); color: #fff; border-color: var(--blue); }
-  body:not(.phone-preview) .strip-header .strip-guide-btn { margin-left: 0; }
 
   /* In-strip labels: tiny chip rendered at the start of each pin/bar */
   .strip-pin-label,
@@ -4230,13 +4148,9 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
               <span>Aerial:</span>
               <select id="strip-aerial-select"></select>
             </div>
-            <button class="strip-labels-btn" id="strip-labels-btn" type="button" aria-haspopup="true">Labels ▾</button>
-            <div class="strip-labels-panel" id="strip-labels-panel" hidden></div>
-            <button class="strip-guide-btn" id="strip-guide-btn" type="button" title="Show / hide layout guide">Layout</button>
           </div>
           <div class="strip-canvas" id="strip-canvas">
             <!-- populated by renderStrip() -->
-            <div id="strip-guide-overlay" class="strip-guide-overlay" hidden></div>
           </div>
           <div class="strip-resize-handle" id="strip-resize-handle" title="Drag to resize"></div>
           <button class="strip-collapse" id="strip-collapse" aria-label="Collapse strip" title="Collapse">▲</button>
@@ -7522,74 +7436,6 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
     setAerialChoiceFor(stripCurrentSec.id, e.target.value);
     renderStrip();
   });
-  // Labels picker (opens a panel that lets you choose what to show next to
-  // each pin/polyline on the strip, on a per-kind basis)
-  const stripLabelsBtn = $('#strip-labels-btn');
-  const stripLabelsPanel = $('#strip-labels-panel');
-  function buildStripLabelsPanel() {
-    if (!stripCurrentSec) return;
-    const sec = stripCurrentSec;
-    // Find which kinds actually appear in this section
-    const kinds = Array.from(new Set((sec.pins || []).map(p => p.kind))).sort();
-    stripLabelsPanel.innerHTML = '';
-    const h = document.createElement('h4');
-    h.textContent = 'Strip labels';
-    stripLabelsPanel.appendChild(h);
-    for (const kind of kinds) {
-      const row = document.createElement('div');
-      row.className = 'slp-row';
-      const lbl = document.createElement('label');
-      lbl.textContent = kind.replace('_', ' ');
-      row.appendChild(lbl);
-      const sel = document.createElement('select');
-      sel.dataset.kind = kind;
-      const opts = stripLabelOptionsForKind(sec, kind);
-      const current = stripLabelFieldFor(kind);
-      // If current field is not in opts (e.g. default isn't present in this section),
-      // fall through to the closest choice — ensure 'off' is always selectable.
-      let valueWasFound = false;
-      for (const opt of opts) {
-        const o = document.createElement('option');
-        o.value = opt;
-        o.textContent = opt;
-        if (opt === current) { o.selected = true; valueWasFound = true; }
-        sel.appendChild(o);
-      }
-      if (!valueWasFound && opts.length) sel.value = opts[0];
-      sel.addEventListener('change', (e) => {
-        setStripLabelField(kind, e.target.value);
-        renderStrip();
-      });
-      row.appendChild(sel);
-      stripLabelsPanel.appendChild(row);
-    }
-    if (kinds.length === 0) {
-      const note = document.createElement('div');
-      note.style.color = 'var(--ink-3)';
-      note.textContent = 'No pins in section.';
-      stripLabelsPanel.appendChild(note);
-    }
-  }
-  stripLabelsBtn?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    if (!stripCurrentSec) return;
-    const isOpen = !stripLabelsPanel.hidden;
-    if (isOpen) {
-      stripLabelsPanel.hidden = true;
-      stripLabelsBtn.classList.remove('open');
-    } else {
-      buildStripLabelsPanel();
-      stripLabelsPanel.hidden = false;
-      stripLabelsBtn.classList.add('open');
-    }
-  });
-  // Click-away closes the panel
-  document.addEventListener('click', (e) => {
-    if (stripLabelsPanel.hidden) return;
-    if (e.target === stripLabelsBtn || stripLabelsPanel.contains(e.target)) return;
-    stripLabelsPanel.hidden = true;
-    stripLabelsBtn.classList.remove('open');
-  });
   // Collapse/expand toggle — works on both desktop (height) and non-desktop (width)
   const stripCollapseBtn = $('#strip-collapse');
   stripCollapseBtn.addEventListener('click', () => {
@@ -7727,9 +7573,7 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
 
   // --- Strip layout guide ------------------------------------------------
   (function wireStripGuide() {
-    const btn     = $('#strip-guide-btn');
-    const overlay = $('#strip-guide-overlay');
-    if (!btn || !overlay) return;
+    return; // removed — Layout button has been removed from UI
 
     function build() {
       const canvas = $('#strip-canvas');
