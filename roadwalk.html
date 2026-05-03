@@ -8084,6 +8084,31 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
       state.settings?.styleOverrides?.[k]?.renderAs || _DEFAULT_RENDER_AS[k] || 'inline';
 
     const isCulvertKind = k => k === 'ln_culvert' || k === 'ln_box_culvert';
+
+    // ── Pre-pass: project sta_ft for any pin that doesn't have it yet ──────────
+    // Covers point pins and cross-type line features that skip the trackPins path.
+    if (sec.alignment) {
+      for (const p of (sec.pins || [])) {
+        if (p.sta_ft != null) continue;
+        // Try mp_start first (cheap), then geometry projection
+        if (p.attrs?.mp_start != null) {
+          p.sta_ft = (p.attrs.mp_start - sec.mpStart) * 5280;
+          if (p.sta == null) p.sta = fmtSta(p.sta_ft);
+        } else if (p.geometry?.coordinates) {
+          try {
+            const coords = p.geometry.coordinates;
+            // Use first vertex for points, midpoint for line-type geometries
+            const mid = Array.isArray(coords[0])
+              ? coords[Math.floor(coords.length / 2)]
+              : coords;
+            const [lng, lat] = mid;
+            [p.sta_ft] = projectOntoAlignment({ lat, lng }, sec.alignment);
+            if (p.sta == null) p.sta = fmtSta(p.sta_ft);
+          } catch (_) { /* off-section — leave sta_ft null, pin skipped below */ }
+        }
+      }
+    }
+
     // Inline bars: parallel to road, need attrs.side
     const trackPins = (sec.pins || []).filter(p =>
       KIND_TO_SLOT[p.kind] && !isCulvertKind(p.kind)
@@ -8204,7 +8229,9 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
           lab.style.top       = pin.attrs.side === 'L' ? barCrossL : barCrossR;
         } else {
           lab.style.top       = `${axPct}%`;
-          lab.style.transform = 'translate(-50%, -50%)';
+          // Rotate -90deg so text runs along the bar (parallel to road axis in
+          // vertical mode); translate first to centre on the anchor point
+          lab.style.transform = 'translate(-50%, -50%) rotate(-90deg)';
           lab.style.left = pin.attrs.side === 'L'
             ? `calc(50% - ${roadHalf + baseOffset + halfThick}px)`
             : `calc(50% + ${roadHalf + baseOffset + halfThick}px)`;
@@ -8454,7 +8481,7 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
       const g = p.geometry?.type;
       return !(g === 'LineString' || g === 'MultiLineString' || g === 'Polygon');
     });
-    if (!allPointPins.length && !trackPins.length && !culvertPins.length) {
+    if (!allPointPins.length && !trackPins.length && !culvertPins.length && !crossPins.length) {
       const note = document.createElement('div');
       note.className = 'strip-empty-note';
       note.textContent = 'No features in this section.';
