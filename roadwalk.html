@@ -5362,6 +5362,8 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
         if (pin._editingVertices) continue;   // shown via the vertex-edit overlay
         const marker = buildPinLayer(pin);
         if (!marker) continue;
+        // Double-stroke lines attach a non-interactive inner (white) sibling layer
+        if (marker._innerLine) mapLayers.features.push(marker._innerLine.addTo(state.map));
         const isShape = pin.geometry &&
           (pin.geometry.type === 'LineString' || pin.geometry.type === 'Polygon');
         if (isShape) {
@@ -5684,6 +5686,22 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
       PIN_STYLE[item.value] = entry;
     });
   });
+
+  // Expose to external scripts (Style Guide panel, future panels).
+  // These are live references — mutations are reflected immediately.
+  window._RW = {
+    get FEATURE_CATALOG() { return FEATURE_CATALOG; },
+    get PIN_STYLE()        { return PIN_STYLE; },
+    get state()            { return state; },
+    get SECTIONS()         { return typeof SECTIONS !== 'undefined' ? SECTIONS : []; },
+    rerender() {
+      const sec = typeof SECTIONS !== 'undefined' && SECTIONS.find(s => s.id === state.sectionId);
+      if (sec) {
+        if (typeof initOrUpdateMap === 'function') initOrUpdateMap(sec);
+        if (typeof renderStrip === 'function' && typeof stripCurrentSec !== 'undefined' && stripCurrentSec === sec) renderStrip();
+      }
+    },
+  };
 
   // --- MUTCD Sign Catalog -----------------------------------------------
   // 171 sign codes: {c=code, n=name, cat=category, sh=shape, bg=bg-color, leg=legend-color, sz=std-size}
@@ -6109,16 +6127,35 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
     if (style.kind === 'line') {
       if (!pin.geometry || pin.geometry.type !== 'LineString') return null;
       const latlngs = pin.geometry.coordinates.map(c => [c[1], c[0]]);
+      // Resolve lineStyle → dashArray + double-stroke flag
+      const lsKey  = style.lineStyle || '';
+      const lsPat  = window._RW?.LINE_STYLE_MAP?.[lsKey] || null;
+      const resolvedDash = lsPat ? (lsPat.da ?? null) : (style.dashArray || null);
+      const isDouble     = lsPat?.double === true;
+      const wt = (style.weight || 4) * status.weight_mul;
       const line = L.polyline(latlngs, {
         color: style.color,
-        weight: (style.weight || 4) * status.weight_mul,
+        weight: isDouble ? wt + 4 : wt,
         opacity: status.opacity,
-        dashArray: style.dashArray || null,
+        dashArray: resolvedDash,
         lineCap: 'round',
-        // Don't bubble clicks to the map — otherwise the map's deselect-on-click
-        // handler immediately exits the vertex-edit session we just started.
         bubblingMouseEvents: false,
       });
+      // Double-stroke: attach a sibling inner line that the map renderer adds separately.
+      // Stored as ._innerLine so initOrUpdateMap can pick it up without breaking
+      // the existing click-handler pattern (click stays on the outer line).
+      if (isDouble) {
+        const innerDash = (lsPat.innerDa !== undefined) ? lsPat.innerDa : resolvedDash;
+        line._innerLine = L.polyline(latlngs, {
+          color: '#ffffff',
+          weight: Math.max(wt - 2, 1),
+          opacity: status.opacity * 0.85,
+          dashArray: innerDash,
+          lineCap: 'round',
+          interactive: false,
+          bubblingMouseEvents: false,
+        });
+      }
       // Default: line-only. Optional labels (length / offset / id) render
       // when their per-pin flags are set via the line-label popup.
       const labelLayers = [line];
@@ -8038,7 +8075,19 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
       const p2 = axisPct(endSta);
       const bar = document.createElement('div');
       bar.className = `strip-feature-bar kind-${pin.kind}`;
-      bar.style.background = PIN_STYLE[pin.kind]?.color || '#666';
+      const _barColor = PIN_STYLE[pin.kind]?.color || '#666';
+      const _barLsKey = PIN_STYLE[pin.kind]?.lineStyle || '';
+      const _barPat   = window._RW?.LINE_STYLE_MAP?.[_barLsKey];
+      if (_barPat?.sld) {
+        // Symbol pattern via CSS gradient
+        bar.style.backgroundColor = _barColor;
+        bar.style.backgroundImage = _barPat.sld.replace(/{c}/g, 'rgba(255,255,255,0.65)');
+      } else if (_barPat?.double) {
+        // Double line: two stripes at top and bottom of the bar, gap in center
+        bar.style.background = `linear-gradient(to bottom,${_barColor} 0 30%,transparent 30% 70%,${_barColor} 70% 100%)`;
+      } else {
+        bar.style.background = _barColor;
+      }
       if (pin.attrs.length_source === 'estimated_pending_ocr') bar.classList.add('est-length');
       const slotForKind = state.settings?.styleOverrides?.[pin.kind]?.slot || KIND_TO_SLOT[pin.kind] || 'line';
       const baseOffset = { fence: 32, swale: 24, guardrail: 16, sidewalk: 8, curb: 2, line: 0 }[slotForKind];
@@ -12945,13 +12994,42 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
     ln_fence:'fence',
   };
 
-  const DASH_OPTS = [
-    { v: '',          l: 'Solid' },
-    { v: '4 3',       l: 'Short dash' },
-    { v: '6 3',       l: 'Long dash' },
-    { v: '1 4',       l: 'Dotted' },
-    { v: '8 4 2 4',   l: 'Dash-dot' },
+  // Extended line style catalog.
+  // v = lineStyle key stored in styleOverrides/PIN_STYLE
+  // da = SVG stroke-dasharray for Leaflet map lines
+  // sld = CSS background-image token for SLD bars (uses {c} placeholder for color)
+  // double = render two parallel strokes on map
+  const LINE_STYLES = [
+    // ── Single-stroke ──────────────────────────────────────────────────────
+    { v: '',                  l: 'Solid',                   da: null },
+    { v: 'short_dash',        l: 'Short dash  — — —',       da: '4 3' },
+    { v: 'long_dash',         l: 'Long dash  ——  ——',        da: '6 3' },
+    { v: 'dotted',            l: 'Dotted  · · · ·',         da: '1 4' },
+    { v: 'dash_dot',          l: 'Dash-dot  —·—·',          da: '8 4 2 4' },
+    // ── Double-stroke ──────────────────────────────────────────────────────
+    { v: 'double_solid',      l: 'Double solid  ═══',       da: null,    double: true },
+    { v: 'double_dashed',     l: 'Double dashed  ╌╌╌',     da: '5 4',   double: true },
+    { v: 'double_solid_dash', l: 'Double solid+dash',       da: null,    double: true, innerDa: '5 4' },
+    { v: 'double_dash_solid', l: 'Double dash+solid',       da: '5 4',   double: true, innerDa: null  },
+    // ── Symbol patterns ────────────────────────────────────────────────────
+    { v: 'pipes',             l: 'Pipes  | | | |',          da: '1 7',
+      sld: 'repeating-linear-gradient(to right,{c} 0 2px,transparent 2px 10px)' },
+    { v: 'fwd_slash',         l: 'Slashes  / / / /',        da: '3 5',
+      sld: 'repeating-linear-gradient(60deg,{c} 0 2px,transparent 2px 9px)' },
+    { v: 'back_slash',        l: 'Back-slashes  \\ \\ \\ \\', da: '3 5',
+      sld: 'repeating-linear-gradient(-60deg,{c} 0 2px,transparent 2px 9px)' },
+    { v: 'caret',             l: 'Carets  ^ ^ ^ ^',         da: '3 2 1 2' },
+    { v: 'greater_than',      l: 'Greater-than  > > > >',   da: '4 2 2 3' },
+    { v: 'less_than',         l: 'Less-than  < < < <',      da: '2 3 4 2' },
+    { v: 'tilde',             l: 'Tildes  ~ ~ ~ ~',         da: '5 2 2 2 1 2' },
   ];
+  const LINE_STYLE_MAP = Object.fromEntries(LINE_STYLES.map(s => [s.v, s]));
+  // Expose so buildPinLayer (inside main IIFE) can resolve lineStyle patterns
+  if (window._RW) window._RW.LINE_STYLE_MAP = LINE_STYLE_MAP;
+  // Also schedule a re-exposure after _RW is ready (in case timing is tight)
+  document.addEventListener('DOMContentLoaded', () => {
+    if (window._RW) window._RW.LINE_STYLE_MAP = LINE_STYLE_MAP;
+  }, { once: true });
   const SLOT_OPTS = [
     { v: 'line',      l: 'Road edge' },
     { v: 'curb',      l: 'Curb' },
@@ -12972,12 +13050,14 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
   ];
 
   function ensureSettings() {
-    if (!state.settings.styleOverrides) state.settings.styleOverrides = {};
-    if (!state.settings.labelSettings)  state.settings.labelSettings = {
+    const st = window._RW?.state;
+    if (!st) return;
+    if (!st.settings.styleOverrides) st.settings.styleOverrides = {};
+    if (!st.settings.labelSettings)  st.settings.labelSettings = {
       badgeShow: true, badgeColor: '#ffffff', badgeSize: 10,
       mapLabelShow: true, staTickShow: true,
     };
-    if (!state.settings.hoverFields) state.settings.hoverFields = {
+    if (!st.settings.hoverFields) st.settings.hoverFields = {
       id: true, kind: true, sta: true, length_ft: true,
       area_sq_ft: true, side: true, condition: true, status: false,
     };
@@ -12989,8 +13069,10 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
 
   // Apply label CSS overrides via injected <style> tag
   window.sgApplyLabels = function() {
+    const rwState = window._RW?.state;
+    if (!rwState) return;
     ensureSettings();
-    const LS = state.settings.labelSettings;
+    const LS = rwState.settings.labelSettings;
     let st = document.getElementById('sg-dynamic-styles');
     if (!st) { st = document.createElement('style'); st.id = 'sg-dynamic-styles'; document.head.appendChild(st); }
     const r = [];
@@ -13004,27 +13086,29 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
 
   // Re-apply PIN_STYLE overrides and re-render current section
   function applyStyleOverrides() {
+    const rwState = window._RW?.state;
+    const rwPS    = window._RW?.PIN_STYLE;
+    if (!rwState || !rwPS) return;
     ensureSettings();
-    const SO = state.settings.styleOverrides;
+    const SO = rwState.settings.styleOverrides;
     Object.entries(SO).forEach(([k, ov]) => {
-      if (PIN_STYLE[k]) Object.assign(PIN_STYLE[k], ov);
+      if (rwPS[k]) Object.assign(rwPS[k], ov);
     });
     window.sgApplyLabels();
-    // Re-render if a section is active
-    const sec = typeof SECTIONS !== 'undefined' && SECTIONS.find(s => s.id === state.sectionId);
-    if (sec) {
-      if (typeof initOrUpdateMap === 'function') initOrUpdateMap(sec);
-      if (typeof renderStrip === 'function' && typeof stripCurrentSec !== 'undefined' && stripCurrentSec === sec) renderStrip();
-    }
+    window._RW?.rerender();
   }
 
   window.renderStyleGuide = function() {
     const body = document.getElementById('sg-body');
     if (!body) return;
+    const RW = window._RW;
+    if (!RW) { body.innerHTML = '<div style="padding:20px;color:#dc2626">Style guide not ready — reload the page.</div>'; return; }
     ensureSettings();
-    const SO = state.settings.styleOverrides;
-    const LS = state.settings.labelSettings;
-    const HF = state.settings.hoverFields;
+    const FEATURE_CATALOG = RW.FEATURE_CATALOG;
+    const PIN_STYLE       = RW.PIN_STYLE;
+    const SO = RW.state.settings.styleOverrides;
+    const LS = RW.state.settings.labelSettings;
+    const HF = RW.state.settings.hoverFields;
 
     function getS(kind) { return Object.assign({}, PIN_STYLE[kind] || {}, SO[kind] || {}); }
 
@@ -13041,7 +13125,7 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
       if (!cats.length) return;
       const cls = geom === 'line' ? 'sg-ln' : geom === 'polygon' ? 'sg-pg' : 'sg-pt';
       const colHdrs = geom === 'line'
-        ? '<span>Color</span><span>Code</span><span>Name</span><span>Wt</span><span>Dash</span><span>SLD Slot</span>'
+        ? '<span>Color</span><span>Code</span><span>Name</span><span>Wt</span><span>Line Style</span><span>SLD Slot</span>'
         : geom === 'polygon'
         ? '<span>Color</span><span>Code</span><span>Name</span><span>Wt</span>'
         : '<span>Color</span><span>Code</span><span>Name</span>';
@@ -13050,12 +13134,12 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
       cats.forEach(cat => {
         cat.items.forEach(item => {
           const k   = item.value;
-          const st  = getS(k);
-          const col = st.color || item.color || '#888';
-          const cod = st.code  || item.code  || '?';
-          const nm  = st.label != null ? st.label : (item.label || k);
-          const wt  = st.weight != null ? st.weight : (item.weight || 4);
-          const dsh = st.dashArray != null ? st.dashArray : (item.dashArray || '');
+          const sty = getS(k);
+          const col = sty.color || item.color || '#888';
+          const cod = sty.code  || item.code  || '?';
+          const nm  = sty.label != null ? sty.label : (item.label || k);
+          const wt  = sty.weight != null ? sty.weight : (item.weight || 4);
+          const lsv = SO[k]?.lineStyle ?? '';   // lineStyle key
           const slt = SO[k]?.slot || SG_DEFAULT_SLOT[k] || 'line';
           const colorBorder = (col.toLowerCase() === '#ffffff' || col.toLowerCase() === '#f5f1ea') ? 'border-color:#d1d5db' : '';
 
@@ -13069,8 +13153,8 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
             cells += `<input type="number" class="sg-weight" id="${rowId(k,'weight')}" value="${wt}" min="1" max="12" step="1">`;
           }
           if (geom === 'line') {
-            cells += `<select class="sg-select" id="${rowId(k,'dash')}">
-              ${DASH_OPTS.map(o => `<option value="${o.v}"${o.v === dsh ? ' selected' : ''}>${o.l}</option>`).join('')}
+            cells += `<select class="sg-select" id="${rowId(k,'ls')}">
+              ${LINE_STYLES.map(o => `<option value="${o.v}"${o.v === lsv ? ' selected' : ''}>${o.l}</option>`).join('')}
             </select>
             <select class="sg-select" id="${rowId(k,'slot')}">
               ${SLOT_OPTS.map(o => `<option value="${o.v}"${o.v === slt ? ' selected' : ''}>${o.l}</option>`).join('')}
@@ -13163,8 +13247,8 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
           if (wtEl) wtEl.oninput = e => { ov().weight = parseFloat(e.target.value) || 4; };
         }
         if (geom === 'line') {
-          const dashEl = document.getElementById(rowId(k, 'dash'));
-          if (dashEl) dashEl.onchange = e => { ov().dashArray = e.target.value || null; };
+          const lsEl = document.getElementById(rowId(k, 'ls'));
+          if (lsEl) lsEl.onchange = e => { ov().lineStyle = e.target.value; };
           const slotEl = document.getElementById(rowId(k, 'slot'));
           if (slotEl) slotEl.onchange = e => { ov().slot = e.target.value; };
         }
