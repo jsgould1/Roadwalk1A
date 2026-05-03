@@ -2007,6 +2007,7 @@ a { color: inherit; text-decoration: none; }
 }
 .trace-banner .tb-btn:hover { background: rgba(255,255,255,0.28); }
 .trace-banner .tb-done { border-color: rgba(100,220,100,0.7); }
+.trace-banner .tb-done:disabled { opacity: 0.35; cursor: default; border-color: rgba(255,255,255,0.3); }
 
 /* --- New section dialog (shown after trace is finished) --- */
 .nsd-overlay {
@@ -3599,6 +3600,18 @@ a { color: inherit; text-decoration: none; }
           <span class="tb-stats" id="trace-stats"></span>
           <button class="tb-btn tb-done" id="trace-done-btn">✓ Done</button>
           <button class="tb-btn" id="trace-cancel-btn">✕ Cancel</button>
+        </div>
+
+        <!-- Feature draw banner (shown when drawing a line or polygon feature) -->
+        <!-- Provides a touch-friendly ✓ Done button since iPad has no double-click -->
+        <div class="trace-banner" id="draw-banner">
+          <span id="draw-banner-type">DRAWING</span>
+          <span class="tb-sep">·</span>
+          <span id="draw-banner-vcount">0 pts</span>
+          <span class="tb-sep">·</span>
+          <span id="draw-banner-need"></span>
+          <button class="tb-btn tb-done" id="draw-done-btn" disabled>✓ Done</button>
+          <button class="tb-btn" id="draw-cancel-btn">✕ Cancel</button>
         </div>
 
         <!-- Feature picker — toggle button + collapsible panel, anchored topleft -->
@@ -8167,9 +8180,21 @@ a { color: inherit; text-decoration: none; }
 
   function _drawHintText(tool) {
     if (tool === 'point')   return 'Click on map or strip to drop point · Esc to cancel';
-    if (tool === 'line')    return 'Click vertices · double-click / Enter to finish · Esc to cancel';
-    if (tool === 'polygon') return 'Click vertices · double-click / Enter to close · Esc to cancel';
+    if (tool === 'line')    return 'Tap vertices · tap ✓ Done when finished · Esc to cancel';
+    if (tool === 'polygon') return 'Tap vertices · tap ✓ Done to close · Esc to cancel';
     return '';
+  }
+
+  // Update the draw-banner vertex counter and enable/disable the Done button.
+  function _updateDrawBanner() {
+    const n    = drawState.vertices.length;
+    const need = { line: 2, polygon: 3 }[drawState.tool] || 1;
+    const vcEl = $('#draw-banner-vcount');
+    if (vcEl) vcEl.textContent = `${n} pt${n !== 1 ? 's' : ''}`;
+    const needEl = $('#draw-banner-need');
+    if (needEl) needEl.textContent = n < need ? `(need ${need - n} more)` : '';
+    const doneBtn = $('#draw-done-btn');
+    if (doneBtn) doneBtn.disabled = n < need;
   }
 
   function setDrawTool(tool, kind) {
@@ -8192,6 +8217,15 @@ a { color: inherit; text-decoration: none; }
       const meta = (typeof PIN_STYLE !== 'undefined' && kind && PIN_STYLE[kind]) || null;
       hint.textContent = (kind ? `${(meta && meta.code) || kind}: ` : '') + _drawHintText(tool);
     }
+    // Show draw banner for line / polygon — gives touch users a ✓ Done button
+    if (tool === 'line' || tool === 'polygon') {
+      const meta   = (typeof PIN_STYLE !== 'undefined' && kind && PIN_STYLE[kind]) || null;
+      const code   = meta?.code || (kind ? kind.replace(/_/g, ' ') : tool.toUpperCase());
+      const typeEl = $('#draw-banner-type');
+      if (typeEl) typeEl.textContent = `DRAWING ${code.toUpperCase()}`;
+      _updateDrawBanner();
+      $('#draw-banner')?.classList.add('open');
+    }
     // Disable Leaflet's double-click zoom while drawing so dblclick = "finish"
     if (state.map && state.map.doubleClickZoom) state.map.doubleClickZoom.disable();
   }
@@ -8209,6 +8243,7 @@ a { color: inherit; text-decoration: none; }
     document.querySelector('.app')?.classList.remove('drawing');
     const hint = $('#draw-hint');
     if (hint) hint.hidden = true;
+    $('#draw-banner')?.classList.remove('open');
     if (state.map && state.map.doubleClickZoom) state.map.doubleClickZoom.enable();
   }
 
@@ -8750,7 +8785,7 @@ a { color: inherit; text-decoration: none; }
 
     const container = state.map.getContainer();
 
-    const _uiSelectors = '.leaflet-control, .map-ctl-stack, .basemap-ctrl, .rw-ks-toast, .fp-left-stack, .trace-banner';
+    const _uiSelectors = '.leaflet-control, .map-ctl-stack, .basemap-ctrl, .rw-ks-toast, .fp-left-stack, .trace-banner, #draw-banner';
 
     container.addEventListener('click', (e) => {
       if (relocateState && relocateState.active) return;
@@ -8769,7 +8804,7 @@ a { color: inherit; text-decoration: none; }
         }).addTo(state.map);
         drawState.tempLayers.push(m);
         if (drawState.tool === 'point') finishDraw();
-        else _redrawTempPolyline();
+        else { _redrawTempPolyline(); _updateDrawBanner(); }
         return;
       }
 
@@ -8840,6 +8875,7 @@ a { color: inherit; text-decoration: none; }
       }).addTo(state.map);
       drawState.tempLayers.push(m);
       _redrawTempPolyline();
+      _updateDrawBanner();
     }
   });
 
@@ -10236,6 +10272,10 @@ a { color: inherit; text-decoration: none; }
   // --- Alignment trace: Done / Cancel buttons in the trace banner ---
   $('#trace-done-btn').addEventListener('click', () => finishAlignmentTrace());
   $('#trace-cancel-btn').addEventListener('click', () => cancelAlignmentTrace());
+
+  // --- Feature draw: Done / Cancel buttons in the draw banner (touch-friendly) ---
+  $('#draw-done-btn').addEventListener('click', () => finishDraw());
+  $('#draw-cancel-btn').addEventListener('click', () => cancelDraw());
 
   // --- New Section dialog: Save / Cancel ---
   $('#nsd-save-btn').addEventListener('click', () => _commitNewSection());
