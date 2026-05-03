@@ -7878,9 +7878,10 @@ a { color: inherit; text-decoration: none; }
       clearTimeout(_stripScrollTimer);
       _stripScrollTimer = setTimeout(() => {
         _stripDragWasMoved = false;
-        // Sync Leaflet map to the current centre STA when scroll settles
+        // Sync Leaflet map crosshair + pan to the scrolled centre STA
         if (state.map && sec.alignment) {
           try {
+            updateStripCenterMapMarker(sec, stripCenterSta);  // move orange cross + update STA label
             const pt = pointAt(sec.alignment, stripCenterSta);
             state.map.panTo(pt, { animate: true, duration: 0.5 });
           } catch (_) {}
