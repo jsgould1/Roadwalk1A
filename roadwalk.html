@@ -8137,42 +8137,29 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
           .replace(/{side}/g,   pin.attrs?.side || '')
           .replace(/{kind}/g,   pin.kind || '');
       }
-      // Badge circles: one at start, then every STRIP_WINDOW_FT so the chip is
-      // always visible regardless of scroll position on long features.
+      // Badge circle at bar start
       if (blStart.show !== false) {
-        const _badgeText = resolveBarTpl(blStart.template);
-        const _badgeBg   = PIN_STYLE[pin.kind]?.color || '#444';
-        const _badgeCrossH = pin.attrs.side === 'L'
-          ? `calc(50% - ${baseOffset + slotThick + roadHalf + 3 - halfThick}px)`
-          : `calc(50% + ${baseOffset + roadHalf - 1 + halfThick}px)`;
-        const _badgeCrossV = pin.attrs.side === 'L'
-          ? `calc(50% - ${roadHalf + baseOffset + halfThick}px)`
-          : `calc(50% + ${roadHalf + baseOffset + halfThick}px)`;
-        function makeBadgeAt(staPct) {
-          const b = document.createElement('div');
-          b.className = 'strip-bar-badge';
-          b.textContent = _badgeText;
-          b.title = `${pin.id} · ${pin.kind}`;
-          b.style.background = _badgeBg;
-          b.style.transform = 'translate(-50%, -50%)';
-          if (blStart.color) b.style.color    = blStart.color;
-          if (blStart.size)  b.style.fontSize = blStart.size + 'px';
-          b.addEventListener('click', () => openPinSheet(pin, sec));
-          if (horiz) { b.style.left = `${staPct}%`; b.style.top  = _badgeCrossH; }
-          else        { b.style.top  = `${staPct}%`; b.style.left = _badgeCrossV; }
-          inner.appendChild(b);
+        const badge = document.createElement('div');
+        badge.className = 'strip-bar-badge';
+        badge.textContent = resolveBarTpl(blStart.template);
+        badge.title = `${pin.id} · ${pin.kind}`;
+        badge.style.background = PIN_STYLE[pin.kind]?.color || '#444';
+        badge.style.color = '#fff';   // always white — badge is a colored chip, not a text label
+        badge.style.transform = 'translate(-50%, -50%)';
+        if (blStart.size) badge.style.fontSize = blStart.size + 'px';
+        badge.addEventListener('click', () => openPinSheet(pin, sec));
+        if (horiz) {
+          badge.style.left = `${axisPct(startSta)}%`;
+          badge.style.top = pin.attrs.side === 'L'
+            ? `calc(50% - ${baseOffset + slotThick + roadHalf + 3 - halfThick}px)`
+            : `calc(50% + ${baseOffset + roadHalf - 1 + halfThick}px)`;
+        } else {
+          badge.style.top = `${axisPct(startSta)}%`;
+          badge.style.left = pin.attrs.side === 'L'
+            ? `calc(50% - ${roadHalf + baseOffset + halfThick}px)`
+            : `calc(50% + ${roadHalf + baseOffset + halfThick}px)`;
         }
-        // Always place one badge at the feature start
-        makeBadgeAt(axisPct(startSta));
-        // For features longer than one viewport window, add periodic badges so
-        // the chip stays visible as the user scrolls along the feature.
-        if (endSta - startSta > STRIP_WINDOW_FT) {
-          // Align repeat positions to round multiples of STRIP_WINDOW_FT
-          const firstRepeat = Math.ceil(startSta / STRIP_WINDOW_FT) * STRIP_WINDOW_FT;
-          for (let s = firstRepeat; s < endSta; s += STRIP_WINDOW_FT) {
-            if (s > startSta) makeBadgeAt(axisPct(s));  // skip if same as start
-          }
-        }
+        inner.appendChild(badge);
       }
       // Text labels at mid / end
       const barCrossL = `calc(50% - ${baseOffset + roadHalf + 3 + halfThick}px)`;
