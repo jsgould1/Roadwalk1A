@@ -8408,9 +8408,9 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
       inner.appendChild(bar);
       // ── Vertex labels: start badge, mid text, end text ─────────────────────
       const _BL      = state.settings?.labelSettings?.barLabels || {};
-      const blStart  = Object.assign({ show: true,  template: '{code}',   color: '#ffffff', size: 10 }, _BL.start);
-      const blMid    = Object.assign({ show: true,  template: '{id}',     color: '#ffffff', size: 10 }, _BL.mid);
-      const blEnd    = Object.assign({ show: true,  template: '{length}', color: '#ffffff', size: 10 }, _BL.end);
+      const blStart  = Object.assign({ show: true,  template: '{code}',   color: '#000000', size: 10 }, _BL.start);
+      const blMid    = Object.assign({ show: true,  template: '{id}',     color: '#000000', size: 10 }, _BL.mid);
+      const blEnd    = Object.assign({ show: true,  template: '{length}', color: '#000000', size: 10 }, _BL.end);
       const halfThick = Math.floor(slotThick / 2);
       function resolveBarTpl(tpl) {
         if (!tpl) return '';
@@ -13529,17 +13529,17 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
     if (!st.settings.styleOverrides) st.settings.styleOverrides = {};
     if (!st.settings.labelSettings)  st.settings.labelSettings = {
       barLabels: {
-        start: { show: true,  template: '{code}',   color: '#ffffff', size: 10 },
-        mid:   { show: true,  template: '{id}',     color: '#ffffff', size: 10 },
-        end:   { show: true,  template: '{length}', color: '#ffffff', size: 10 },
+        start: { show: true,  template: '{code}',   color: '#000000', size: 10 },
+        mid:   { show: true,  template: '{id}',     color: '#000000', size: 10 },
+        end:   { show: true,  template: '{length}', color: '#000000', size: 10 },
       },
       mapLabelShow: true, staTickShow: true,
     };
     // Migrate or init barLabels if labelSettings exists but barLabels doesn't
     if (!st.settings.labelSettings.barLabels) st.settings.labelSettings.barLabels = {
-      start: { show: true,  template: '{code}',   color: '#ffffff', size: 10 },
-      mid:   { show: true,  template: '{id}',     color: '#ffffff', size: 10 },
-      end:   { show: true,  template: '{length}', color: '#ffffff', size: 10 },
+      start: { show: true,  template: '{code}',   color: '#000000', size: 10 },
+      mid:   { show: true,  template: '{id}',     color: '#000000', size: 10 },
+      end:   { show: true,  template: '{length}', color: '#000000', size: 10 },
     };
     // Map pin label controls
     if (!st.settings.labelSettings.mapLabel) st.settings.labelSettings.mapLabel = {
@@ -13706,9 +13706,9 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
 
     // ── Section 2: Labels ──────────────────────────────────────────────────
     const _vxDefs = {
-      start: { show: true,  template: '{code}',   color: '#ffffff', size: 10 },
-      mid:   { show: true,  template: '{id}',     color: '#ffffff', size: 10 },
-      end:   { show: true,  template: '{length}', color: '#ffffff', size: 10 },
+      start: { show: true,  template: '{code}',   color: '#000000', size: 10 },
+      mid:   { show: true,  template: '{id}',     color: '#000000', size: 10 },
+      end:   { show: true,  template: '{length}', color: '#000000', size: 10 },
     };
     const BLab = LS.barLabels || {};
     function vxVal(vx, key) {
