@@ -7487,9 +7487,20 @@ a { color: inherit; text-decoration: none; }
       } else {
         aerialPicker.style.display = 'none';
       }
-      // Pavement band scrolls with content — span full inner width at 50% height
+      // Pavement band scrolls with content — span full inner at 50% cross-axis
       const pav = document.createElement('div');
       pav.className = 'strip-pavement-band';
+      if (horiz) {
+        // Horizontal strip: road runs L→R; band is a full-width horizontal stripe
+        pav.style.cssText =
+          'position:absolute;left:0;right:0;top:calc(50% - 25px);height:50px;' +
+          'background:#d8d8d8;border-top:1px solid #b8b8b8;border-bottom:1px solid #b8b8b8;z-index:1;';
+      } else {
+        // Vertical strip: road runs T→B; band is a full-height vertical stripe
+        pav.style.cssText =
+          'position:absolute;top:0;bottom:0;left:calc(50% - 25px);width:50px;' +
+          'background:#d8d8d8;border-left:1px solid #b8b8b8;border-right:1px solid #b8b8b8;z-index:1;';
+      }
       inner.appendChild(pav);
     } else {
       aerialPicker.style.display = 'none';
@@ -7514,46 +7525,8 @@ a { color: inherit; text-decoration: none; }
       && p.geometry && p.geometry.type === 'LineString' && p.attrs && p.attrs.side
     );
 
-    // Slot scaffold in inner — scrolls with content; % positions are same as when
-    // overlay-contained since inner has the same height/width as the canvas.
-    const activeSlots = new Set(trackPins.map(p => `${KIND_TO_SLOT[p.kind]||'line'}-${p.attrs.side}`));
-    const SLOT_ORDER = ['fence', 'swale', 'guardrail', 'sidewalk', 'curb', 'line'];
-    // In horiz mode the base CSS renders slots as vertical stripes (wrong).
-    // Force horizontal-band geometry via inline style so it always wins.
-    const _SLOT_H_TOP = {
-      'L-fence':'calc(50% - 69px)','L-swale':'calc(50% - 59px)',
-      'L-guardrail':'calc(50% - 48px)','L-sidewalk':'calc(50% - 38px)','L-curb':'calc(50% - 30px)',
-      'R-curb':'calc(50% + 27px)','R-sidewalk':'calc(50% + 32px)',
-      'R-guardrail':'calc(50% + 43px)','R-swale':'calc(50% + 52px)','R-fence':'calc(50% + 66px)',
-    };
-    const _SLOT_H_PX  = { fence:'3px', swale:'6px', guardrail:'5px', sidewalk:'6px', curb:'3px', line:'2px' };
-    const _SLOT_H_BG  = {
-      fence:  'repeating-linear-gradient(90deg,#B0A998 0 5px,transparent 5px 11px)',
-      swale:  'var(--paper-2)',
-      guardrail:'repeating-linear-gradient(90deg,#6B7079 0 7px,transparent 7px 12px)',
-      sidewalk:'var(--paper-3)',
-      curb:   '#6B7079',
-      line:   'transparent',
-    };
-    for (const side of ['L', 'R']) {
-      for (const slot of SLOT_ORDER) {
-        if (!activeSlots.has(`${slot}-${side}`)) continue;
-        const el = document.createElement('div');
-        el.className = `strip-slot side-${side}`;
-        el.dataset.slot = slot; el.dataset.side = side;
-        if (horiz) {
-          const topVal = _SLOT_H_TOP[`${side}-${slot}`] || 'calc(50% - 1px)';
-          const hPx    = _SLOT_H_PX[slot] || '2px';
-          const bg     = _SLOT_H_BG[slot] || 'transparent';
-          const extra  = slot === 'swale' ? 'border-top:1px dotted #B0A998;border-bottom:1px dotted #B0A998;' : '';
-          el.style.cssText =
-            `position:absolute;left:0;right:0;width:auto;` +
-            `top:${topVal};height:${hPx};bottom:auto;` +
-            `background:${bg};border-left:0;border-right:0;${extra}`;
-        }
-        inner.appendChild(el);
-      }
-    }
+    // (Slot scaffolds removed — full-section guide lines looked phantom/confusing;
+    //  feature bars themselves convey position relative to the pavement band.)
 
     for (const pin of trackPins) {
       const startSta = pin.sta_ft != null
@@ -7756,15 +7729,10 @@ a { color: inherit; text-decoration: none; }
       }
     }
 
-    // ── Centerline (overlay — always viewport-centred) ────────────────────────
+    // ── Centerline (overlay — hidden per design; road center implicit in band) ──
     const centerline = document.createElement('div');
     centerline.className = 'strip-centerline';
-    if (horiz) {
-      // Base CSS renders CL as a vertical stripe; force horizontal inline.
-      centerline.style.cssText =
-        'position:absolute;top:50%;left:20px;right:20px;bottom:auto;' +
-        'width:auto;height:2px;transform:translateY(-50%);';
-    }
+    centerline.style.display = 'none';
     overlay.appendChild(centerline);
 
     // ── Stationing tick labels (inner — scroll with content) ──────────────────
