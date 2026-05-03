@@ -2254,6 +2254,8 @@ a { color: inherit; text-decoration: none; }
   -webkit-user-select: none;
   min-width: 200px;
 }
+/* Ensure the HTML `hidden` attribute wins over the flex display above */
+.tally-panel[hidden] { display: none !important; }
 .tally-panel .tp-handle {
   background: var(--ink);
   color: var(--paper);
@@ -11479,9 +11481,11 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
         e.stopPropagation();
         const target = document.getElementById(row.dataset.target);
         if (!target) return;
-        const isVis = target.style.display !== 'none';
-        target.style.display = isVis ? 'none' : '';
-        row.classList.toggle('on', !isVis);
+        // Use target.hidden so the toggle works correctly whether the panel
+        // was initially hidden via the HTML `hidden` attribute or via JS.
+        const wasVisible = !target.hidden;
+        target.hidden = wasVisible;             // flip: hide if showing, show if hidden
+        row.classList.toggle('on', !wasVisible); // 'on' = panel is now visible
       });
     });
     document.addEventListener('click', (e) => {
