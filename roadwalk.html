@@ -2634,6 +2634,9 @@ a { color: inherit; text-decoration: none; }
   pointer-events: none;
   box-shadow: 0 1px 3px rgba(0,0,0,0.25);
 }
+/* Zoom-dependent label visibility: labels fade when the map view is wider than
+   ~1000 ft (roughly zoom < 19). Transition is instant on zoom (no animation). */
+#map.rw-labels-off .rw-line-info-label { opacity: 0 !important; pointer-events: none !important; }
 
 /* Editable vertex markers on the map */
 .rw-vertex {
@@ -11583,6 +11586,21 @@ a { color: inherit; text-decoration: none; }
     if (!state.map || state.map._rwVertexEditExitWired) return;
     state.map._rwVertexEditExitWired = true;
     state.map.on('zoomend', refreshStationTicksVisibility);
+    // Zoom-dependent line-label visibility: show only when view ≤ ~1000 ft wide
+    function _updateLineLabelVisibility() {
+      const mapEl = document.getElementById('map');
+      if (!mapEl || !state.map) return;
+      try {
+        const b   = state.map.getBounds();
+        const lat = state.map.getCenter().lat;
+        // 1° longitude ≈ cos(lat)×364,000 ft
+        const ftPerDegLon = Math.cos(lat * Math.PI / 180) * 364000;
+        const widthFt = (b.getEast() - b.getWest()) * ftPerDegLon;
+        mapEl.classList.toggle('rw-labels-off', widthFt > 1000);
+      } catch (_) {}
+    }
+    state.map.on('zoomend', _updateLineLabelVisibility);
+    _updateLineLabelVisibility();
     state.map.on('click', () => {
       if (vertexEditState.active) {
         exitVertexEdit();
