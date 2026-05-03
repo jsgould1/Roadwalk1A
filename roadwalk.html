@@ -5379,7 +5379,9 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
         const marker = buildPinLayer(pin);
         if (!marker) continue;
         // Double-stroke lines attach a non-interactive inner (white) sibling layer
-        if (marker._innerLine) mapLayers.features.push(marker._innerLine.addTo(state.map));
+        // Double-stroke inner line goes in the same featureGroup so it's
+        // removed and rebuilt together with the outer line on every rerender.
+        if (marker._innerLine) featureGroup.addLayer(marker._innerLine);
         const isShape = pin.geometry &&
           (pin.geometry.type === 'LineString' || pin.geometry.type === 'Polygon');
         if (isShape) {
@@ -5711,10 +5713,17 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
     get state()            { return state; },
     get SECTIONS()         { return typeof SECTIONS !== 'undefined' ? SECTIONS : []; },
     rerender() {
-      const sec = typeof SECTIONS !== 'undefined' && SECTIONS.find(s => s.id === state.sectionId);
-      if (sec) {
-        if (typeof initOrUpdateMap === 'function') initOrUpdateMap(sec);
-        if (typeof renderStrip === 'function' && typeof stripCurrentSec !== 'undefined' && stripCurrentSec === sec) renderStrip();
+      // Prefer stripCurrentSec (set when an SLD strip is open and persists when
+      // the user navigates to the Style Guide — showView resets state.sectionId).
+      // Fall back to state.sectionId for code paths that call rerender without
+      // an open strip (e.g. initial data load on the field view).
+      const sec = (typeof stripCurrentSec !== 'undefined' && stripCurrentSec)
+               || (typeof SECTIONS !== 'undefined' && state.sectionId
+                   && SECTIONS.find(s => s.id === state.sectionId));
+      if (!sec) return;
+      if (typeof initOrUpdateMap === 'function') initOrUpdateMap(sec);
+      if (typeof renderStrip === 'function' && typeof stripCurrentSec !== 'undefined' && stripCurrentSec === sec) {
+        renderStrip();
       }
     },
   };
