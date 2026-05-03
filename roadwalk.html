@@ -7743,12 +7743,39 @@ a { color: inherit; text-decoration: none; }
     // overlay-contained since inner has the same height/width as the canvas.
     const activeSlots = new Set(trackPins.map(p => `${KIND_TO_SLOT[p.kind]||'line'}-${p.attrs.side}`));
     const SLOT_ORDER = ['fence', 'swale', 'guardrail', 'sidewalk', 'curb', 'line'];
+    // In horiz mode the base CSS renders slots as vertical stripes (wrong).
+    // Force horizontal-band geometry via inline style so it always wins.
+    const _SLOT_H_TOP = {
+      'L-fence':'calc(50% - 69px)','L-swale':'calc(50% - 59px)',
+      'L-guardrail':'calc(50% - 48px)','L-sidewalk':'calc(50% - 38px)','L-curb':'calc(50% - 30px)',
+      'R-curb':'calc(50% + 27px)','R-sidewalk':'calc(50% + 32px)',
+      'R-guardrail':'calc(50% + 43px)','R-swale':'calc(50% + 52px)','R-fence':'calc(50% + 66px)',
+    };
+    const _SLOT_H_PX  = { fence:'3px', swale:'6px', guardrail:'5px', sidewalk:'6px', curb:'3px', line:'2px' };
+    const _SLOT_H_BG  = {
+      fence:  'repeating-linear-gradient(90deg,#B0A998 0 5px,transparent 5px 11px)',
+      swale:  'var(--paper-2)',
+      guardrail:'repeating-linear-gradient(90deg,#6B7079 0 7px,transparent 7px 12px)',
+      sidewalk:'var(--paper-3)',
+      curb:   '#6B7079',
+      line:   'transparent',
+    };
     for (const side of ['L', 'R']) {
       for (const slot of SLOT_ORDER) {
         if (!activeSlots.has(`${slot}-${side}`)) continue;
         const el = document.createElement('div');
         el.className = `strip-slot side-${side}`;
         el.dataset.slot = slot; el.dataset.side = side;
+        if (horiz) {
+          const topVal = _SLOT_H_TOP[`${side}-${slot}`] || 'calc(50% - 1px)';
+          const hPx    = _SLOT_H_PX[slot] || '2px';
+          const bg     = _SLOT_H_BG[slot] || 'transparent';
+          const extra  = slot === 'swale' ? 'border-top:1px dotted #B0A998;border-bottom:1px dotted #B0A998;' : '';
+          el.style.cssText =
+            `position:absolute;left:0;right:0;width:auto;` +
+            `top:${topVal};height:${hPx};bottom:auto;` +
+            `background:${bg};border-left:0;border-right:0;${extra}`;
+        }
         inner.appendChild(el);
       }
     }
@@ -7913,6 +7940,12 @@ a { color: inherit; text-decoration: none; }
     // ── Centerline (overlay — always viewport-centred) ────────────────────────
     const centerline = document.createElement('div');
     centerline.className = 'strip-centerline';
+    if (horiz) {
+      // Base CSS renders CL as a vertical stripe; force horizontal inline.
+      centerline.style.cssText =
+        'position:absolute;top:50%;left:20px;right:20px;bottom:auto;' +
+        'width:auto;height:2px;transform:translateY(-50%);';
+    }
     overlay.appendChild(centerline);
 
     // ── Stationing tick labels (inner — scroll with content) ──────────────────
@@ -7950,10 +7983,11 @@ a { color: inherit; text-decoration: none; }
     clickmark.className = 'strip-clickmark';
     if (horiz) {
       // Vertical orange bar centred at left:50% of the viewport.
-      // Must set right/height/width inline — the base CSS defaults to a
-      // horizontal bar (left:8px; right:8px; height:2px).
+      // Use explicit height:calc(100%-16px) — more reliable than height:auto
+      // + bottom:8px on Safari/WebKit where auto-stretch can misbehave.
       clickmark.style.cssText =
-        'top:8px;bottom:8px;left:50%;right:auto;width:2px;height:auto;' +
+        'position:absolute;top:8px;left:50%;right:auto;' +
+        'width:2px;height:calc(100% - 16px);' +
         'transform:translateX(-50%);z-index:5;pointer-events:none;' +
         `background:var(--orange);box-shadow:0 0 0 1px rgba(200,90,43,0.35);`;
     } else {
@@ -7983,6 +8017,18 @@ a { color: inherit; text-decoration: none; }
       el.className = `strip-pin ${sideClass}`;
       if (style.shape) el.classList.add('shape-' + style.shape);
       el.style[axisKey] = `${pct}%`;
+      if (horiz) {
+        // Base CSS positions pins as vertical-mode markers (right:50%, no top).
+        // Override inline so they ride the correct cross-section lane.
+        const _PIN_TOP = { L: 'calc(50% - 100px)', R: 'calc(50% + 92px)', C: 'calc(50% - 8px)' };
+        const _side = pin.attrs?.side || 'C';
+        el.style.top = _PIN_TOP[_side] || 'calc(50% - 8px)';
+        el.style.bottom = 'auto';
+        el.style.right = 'auto';
+        el.style.marginLeft = '0';
+        el.style.marginRight = '0';
+        el.style.transform = _side === 'C' ? 'translate(-50%,-50%)' : 'translateX(-50%)';
+      }
       el.style.background = style.color;
       el.style.opacity = pin.status === 'discarded' ? '0.3' : '1';
       el.style.zIndex = '3';       // above pavement band (z-index:1) and feature bars (z-index:2)
