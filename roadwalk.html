@@ -1462,200 +1462,120 @@ a { color: inherit; text-decoration: none; }
 .alignment-strip[data-pos="top"] .strip-pin.side-C:hover,
 .alignment-strip[data-pos="bottom"] .strip-pin.side-C:hover { transform: translate(-50%, -50%) scale(1.18); }
 
-/* ── Map offset: keeps the map (and its Leaflet controls) clear of the strip ── */
-@media (max-width: 1099px) {
-  /* Strip open — offset map away from the strip */
-  #map-stage[data-strip="right"] #map {
-    position: absolute !important;
-    top: 0 !important; left: 0 !important; bottom: 0 !important;
-    right: var(--strip-v-w) !important;
-    width: auto !important; height: auto !important; flex: none;
-  }
-  #map-stage[data-strip="left"] #map {
-    position: absolute !important;
-    top: 0 !important; right: 0 !important; bottom: 0 !important;
-    left: var(--strip-v-w) !important;
-    width: auto !important; height: auto !important; flex: none;
-  }
-  #map-stage[data-strip="top"] #map {
-    position: absolute !important;
-    left: 0 !important; right: 0 !important; bottom: 0 !important;
-    top: var(--strip-h-h) !important;
-    width: auto !important; height: auto !important; flex: none;
-  }
-  #map-stage[data-strip="bottom"] #map {
-    position: absolute !important;
-    top: 0 !important; left: 0 !important; right: 0 !important;
-    bottom: calc(var(--strip-h-h) + 22px) !important;
-    width: auto !important; height: auto !important; flex: none;
-  }
-  /* Strip collapsed — offset map by thin-tab thickness only */
-  #map-stage[data-strip="right-c"] #map {
-    position: absolute !important;
-    top: 0 !important; left: 0 !important; bottom: 0 !important;
-    right: var(--strip-thin) !important;
-    width: auto !important; height: auto !important; flex: none;
-  }
-  #map-stage[data-strip="left-c"] #map {
-    position: absolute !important;
-    top: 0 !important; right: 0 !important; bottom: 0 !important;
-    left: var(--strip-thin) !important;
-    width: auto !important; height: auto !important; flex: none;
-  }
-  #map-stage[data-strip="top-c"] #map {
-    position: absolute !important;
-    left: 0 !important; right: 0 !important; bottom: 0 !important;
-    top: var(--strip-thin) !important;
-    width: auto !important; height: auto !important; flex: none;
-  }
-  #map-stage[data-strip="bottom-c"] #map {
-    position: absolute !important;
-    top: 0 !important; left: 0 !important; right: 0 !important;
-    bottom: var(--strip-thin) !important;
-    width: auto !important; height: auto !important; flex: none;
-  }
-  /* Smooth resize animations */
-  .alignment-strip { transition: width 180ms ease, height 180ms ease; }
-  /* Non-desktop collapsed state — strip shrinks to a thin edge tab */
-  .alignment-strip.collapsed { overflow: hidden; }
-  .alignment-strip:not([data-pos]).collapsed,
-  .alignment-strip[data-pos="right"].collapsed {
-    width: var(--strip-thin) !important; height: auto !important;
-  }
-  .alignment-strip[data-pos="left"].collapsed {
-    width: var(--strip-thin) !important; height: auto !important;
-  }
-  .alignment-strip[data-pos="top"].collapsed,
-  .alignment-strip[data-pos="bottom"].collapsed {
-    height: var(--strip-thin) !important; width: auto;
-  }
-  /* Hide all content inside the thin tab — only the re-expand button shows */
-  .alignment-strip.collapsed .strip-header,
-  .alignment-strip.collapsed .strip-canvas { display: none; }
-  /* Collapse button centers itself in the thin tab */
-  .alignment-strip:not([data-pos]).collapsed #strip-collapse,
-  .alignment-strip[data-pos="right"].collapsed #strip-collapse,
-  .alignment-strip[data-pos="left"].collapsed #strip-collapse {
-    position: absolute !important;
-    top: 50% !important; left: 50% !important;
-    right: auto !important; bottom: auto !important;
-    transform: translate(-50%, -50%);
-    border: 0; background: transparent;
-    width: auto; height: auto;
-  }
-  .alignment-strip[data-pos="top"].collapsed #strip-collapse,
-  .alignment-strip[data-pos="bottom"].collapsed #strip-collapse {
-    position: absolute !important;
-    top: 50% !important; left: 50% !important;
-    right: auto !important; bottom: auto !important;
-    transform: translate(-50%, -50%);
-    border: 0; background: transparent;
-    width: auto; height: auto;
-  }
+/* ── Map offset: keeps the map (and its Leaflet controls) clear of the strip ──
+   Unconditional — applies at ALL viewport widths (no desktop exception). */
+/* Strip open — offset map away from the strip */
+#map-stage[data-strip="right"] #map {
+  position: absolute !important;
+  top: 0 !important; left: 0 !important; bottom: 0 !important;
+  right: var(--strip-v-w) !important;
+  width: auto !important; height: auto !important; flex: none;
 }
-/* Hide drag handle on desktop (strip is always horizontal top) */
-@media (min-width: 1100px) {
-  body:not(.phone-preview) .strip-drag-handle { display: none; }
+#map-stage[data-strip="left"] #map {
+  position: absolute !important;
+  top: 0 !important; right: 0 !important; bottom: 0 !important;
+  left: var(--strip-v-w) !important;
+  width: auto !important; height: auto !important; flex: none;
+}
+#map-stage[data-strip="top"] #map {
+  position: absolute !important;
+  left: 0 !important; right: 0 !important; bottom: 0 !important;
+  top: var(--strip-h-h) !important;
+  width: auto !important; height: auto !important; flex: none;
+}
+#map-stage[data-strip="bottom"] #map {
+  position: absolute !important;
+  top: 0 !important; left: 0 !important; right: 0 !important;
+  bottom: calc(var(--strip-h-h) + 22px) !important;
+  width: auto !important; height: auto !important; flex: none;
+}
+/* Strip collapsed — offset map by thin-tab thickness only */
+#map-stage[data-strip="right-c"] #map {
+  position: absolute !important;
+  top: 0 !important; left: 0 !important; bottom: 0 !important;
+  right: var(--strip-thin) !important;
+  width: auto !important; height: auto !important; flex: none;
+}
+#map-stage[data-strip="left-c"] #map {
+  position: absolute !important;
+  top: 0 !important; right: 0 !important; bottom: 0 !important;
+  left: var(--strip-thin) !important;
+  width: auto !important; height: auto !important; flex: none;
+}
+#map-stage[data-strip="top-c"] #map {
+  position: absolute !important;
+  left: 0 !important; right: 0 !important; bottom: 0 !important;
+  top: var(--strip-thin) !important;
+  width: auto !important; height: auto !important; flex: none;
+}
+#map-stage[data-strip="bottom-c"] #map {
+  position: absolute !important;
+  top: 0 !important; left: 0 !important; right: 0 !important;
+  bottom: var(--strip-thin) !important;
+  width: auto !important; height: auto !important; flex: none;
+}
+/* Smooth resize animations — all devices */
+.alignment-strip { transition: width 180ms ease, height 180ms ease; }
+/* Collapsed state — strip shrinks to a thin edge tab */
+.alignment-strip.collapsed { overflow: hidden; }
+.alignment-strip:not([data-pos]).collapsed,
+.alignment-strip[data-pos="right"].collapsed {
+  width: var(--strip-thin) !important; height: auto !important;
+}
+.alignment-strip[data-pos="left"].collapsed {
+  width: var(--strip-thin) !important; height: auto !important;
+}
+.alignment-strip[data-pos="top"].collapsed,
+.alignment-strip[data-pos="bottom"].collapsed {
+  height: var(--strip-thin) !important; width: auto;
+}
+/* Hide all content inside the thin tab — only the re-expand button shows */
+.alignment-strip.collapsed .strip-header,
+.alignment-strip.collapsed .strip-canvas { display: none; }
+/* Collapse button centers itself in the thin tab */
+.alignment-strip:not([data-pos]).collapsed #strip-collapse,
+.alignment-strip[data-pos="right"].collapsed #strip-collapse,
+.alignment-strip[data-pos="left"].collapsed #strip-collapse {
+  position: absolute !important;
+  top: 50% !important; left: 50% !important;
+  right: auto !important; bottom: auto !important;
+  transform: translate(-50%, -50%);
+  border: 0; background: transparent;
+  width: auto; height: auto;
+}
+.alignment-strip[data-pos="top"].collapsed #strip-collapse,
+.alignment-strip[data-pos="bottom"].collapsed #strip-collapse {
+  position: absolute !important;
+  top: 50% !important; left: 50% !important;
+  right: auto !important; bottom: auto !important;
+  transform: translate(-50%, -50%);
+  border: 0; background: transparent;
+  width: auto; height: auto;
 }
 
-/* Desktop full-viewport mode — strip becomes a HORIZONTAL bar above the map.
-   Replaces the right-sidebar layout. */
-@media (min-width: 1100px) {
-  body:not(.phone-preview) .map-stage {
-    display: block;               /* drop flex row (ribbons hidden anyway) */
-    position: relative;
-  }
-  /* Horizontal strip at top */
-  body:not(.phone-preview) .alignment-strip {
-    display: flex !important;
-    flex-direction: column;
-    top: 0;
-    right: 0;
-    left: 0;
-    bottom: auto;
-    width: auto;
-    height: 300px;
-    border-left: 0;
-    border-right: 0;
-    border-bottom: 1px solid var(--rule);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
-  }
-  body:not(.phone-preview) .strip-header .strip-close { display: none; }
-  body:not(.phone-preview) .strip-header {
-    flex: 0 0 auto;
-    padding: 3px 12px;
-    border-bottom: 1px solid var(--rule);
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    min-height: 24px;
-  }
-  /* Pull all header rows onto a single tight row */
-  body:not(.phone-preview) .strip-header .strip-kicker {
-    margin: 0;
-    font-size: 9px;
-    letter-spacing: 1px;
-    flex: 0 0 auto;
-  }
-  body:not(.phone-preview) .strip-header h3 {
-    font-size: 12px;
-    margin: 0;
-    flex: 0 0 auto;
-    gap: 4px;
-  }
-  body:not(.phone-preview) #strip-collapse {
-    width: 18px; height: 18px;
-    font-size: 10px;
-  }
-  body:not(.phone-preview) .strip-header .strip-sub {
-    font-size: 10px;
-    margin: 0;
-    flex: 1 1 auto;
-    color: var(--ink-3);
-  }
-  body:not(.phone-preview) .strip-header .strip-aerial-picker { margin-left: 0; }
-  body:not(.phone-preview) .strip-header .strip-labels-btn   { margin-left: 0; }
+/* ── Dock arrows — four directional buttons replace the old drag handle ─────
+   Visible on ALL devices. Active button (current dock edge) is highlighted. */
+.strip-dock-btns {
+  display: flex; align-items: center; gap: 2px;
+  flex-shrink: 0;
+}
+.strip-dock-btn {
+  background: transparent; border: 1px solid var(--rule);
+  color: var(--ink-3); cursor: pointer;
+  width: 20px; height: 20px; padding: 0;
+  font-size: 9px; line-height: 20px; text-align: center;
+  border-radius: 3px;
+  transition: background 0.12s, color 0.12s;
+}
+.strip-dock-btn:hover { background: var(--paper-3); color: var(--ink); }
+.strip-dock-btn.active {
+  background: var(--blue); color: #fff; border-color: var(--blue);
+}
 
-  /* Collapsed state — strip shrinks to a thin header bar */
-  body:not(.phone-preview) .alignment-strip.collapsed {
-    height: 28px;
-    transition: height 180ms ease;
-  }
-  body:not(.phone-preview) .alignment-strip.collapsed .strip-canvas,
-  body:not(.phone-preview) .alignment-strip.collapsed .strip-sub {
-    display: none;
-  }
-  body:not(.phone-preview) .alignment-strip.collapsed .strip-header {
-    padding: 4px 14px;
-    border-bottom: 0;
-  }
-  body:not(.phone-preview) .alignment-strip.collapsed .strip-header h3 {
-    font-size: 11px;
-    gap: 4px;
-  }
-  body:not(.phone-preview) .alignment-strip.collapsed .strip-kicker {
-    display: inline;
-    margin: 0 8px 0 0;
-  }
-  body:not(.phone-preview) .alignment-strip {
-    transition: height 180ms ease;
-  }
-  /* When strip is collapsed, map claims the freed space */
-  body:not(.phone-preview) .alignment-strip.collapsed ~ #map,
-  body:not(.phone-preview) .map-stage:has(.alignment-strip.collapsed) #map {
-    top: 28px !important;
-  }
-  /* Map sits below the strip */
-  body:not(.phone-preview) #map {
-    position: absolute !important;
-    top: 300px !important;
-    left: 0 !important;
-    right: 0 !important;
-    bottom: 0 !important;
-    width: auto !important;
-    height: auto !important;
-    flex: none;
-  }
+/* Strip internals on wide screens (≥1100px, non-phone-preview).
+   Layout-position of the strip is now purely data-pos-driven (no forced top).
+   These rules only add visual polish / header compactness at wide widths. */
+@media (min-width: 1100px) {
 
   /* Floating controls are wrapped as Leaflet controls (bound to the map's
      corners), so no per-breakpoint repositioning is needed. */
@@ -1805,8 +1725,8 @@ a { color: inherit; text-decoration: none; }
   body:not(.phone-preview) .strip-header .strip-guide-btn { margin-left: 0; }
 
   /* In-strip labels: tiny chip rendered at the start of each pin/bar */
-  body:not(.phone-preview) .strip-pin-label,
-  body:not(.phone-preview) .strip-bar-label {
+  .strip-pin-label,
+  .strip-bar-label {
     position: absolute;
     font-family: 'IBM Plex Mono', monospace;
     font-size: 9px;
@@ -3966,11 +3886,16 @@ a { color: inherit; text-decoration: none; }
           </select>
         </div>
 
-        <!-- Alignment strip — opens on centerline click -->
-        <aside class="alignment-strip" id="alignment-strip">
+        <!-- Alignment strip — always visible when a section is active -->
+        <aside class="alignment-strip" id="alignment-strip" data-pos="top">
           <div class="strip-header">
-            <!-- Drag handle: drag to snap strip to any edge; click to cycle right→bottom→left→top -->
-            <button class="strip-drag-handle" id="strip-drag-handle" title="Drag to reposition · click to cycle">⠿</button>
+            <!-- Dock arrows: click to snap strip to that edge -->
+            <div class="strip-dock-btns" id="strip-dock-btns">
+              <button class="strip-dock-btn" data-dock="top"    title="Dock to top">▲</button>
+              <button class="strip-dock-btn" data-dock="left"   title="Dock to left">◀</button>
+              <button class="strip-dock-btn" data-dock="right"  title="Dock to right">▶</button>
+              <button class="strip-dock-btn" data-dock="bottom" title="Dock to bottom">▼</button>
+            </div>
             <div class="strip-kicker" id="strip-kicker">Stationing detail</div>
             <h3>
               <span id="strip-title">Section</span>
@@ -5129,21 +5054,17 @@ a { color: inherit; text-decoration: none; }
       //     line itself) → pop up Google Street View at the projected centerline
       //     point. Discrimination is done in screen-pixel space so the on-line
       //     zone stays a consistent thickness regardless of zoom level.
-      const ON_LINE_PX = 8;
+      // Clicking anywhere along the route corridor selects this section.
+      // The SLD is always open and syncs with map pan — no STA-specific click needed.
       alignmentHit.on('click', (e) => {
-        if (drawState && drawState.tool) return;             // let draw clicks fall through to map
-        if (relocateState && relocateState.active) return;   // relocate needs the click
-        const [staFt, distFt] = projectOntoAlignment(e.latlng, sec.alignment);
-        const projLL = pointAt(sec.alignment, staFt);        // [lat, lng] on centerline
-        const projPx = state.map.latLngToLayerPoint(L.latLng(projLL[0], projLL[1]));
-        const pxDist = Math.hypot(e.layerPoint.x - projPx.x, e.layerPoint.y - projPx.y);
-        if (pxDist <= ON_LINE_PX) {
-          // ON the centerline: open the stationing strip
-          openStrip(sec, staFt);
+        if (drawState && drawState.tool) return;
+        if (relocateState && relocateState.active) return;
+        // Switch to this section if it isn't already active; the moveend sync
+        // handler will scroll the SLD to the clicked position automatically.
+        if (stripCurrentSec?.id !== sec.id) {
+          const [staFt] = projectOntoAlignment(e.latlng, sec.alignment);
+          openStrip(sec, staFt ?? 0);
         }
-        // OFF-line clicks no longer open Street View — drag the Pegman
-        // (top-right map control) onto the location instead. Off-line
-        // taps fall through here so they don't block feature drawing.
       });
 
       // --- Render real pre-walk pins (from prewalk-bundle.json) -----------
@@ -5200,9 +5121,8 @@ a { color: inherit; text-decoration: none; }
 
       if (state.mapLayers.me) state.mapLayers.me.setLatLng(sec.alignment[Math.floor(sec.alignment.length/2)]);
 
-      // Desktop mode: auto-open the persistent sidebar strip at section midpoint
-      if (typeof isDesktopMode === 'function' && isDesktopMode() &&
-          state.mapLayers._lastSecId !== sec.id) {
+      // Always open/update the SLD when switching to a new section
+      if (state.mapLayers._lastSecId !== sec.id) {
         const midStaFt = ((sec.mpEnd - sec.mpStart) * 5280) / 2;
         openStrip(sec, midStaFt);
       }
@@ -5928,16 +5848,16 @@ a { color: inherit; text-decoration: none; }
       if (latlngs.length >= 2) {
         const startLL = latlngs[0];
         const endLL   = latlngs[latlngs.length - 1];
-        // Length label sits at the endpoint of the line
-        if (flags.length && pin.attrs?.length_ft) {
+        // Length label sits at the endpoint of the line — ON by default
+        if (flags.length !== false && pin.attrs?.length_ft) {
           labelLayers.push(makeChipMarker(endLL, `${Math.round(pin.attrs.length_ft)}'`));
         }
         if (flags.offset && pin.attrs?.offset_start_ft != null) {
           labelLayers.push(makeChipMarker(startLL, `${Math.round(pin.attrs.offset_start_ft)}' off ¢`));
         }
         // ID label at the polyline's mid-arc-length, rotated parallel to
-        // the line direction (kept right-side-up by clamping rotation).
-        if (flags.id) {
+        // the line direction (kept right-side-up by clamping rotation) — ON by default
+        if (flags.id !== false) {
           const totalLen = polylineLengthFt(latlngs);
           const midSta = totalLen / 2;
           const midLL  = pointAt(latlngs, midSta);
@@ -7129,12 +7049,13 @@ a { color: inherit; text-decoration: none; }
     strip.classList.add('open');
     strip.classList.remove('collapsed');
     stripOpen = true;
-    // Restore saved dock position (default: right)
-    const savedPos = localStorage.getItem('rw_strip_pos') || 'right';
+    // Restore saved dock position (default: top for the horizontal SLD view)
+    const savedPos = localStorage.getItem('rw_strip_pos') || 'top';
     strip.dataset.pos = savedPos;
-    // Offset the Leaflet map so its controls aren't hidden behind the strip
-    if (!isDesktopMode()) $('#map-stage').dataset.strip = savedPos;
+    // Always offset map to make room for the strip
+    $('#map-stage').dataset.strip = savedPos;
     _updateCollapseBtn();
+    if (typeof window._refreshDockArrows === 'function') window._refreshDockArrows();
     updateStripCenterMapMarker(sec, clickStaFt);
     setTimeout(() => state.map && state.map.invalidateSize(), 250);
     renderStrip();
@@ -7147,6 +7068,11 @@ a { color: inherit; text-decoration: none; }
     stripOpen = false;
     stripCurrentSec = null;
     updateStripCenterMapMarker(null, null);   // remove the dot
+    // Unwire map→SLD sync
+    if (state.map && state.map._rwMapMoveHandler) {
+      state.map.off('moveend', state.map._rwMapMoveHandler);
+      state.map._rwMapMoveHandler = null;
+    }
     setTimeout(() => state.map && state.map.invalidateSize(), 250);
   }
   $('#strip-close').addEventListener('click', closeStrip);
@@ -7231,7 +7157,7 @@ a { color: inherit; text-decoration: none; }
     const stage   = $('#map-stage');
     const pos     = strip.dataset.pos || 'right';
     const collapsed = strip.classList.toggle('collapsed');
-    if (!isDesktopMode()) stage.dataset.strip = collapsed ? `${pos}-c` : pos;
+    stage.dataset.strip = collapsed ? `${pos}-c` : pos;
     _updateCollapseBtn();
     if (state.map) setTimeout(() => state.map.invalidateSize(), 220);
   });
@@ -7243,17 +7169,12 @@ a { color: inherit; text-decoration: none; }
     const strip     = $('#alignment-strip');
     const btn       = $('#strip-collapse');
     if (!strip || !btn) return;
-    const pos       = strip.dataset.pos || 'right';
+    const pos       = strip.dataset.pos || 'top';
     const collapsed = strip.classList.contains('collapsed');
-    if (isDesktopMode()) {
-      // Desktop: strip is horizontal — ▲ shrinks it up, ▼ expands it down
-      btn.textContent = collapsed ? '▼' : '▲';
-    } else {
-      // Non-desktop: arrows match the edge the strip is docked to
-      const ARROWS = { right: ['▶','◀'], left: ['◀','▶'], top: ['▲','▼'], bottom: ['▼','▲'] };
-      const [openA, collA] = ARROWS[pos] || ARROWS.right;
-      btn.textContent = collapsed ? collA : openA;
-    }
+    // Arrow always points toward the edge the strip is docked on (collapse = toward edge)
+    const ARROWS = { right: ['▶','◀'], left: ['◀','▶'], top: ['▲','▼'], bottom: ['▼','▲'] };
+    const [openA, collA] = ARROWS[pos] || ARROWS.top;
+    btn.textContent = collapsed ? collA : openA;
     btn.setAttribute('aria-label', collapsed ? 'Expand strip' : 'Collapse strip');
     btn.title = collapsed ? 'Expand' : 'Collapse';
   }
@@ -7264,51 +7185,35 @@ a { color: inherit; text-decoration: none; }
     const stage = $('#map-stage');
     strip.dataset.pos = pos;
     localStorage.setItem('rw_strip_pos', pos);
-    if (!isDesktopMode() && stripOpen) {
+    if (stripOpen) {
       const collapsed = strip.classList.contains('collapsed');
       stage.dataset.strip = collapsed ? `${pos}-c` : pos;
     }
     _updateCollapseBtn();
+    if (typeof window._refreshDockArrows === 'function') window._refreshDockArrows();
     if (stripOpen) renderStrip();
     if (state.map) setTimeout(() => state.map.invalidateSize(), 250);
   }
 
-  // ── Drag handle: drag pointer to any edge, or click to cycle ────────────
-  (function wireStripDrag() {
-    const handle = $('#strip-drag-handle');
-    if (!handle) return;
-    const CYCLE = ['right', 'bottom', 'left', 'top'];
-    let startX, startY, dragging = false;
-
-    function edgeFromPoint(cx, cy) {
-      // Return the name of the nearest edge of #map-stage to (cx, cy)
-      const r = $('#map-stage').getBoundingClientRect();
-      const px = (cx - r.left) / r.width;
-      const py = (cy - r.top)  / r.height;
-      const d = { right: 1 - px, left: px, top: py, bottom: 1 - py };
-      return Object.entries(d).sort(([, a], [, b]) => a - b)[0][0];
+  // ── Dock arrows: click a directional button to snap strip to that edge ──
+  (function wireDockArrows() {
+    const container = $('#strip-dock-btns');
+    if (!container) return;
+    function refreshActive() {
+      const cur = $('#alignment-strip')?.dataset.pos || 'top';
+      container.querySelectorAll('.strip-dock-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.dock === cur);
+      });
     }
-
-    handle.addEventListener('pointerdown', (e) => {
-      startX = e.clientX; startY = e.clientY; dragging = false;
-      handle.setPointerCapture(e.pointerId);
-      e.preventDefault();
+    container.addEventListener('click', (e) => {
+      const btn = e.target.closest('.strip-dock-btn');
+      if (!btn) return;
+      setStripPos(btn.dataset.dock);
+      refreshActive();
     });
-    handle.addEventListener('pointermove', (e) => {
-      if (Math.abs(e.clientX - startX) > 8 || Math.abs(e.clientY - startY) > 8)
-        dragging = true;
-    });
-    handle.addEventListener('pointerup', (e) => {
-      if (dragging) {
-        setStripPos(edgeFromPoint(e.clientX, e.clientY));
-      } else {
-        // Tap/click → advance to next position in the cycle
-        const cur = $('#alignment-strip').dataset.pos || 'right';
-        const idx = CYCLE.indexOf(cur);
-        setStripPos(CYCLE[(idx + 1) % CYCLE.length]);
-      }
-      dragging = false;
-    });
+    refreshActive();   // set initial active state
+    // Re-apply after any external setStripPos call
+    window._refreshDockArrows = refreshActive;
   })();
 
   // --- Strip layout guide ------------------------------------------------
@@ -7320,9 +7225,8 @@ a { color: inherit; text-decoration: none; }
     function build() {
       const canvas = $('#strip-canvas');
       if (!canvas) return;
-      const _gpos  = $('#alignment-strip')?.dataset.pos || 'right';
-      const horiz = (typeof isDesktopMode === 'function' && isDesktopMode()) ||
-                    _gpos === 'top' || _gpos === 'bottom';
+      const _gpos  = $('#alignment-strip')?.dataset.pos || 'top';
+      const horiz = _gpos === 'top' || _gpos === 'bottom';
       const W = canvas.offsetWidth  || 600;
       const H = canvas.offsetHeight || 270;
       if (H < 60) { overlay.innerHTML = ''; return; }
@@ -7625,9 +7529,8 @@ a { color: inherit; text-decoration: none; }
     const sec = stripCurrentSec;
     const canvas = $('#strip-canvas');
     canvas.innerHTML = '';
-    const _pos  = $('#alignment-strip')?.dataset.pos || 'right';
-    const horiz = (typeof isDesktopMode === 'function' && isDesktopMode()) ||
-                  _pos === 'top' || _pos === 'bottom';
+    const _pos  = $('#alignment-strip')?.dataset.pos || 'top';
+    const horiz = _pos === 'top' || _pos === 'bottom';
 
     // ── Dimensions ───────────────────────────────────────────────────────────
     const totalFt  = Math.max(polylineLengthFt(sec.alignment), STRIP_WINDOW_FT);
@@ -7835,6 +7738,50 @@ a { color: inherit; text-decoration: none; }
             : `calc(50% + ${baseOffset + halfThick}px)`;
         }
         inner.appendChild(badge);
+      }
+      // ── Bar labels: ID at midpoint, length at endpoint (default ON) ──────────
+      const lflags = pin.attrs?.labels || {};
+      const barMidPct = axisPct((startSta + endSta) / 2);
+      const barEndPct = axisPct(endSta);
+      // Cross-track offset — label sits just outside the bar on the road side
+      const labelOffset = baseOffset + slotThick + 30;
+      if (lflags.id !== false) {
+        const idLab = document.createElement('div');
+        idLab.className = 'strip-bar-label';
+        idLab.textContent = pin.id;
+        idLab.title = pin.id;
+        if (horiz) {
+          idLab.style.left      = `${barMidPct}%`;
+          idLab.style.transform = 'translateX(-50%)';
+          idLab.style.top       = pin.attrs.side === 'L'
+            ? `calc(50% - ${labelOffset + 14}px)`
+            : `calc(50% + ${labelOffset - 14}px)`;
+        } else {
+          idLab.style.top       = `${barMidPct}%`;
+          idLab.style.transform = 'translateY(-50%)';
+          if (pin.attrs.side === 'L') idLab.style.right = `calc(50% + ${labelOffset}px)`;
+          else                        idLab.style.left  = `calc(50% + ${labelOffset}px)`;
+        }
+        inner.appendChild(idLab);
+      }
+      if (lflags.length !== false && pin.attrs?.length_ft) {
+        const lenLab = document.createElement('div');
+        lenLab.className = 'strip-bar-label';
+        lenLab.textContent = `${Math.round(pin.attrs.length_ft)}'`;
+        lenLab.title = `${pin.id} length`;
+        if (horiz) {
+          lenLab.style.left      = `${barEndPct}%`;
+          lenLab.style.transform = 'translateX(-50%)';
+          lenLab.style.top       = pin.attrs.side === 'L'
+            ? `calc(50% - ${labelOffset + 14}px)`
+            : `calc(50% + ${labelOffset - 14}px)`;
+        } else {
+          lenLab.style.top       = `${barEndPct}%`;
+          lenLab.style.transform = 'translateY(-50%)';
+          if (pin.attrs.side === 'L') lenLab.style.right = `calc(50% + ${labelOffset}px)`;
+          else                        lenLab.style.left  = `calc(50% + ${labelOffset}px)`;
+        }
+        inner.appendChild(lenLab);
       }
     }
 
@@ -8107,19 +8054,54 @@ a { color: inherit; text-decoration: none; }
         // Sync Leaflet map crosshair + pan to the scrolled centre STA
         if (state.map && sec.alignment) {
           try {
-            updateStripCenterMapMarker(sec, stripCenterSta);  // move orange cross + update STA label
+            updateStripCenterMapMarker(sec, stripCenterSta);
             const pt = pointAt(sec.alignment, stripCenterSta);
+            _mapPanning = true;                              // suppress map→SLD echo
             state.map.panTo(pt, { animate: true, duration: 0.5 });
+            setTimeout(() => { _mapPanning = false; }, 700);
           } catch (_) {}
         }
       }, 150);
     }, { passive: true });
+
+    // ── Map → SLD sync: map pan scrolls the SLD to match ─────────────────────
+    // Wired fresh on each renderStrip so pxPerFt/totalFt are always current.
+    // Uses _mapPanning flag to break the SLD-scroll→pan→SLD echo loop.
+    if (state.map) {
+      if (state.map._rwMapMoveHandler) {
+        state.map.off('moveend', state.map._rwMapMoveHandler);
+      }
+      state.map._rwMapMoveHandler = () => {
+        if (_mapPanning) return;
+        if (!stripCurrentSec?.alignment) return;
+        try {
+          const center = state.map.getCenter();
+          const [staFt] = projectOntoAlignment(center, stripCurrentSec.alignment);
+          if (staFt == null) return;
+          const clamped = Math.max(STRIP_WINDOW_FT / 2,
+            Math.min(totalFt - STRIP_WINDOW_FT / 2, staFt));
+          stripCenterSta = clamped;
+          updateHeader(clamped);
+          clickmark.dataset.sta = `STA ${fmtSta(clamped)}`;
+          updateStripCenterMapMarker(stripCurrentSec, clamped);
+          const target = Math.max(0, Math.round((clamped - STRIP_WINDOW_FT / 2) * pxPerFt));
+          _mapPanning = true;
+          if (horiz) scroller.scrollLeft = target;
+          else        scroller.scrollTop  = target;
+          setTimeout(() => { _mapPanning = false; }, 100);
+        } catch (_) {}
+      };
+      state.map.on('moveend', state.map._rwMapMoveHandler);
+    }
   }
 
   // _stripDragWasMoved / _stripScrollTimer — set by the renderStrip scroll
   // listener to suppress tap-to-place events during/after a scroll flick.
   let _stripDragWasMoved = false;
   let _stripScrollTimer  = null;
+  // _mapPanning — set while an SLD-driven map.panTo() is in flight to prevent
+  // the resulting moveend from scrolling the SLD back (infinite loop guard).
+  let _mapPanning = false;
 
   // --- Drawing tools (add Point / Line / Polygon to map or strip) -------
   // Active tool puts the app in "draw mode": clicks become vertices, double-
@@ -9062,9 +9044,8 @@ a { color: inherit; text-decoration: none; }
     const sec = stripCurrentSec;
     const canvas = e.currentTarget;
     const rect = canvas.getBoundingClientRect();
-    const _cpos  = $('#alignment-strip')?.dataset.pos || 'right';
-    const horiz = (typeof isDesktopMode === 'function' && isDesktopMode()) ||
-                  _cpos === 'top' || _cpos === 'bottom';
+    const _cpos  = $('#alignment-strip')?.dataset.pos || 'top';
+    const horiz = _cpos === 'top' || _cpos === 'bottom';
     const scrlr   = canvas.querySelector('#strip-scroller');
     const pxPerFt = parseFloat(canvas.dataset.pxPerFt) || (STRIP_WINDOW_FT / (horiz ? rect.width : rect.height));
     let staFt, crossFt;
@@ -10703,35 +10684,16 @@ a { color: inherit; text-decoration: none; }
     return window.innerWidth >= 1100 && !document.body.classList.contains('phone-preview');
   }
   function applyViewMode(mode) {
+    // Only toggles the phone-preview frame for dev/testing purposes.
+    // Strip behavior is identical in all modes — no auto-open/close here.
     document.body.classList.toggle('phone-preview', mode === 'phone');
     viewToggleLabel.textContent = mode === 'phone' ? '🖥 Desktop' : '📱 Phone';
     state.viewMode = mode;
-    // Desktop → strip is a permanent sidebar with 500-ft window.
-    // Phone preview → strip is click-to-open as before.
-    if (isDesktopMode()) {
-      // Auto-open strip if we have a current section, centered at midpoint
-      const sec = state.sectionId && SECTIONS.find(s => s.id === state.sectionId);
-      if (sec) {
-        // Default to section midpoint STA
-        const midStaFt = ((sec.mpEnd - sec.mpStart) * 5280) / 2;
-        openStrip(sec, midStaFt);
-      }
-    } else {
-      // Leaving desktop mode — close the strip unless user had deliberately opened it
-      if (stripOpen && !stripCurrentSec?._userOpened) {
-        closeStrip();
-      }
-    }
     if (state.map) setTimeout(() => state.map.invalidateSize(), 250);
   }
-  viewToggleBtn.addEventListener('click', () => {
+  viewToggleBtn?.addEventListener('click', () => {
     applyViewMode(state.viewMode === 'phone' ? 'desktop' : 'phone');
   });
-  // Re-evaluate on viewport resize (enters/leaves desktop breakpoint)
-  window.addEventListener('resize', () => {
-    if (state.viewMode === 'desktop') applyViewMode('desktop');
-  });
-  // Default on first load: desktop full-width at ≥1100px
   applyViewMode('desktop');
 
   // --- On-map control stack wiring ---
@@ -10835,9 +10797,8 @@ a { color: inherit; text-decoration: none; }
       return;
     }
 
-    const _dpos  = $('#alignment-strip')?.dataset.pos || 'right';
-    const horiz  = (typeof isDesktopMode === 'function' && isDesktopMode()) ||
-                   _dpos === 'top' || _dpos === 'bottom';
+    const _dpos  = $('#alignment-strip')?.dataset.pos || 'top';
+    const horiz  = _dpos === 'top' || _dpos === 'bottom';
     const pct    = (gpsSta / totalFt) * 100;
     const axisKey      = horiz ? 'left' : 'top';
     const crossAxisKey = horiz ? 'top'  : 'left';
