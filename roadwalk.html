@@ -552,19 +552,20 @@ a { color: inherit; text-decoration: none; }
   pointer-events: auto;
 }
 .map-ctl-btn {
-  width: 30px; height: 30px;
+  width: 34px; height: 34px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 0;
-  background: rgba(255, 255, 255, 0.82);
-  border: 1px solid rgba(0, 0, 0, 0.18);
+  background: #ffffff;
+  border: none;
+  border-radius: 50%;
   color: #111;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.14);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.28);
   cursor: pointer;
 }
-.map-ctl-btn:hover  { background: rgba(255, 255, 255, 0.96); }
-.map-ctl-btn:active { background: #fff; }
+.map-ctl-btn:hover  { background: #f4f4f4; }
+.map-ctl-btn:active { background: #e8e8e8; }
 .map-ctl-btn.on     { color: #1A73E8; border-color: #1A73E8; background: rgba(255,255,255,0.9); }
 .map-ctl-btn .ctl-icon { display: block; color: #111; }
 .map-ctl-btn.on .ctl-icon { color: #1A73E8; }
@@ -3735,6 +3736,100 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
 .sw-reason-hdr { font-size:10px; color:#d97706; font-weight:700;
   letter-spacing:.05em; margin-bottom:6px; }
 
+
+/* ── Style Guide & Labels panel ─────────────────────────────────────────── */
+.view-styleguide { overflow-y: auto; -webkit-overflow-scrolling: touch; background: var(--paper); }
+.sg-body { padding: 16px 20px 48px; max-width: 900px; margin: 0 auto; }
+.sg-section { margin-bottom: 28px; }
+.sg-section-title {
+  font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
+  font-weight: 700; color: #15803d; padding-bottom: 8px;
+  border-bottom: 2px solid #15803d; margin-bottom: 12px; }
+.sg-geom-hdr {
+  font-size: 10px; letter-spacing: .08em; text-transform: uppercase;
+  font-weight: 700; color: var(--ink-3); margin: 14px 0 5px; }
+/* Column headers */
+.sg-col-hdr {
+  display: grid; gap: 6px; padding: 0 4px 4px;
+  font-size: 9px; letter-spacing: .07em; text-transform: uppercase;
+  color: var(--ink-3); font-weight: 700; border-bottom: 1px solid var(--rule); }
+.sg-col-hdr.sg-ln { grid-template-columns: 28px 54px 1fr 44px 106px 100px; }
+.sg-col-hdr.sg-pt { grid-template-columns: 28px 54px 1fr; }
+.sg-col-hdr.sg-pg { grid-template-columns: 28px 54px 1fr 44px; }
+/* Feature rows */
+.sg-row {
+  display: grid; gap: 6px; align-items: center; padding: 4px 4px;
+  border-bottom: 1px solid var(--rule); }
+.sg-row:hover { background: var(--hover); }
+.sg-row.sg-ln { grid-template-columns: 28px 54px 1fr 44px 106px 100px; }
+.sg-row.sg-pt { grid-template-columns: 28px 54px 1fr; }
+.sg-row.sg-pg { grid-template-columns: 28px 54px 1fr 44px; }
+/* Color swatch */
+.sg-swatch {
+  width: 26px; height: 26px; border-radius: 5px; cursor: pointer;
+  border: 2px solid rgba(0,0,0,0.18); overflow: hidden; position: relative; }
+.sg-swatch input[type=color] {
+  position: absolute; inset: -4px; width: calc(100% + 8px);
+  height: calc(100% + 8px); opacity: 0; cursor: pointer; border: none; }
+/* Text / number inputs */
+.sg-code {
+  font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 700;
+  width: 100%; padding: 4px 3px; text-align: center;
+  background: var(--hover); border: 1px solid var(--rule); border-radius: 4px;
+  color: var(--ink); }
+.sg-name, .sg-weight {
+  font-size: 12px; width: 100%; padding: 4px 6px;
+  background: var(--hover); border: 1px solid var(--rule); border-radius: 4px;
+  color: var(--ink); }
+.sg-weight { width: 38px; text-align: right; padding: 4px 4px; }
+.sg-select {
+  font-size: 11px; padding: 4px 3px; width: 100%;
+  background: var(--hover); border: 1px solid var(--rule); border-radius: 4px;
+  color: var(--ink); }
+/* Apply button */
+.sg-apply-btn {
+  padding: 9px 22px; background: #15803d; color: #fff;
+  border: none; border-radius: 7px; font-size: 13px; font-weight: 600;
+  cursor: pointer; margin-top: 14px; }
+.sg-apply-btn:hover { background: #166534; }
+/* Label rows */
+.sg-label-row {
+  display: flex; align-items: center; gap: 12px; padding: 9px 0;
+  border-bottom: 1px solid var(--rule); flex-wrap: wrap; }
+.sg-label-name { flex: 1; font-size: 13px; color: var(--ink); min-width: 160px; }
+.sg-toggle-lbl {
+  display: flex; align-items: center; gap: 6px; font-size: 12px;
+  color: var(--ink-2); white-space: nowrap; cursor: pointer; }
+.sg-toggle-lbl input[type=checkbox] { width: 16px; height: 16px; cursor: pointer; }
+.sg-color-sml {
+  width: 28px; height: 28px; border-radius: 4px; cursor: pointer;
+  border: 1.5px solid var(--rule); overflow: hidden; position: relative; flex-shrink: 0; }
+.sg-color-sml input[type=color] {
+  position: absolute; inset: -4px; opacity: 0; cursor: pointer; border: none; }
+.sg-sz-input {
+  width: 48px; padding: 5px 6px; font-size: 12px; text-align: right;
+  background: var(--hover); border: 1px solid var(--rule); border-radius: 4px; color: var(--ink); }
+/* Hover field grid */
+.sg-hover-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 7px; margin-top: 8px; }
+.sg-hover-chip {
+  display: flex; align-items: center; gap: 7px; padding: 8px 11px;
+  background: var(--hover); border: 1.5px solid var(--rule); border-radius: 7px;
+  font-size: 12px; color: var(--ink-2); cursor: pointer;
+  transition: background .1s; }
+.sg-hover-chip:hover { background: var(--hover); }
+.sg-hover-chip.active { background: #dcfce7; border-color: #22c55e; color: #15803d; }
+.sg-hover-chip input[type=checkbox] { width: 15px; height: 15px; cursor: pointer; flex-shrink: 0; }
+/* Style guide header button */
+.header-styleguide-btn {
+  width: 32px; height: 32px; margin-left: 4px;
+  background: var(--paper); color: var(--ink);
+  border: 1px solid var(--rule); font-size: 14px; font-weight: 700;
+  line-height: 1; cursor: pointer; border-radius: 0;
+  display: inline-flex; align-items: center; justify-content: center; }
+.header-styleguide-btn:hover { background: var(--hover); }
+
 </style>
 </head>
 <body>
@@ -3763,6 +3858,7 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
         <span class="dot"></span>
         <span id="sync-text">Solo</span>
       </span>
+      <button class="header-styleguide-btn" id="header-styleguide-btn" title="Style Guide &amp; Labels" type="button" aria-label="Style Guide">◈</button>
       <button class="header-settings-btn" id="header-settings-btn" title="Settings" type="button" aria-label="Settings">⋯</button>
     </div>
   </header>
@@ -3847,9 +3943,9 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
           </button>
           <div class="tally-vis-menu" id="tally-vis-menu" hidden>
             <div class="tvm-title">TALLIES</div>
-            <button class="tvm-row on" data-target="tally-panel">Crack Seal</button>
-            <button class="tvm-row on" data-target="parking-tally-panel">Parking</button>
-            <button class="tvm-row on" data-target="curbstop-tally-panel">Curb Stops</button>
+            <button class="tvm-row" data-target="tally-panel">Crack Seal</button>
+            <button class="tvm-row" data-target="parking-tally-panel">Parking</button>
+            <button class="tvm-row" data-target="curbstop-tally-panel">Curb Stops</button>
           </div>
           <div class="feature-picker" id="feature-picker" hidden>
             <div class="fp-handle" id="fp-handle">ADD FEATURE</div>
@@ -3867,7 +3963,7 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
 
         <!-- Floating, draggable Crack Seal tally panel — replaces the old
              bottom tally-bar so the map can extend to the bottom of the window. -->
-        <div class="tally-panel" id="tally-panel">
+        <div class="tally-panel" id="tally-panel" hidden>
           <div class="tp-handle" id="tp-handle" title="Drag to move">CRACK SEAL</div>
           <div class="tp-body">
             <div class="tp-total">
@@ -3888,7 +3984,7 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
 
 
         <!-- Curb stop tally panel -->
-        <div class="tally-panel curbstop-tally" id="curbstop-tally-panel">
+        <div class="tally-panel curbstop-tally" id="curbstop-tally-panel" hidden>
           <div class="tp-handle" id="cstp-handle" title="Drag to move">CURB STOPS</div>
           <div class="cs-body">
             <div class="cs-subhdr">
@@ -3927,7 +4023,7 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
         </div>
 
         <!-- Parking space tally panel -->
-        <div class="tally-panel parking-tally" id="parking-tally-panel">
+        <div class="tally-panel parking-tally" id="parking-tally-panel" hidden>
           <div class="tp-handle" id="ptp-handle" title="Drag to move">PARKING</div>
           <div class="pt-rows">
             <div class="pt-row">
@@ -4238,6 +4334,18 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
           </div>
         </div>
 
+      </div>
+    </section>
+
+    <!-- ============ STYLE GUIDE & LABELS VIEW ============ -->
+    <section class="view view-styleguide" id="view-styleguide">
+      <div class="kickoff-head">
+        <div class="kicker">STYLES</div>
+        <h1>Style Guide &amp; Labels</h1>
+        <div class="subtitle">Feature colors, codes, line weights, SLD slot positions, label visibility, and hover info fields.</div>
+      </div>
+      <div class="sg-body" id="sg-body">
+        <!-- populated by renderStyleGuide() -->
       </div>
     </section>
 
@@ -4938,6 +5046,7 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
     $('#view-kickoff').classList.toggle('active', name === 'kickoff');
     $('#view-ko-picker').classList.toggle('active', name === 'ko-picker');
     $('#view-settings').classList.toggle('active', name === 'settings');
+    $('#view-styleguide')?.classList.toggle('active', name === 'styleguide');
 
     // Footer only visible in kickoff
     $('#ko-footer').classList.toggle('active', name === 'kickoff');
@@ -4965,6 +5074,11 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
       els.headerKicker.textContent = 'PROJECT';
       els.headerName.textContent = 'Settings';
       renderSettings();
+    } else if (name === 'styleguide') {
+      els.backBtn.style.visibility = 'visible';
+      els.headerKicker.textContent = 'PROJECT';
+      els.headerName.textContent = 'Style Guide & Labels';
+      if (typeof renderStyleGuide === 'function') renderStyleGuide();
     } else if (name === 'field') {
       els.backBtn.style.visibility = 'visible';
       const sec = SECTIONS.find(s => s.id === sectionId);
@@ -5880,24 +5994,26 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
   // attribute readouts (length / area / sta / side / condition).
   function buildPinTooltipHtml(pin) {
     if (!pin) return '';
+    const HF = state.settings?.hoverFields || {};
+    const on = k => HF[k] !== false; // default: show
     const kindNice = (pin.kind || '').replace(/^pt_|^ln_|^pg_/, '').replace(/_/g, ' ');
     const lines = [];
-    lines.push(`<b>${pin.id || '—'}</b>`);
-    if (kindNice) lines.push(kindNice.replace(/\b\w/g, c => c.toUpperCase()));
-    if (pin.attrs && pin.attrs.length_ft != null) {
+    if (on('id'))         lines.push(`<b>${pin.id || '—'}</b>`);
+    if (on('kind') && kindNice) lines.push(kindNice.replace(/\b\w/g, c => c.toUpperCase()));
+    if (on('length_ft') && pin.attrs && pin.attrs.length_ft != null) {
       lines.push(`Length: ${Math.round(pin.attrs.length_ft)} ft`);
     }
-    if (pin.attrs && pin.attrs.area_sq_ft != null) {
+    if (on('area_sq_ft') && pin.attrs && pin.attrs.area_sq_ft != null) {
       lines.push(`Area: ${formatAreaSqFt(pin.attrs.area_sq_ft)}`);
     }
-    if (pin.sta) lines.push(`STA: ${pin.sta}`);
-    if (pin.attrs && pin.attrs.side && pin.attrs.side !== 'on') {
+    if (on('sta') && pin.sta) lines.push(`STA: ${pin.sta}`);
+    if (on('side') && pin.attrs && pin.attrs.side && pin.attrs.side !== 'on') {
       lines.push(`Side: ${pin.attrs.side}`);
     }
-    if (pin.attrs && pin.attrs.condition) {
+    if (on('condition') && pin.attrs && pin.attrs.condition) {
       lines.push(`Cond: ${pin.attrs.condition}`);
     }
-    if (pin.status && pin.status !== 'pending') {
+    if (on('status') && pin.status && pin.status !== 'pending') {
       lines.push(`Status: ${pin.status}`);
     }
     return lines.join('<br>');
@@ -7924,7 +8040,7 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
       bar.className = `strip-feature-bar kind-${pin.kind}`;
       bar.style.background = PIN_STYLE[pin.kind]?.color || '#666';
       if (pin.attrs.length_source === 'estimated_pending_ocr') bar.classList.add('est-length');
-      const slotForKind = KIND_TO_SLOT[pin.kind] || 'line';
+      const slotForKind = state.settings?.styleOverrides?.[pin.kind]?.slot || KIND_TO_SLOT[pin.kind] || 'line';
       const baseOffset = { fence: 32, swale: 24, guardrail: 16, sidewalk: 8, curb: 2, line: 0 }[slotForKind];
       const slotThick  = { fence:  4, swale:  6, guardrail:  5, sidewalk: 6, curb: 4, line: 4 }[slotForKind];
       const roadHalf = 20; // half of 40px pavement band
@@ -10638,7 +10754,8 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
     else if (state.view === 'trace')     cancelAlignmentTrace();
     else if (state.view === 'kickoff')   { state.draftKickoff = null; showView('list'); }
     else if (state.view === 'ko-picker') showView('list');
-    else if (state.view === 'settings')  showView('list');
+    else if (state.view === 'settings')    showView('list');
+    else if (state.view === 'styleguide')  showView('list');
   });
 
   // Tabs
@@ -10711,6 +10828,8 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
     if (e.key === 'Enter') $('#tally-custom-add')?.click();
   });
 
+  // Header style guide button
+  document.getElementById('header-styleguide-btn')?.addEventListener('click', () => showView('styleguide'));
   // Header settings button — replaces the old "⋯ More" action button
   els.headerSettingsBtn?.addEventListener('click', () => showView('settings'));
 
@@ -12810,6 +12929,287 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
       <div id="sw-footer" class="sw-footer"></div>
     </div>
   </div>
+
+
+<script>
+// ── Style Guide & Labels ── v1.0 ─────────────────────────────────────────────
+(function() {
+  'use strict';
+
+  // Default slot map (mirrors KIND_TO_SLOT in renderStrip)
+  const SG_DEFAULT_SLOT = {
+    ln_guardrail:'guardrail', ln_retaining_wall:'guardrail', ln_barrier:'guardrail',
+    ln_curb:'curb', ln_cg:'curb',
+    ln_sidewalk:'sidewalk',
+    ln_swale:'swale', ln_drain_other:'swale',
+    ln_fence:'fence',
+  };
+
+  const DASH_OPTS = [
+    { v: '',          l: 'Solid' },
+    { v: '4 3',       l: 'Short dash' },
+    { v: '6 3',       l: 'Long dash' },
+    { v: '1 4',       l: 'Dotted' },
+    { v: '8 4 2 4',   l: 'Dash-dot' },
+  ];
+  const SLOT_OPTS = [
+    { v: 'line',      l: 'Road edge' },
+    { v: 'curb',      l: 'Curb' },
+    { v: 'sidewalk',  l: 'Sidewalk' },
+    { v: 'guardrail', l: 'Guardrail' },
+    { v: 'swale',     l: 'Swale' },
+    { v: 'fence',     l: 'Fence (outer)' },
+  ];
+  const HF_FIELDS = [
+    { key: 'id',         label: 'Feature ID' },
+    { key: 'kind',       label: 'Feature type' },
+    { key: 'sta',        label: 'Station' },
+    { key: 'length_ft',  label: 'Length' },
+    { key: 'area_sq_ft', label: 'Area' },
+    { key: 'side',       label: 'Side (L/R)' },
+    { key: 'condition',  label: 'Condition' },
+    { key: 'status',     label: 'Status' },
+  ];
+
+  function ensureSettings() {
+    if (!state.settings.styleOverrides) state.settings.styleOverrides = {};
+    if (!state.settings.labelSettings)  state.settings.labelSettings = {
+      badgeShow: true, badgeColor: '#ffffff', badgeSize: 10,
+      mapLabelShow: true, staTickShow: true,
+    };
+    if (!state.settings.hoverFields) state.settings.hoverFields = {
+      id: true, kind: true, sta: true, length_ft: true,
+      area_sq_ft: true, side: true, condition: true, status: false,
+    };
+  }
+
+  function rowId(kind, field) {
+    return ('sg_' + kind + '_' + field).replace(/[^a-z0-9_]/gi, '_');
+  }
+
+  // Apply label CSS overrides via injected <style> tag
+  window.sgApplyLabels = function() {
+    ensureSettings();
+    const LS = state.settings.labelSettings;
+    let st = document.getElementById('sg-dynamic-styles');
+    if (!st) { st = document.createElement('style'); st.id = 'sg-dynamic-styles'; document.head.appendChild(st); }
+    const r = [];
+    if (!LS.badgeShow)     r.push('.strip-bar-badge { display: none !important; }');
+    if (LS.badgeColor)     r.push(`.strip-bar-badge { color: ${LS.badgeColor} !important; }`);
+    if (LS.badgeSize)      r.push(`.strip-bar-badge { font-size: ${LS.badgeSize}px !important; }`);
+    if (!LS.staTickShow)   r.push('.strip-sta-tick-label { display: none !important; }');
+    if (!LS.mapLabelShow)  r.push('.rw-pin-marker .pin-code { display: none !important; }');
+    st.textContent = r.join('\n');
+  };
+
+  // Re-apply PIN_STYLE overrides and re-render current section
+  function applyStyleOverrides() {
+    ensureSettings();
+    const SO = state.settings.styleOverrides;
+    Object.entries(SO).forEach(([k, ov]) => {
+      if (PIN_STYLE[k]) Object.assign(PIN_STYLE[k], ov);
+    });
+    window.sgApplyLabels();
+    // Re-render if a section is active
+    const sec = typeof SECTIONS !== 'undefined' && SECTIONS.find(s => s.id === state.sectionId);
+    if (sec) {
+      if (typeof initOrUpdateMap === 'function') initOrUpdateMap(sec);
+      if (typeof renderStrip === 'function' && typeof stripCurrentSec !== 'undefined' && stripCurrentSec === sec) renderStrip();
+    }
+  }
+
+  window.renderStyleGuide = function() {
+    const body = document.getElementById('sg-body');
+    if (!body) return;
+    ensureSettings();
+    const SO = state.settings.styleOverrides;
+    const LS = state.settings.labelSettings;
+    const HF = state.settings.hoverFields;
+
+    function getS(kind) { return Object.assign({}, PIN_STYLE[kind] || {}, SO[kind] || {}); }
+
+    // ── Section 1: Feature Styles ──────────────────────────────────────────
+    let s1 = '<div class="sg-section"><div class="sg-section-title">Feature Styles</div>';
+
+    const GEOMS = [
+      { key: 'point',   label: 'Points' },
+      { key: 'line',    label: 'Lines' },
+      { key: 'polygon', label: 'Polygons' },
+    ];
+    GEOMS.forEach(({ key: geom, label: geomLabel }) => {
+      const cats = FEATURE_CATALOG.filter(c => c.geom === geom);
+      if (!cats.length) return;
+      const cls = geom === 'line' ? 'sg-ln' : geom === 'polygon' ? 'sg-pg' : 'sg-pt';
+      const colHdrs = geom === 'line'
+        ? '<span>Color</span><span>Code</span><span>Name</span><span>Wt</span><span>Dash</span><span>SLD Slot</span>'
+        : geom === 'polygon'
+        ? '<span>Color</span><span>Code</span><span>Name</span><span>Wt</span>'
+        : '<span>Color</span><span>Code</span><span>Name</span>';
+      s1 += `<div class="sg-geom-hdr">${geomLabel}</div>`;
+      s1 += `<div class="sg-col-hdr ${cls}">${colHdrs}</div>`;
+      cats.forEach(cat => {
+        cat.items.forEach(item => {
+          const k   = item.value;
+          const st  = getS(k);
+          const col = st.color || item.color || '#888';
+          const cod = st.code  || item.code  || '?';
+          const nm  = st.label != null ? st.label : (item.label || k);
+          const wt  = st.weight != null ? st.weight : (item.weight || 4);
+          const dsh = st.dashArray != null ? st.dashArray : (item.dashArray || '');
+          const slt = SO[k]?.slot || SG_DEFAULT_SLOT[k] || 'line';
+          const colorBorder = (col.toLowerCase() === '#ffffff' || col.toLowerCase() === '#f5f1ea') ? 'border-color:#d1d5db' : '';
+
+          let cells = `
+            <div class="sg-swatch" style="background:${col};${colorBorder}" title="${k}">
+              <input type="color" id="${rowId(k,'color')}" value="${col}">
+            </div>
+            <input type="text"   class="sg-code"   id="${rowId(k,'code')}"   value="${cod.replace(/"/g,'&quot;')}" maxlength="3">
+            <input type="text"   class="sg-name"   id="${rowId(k,'name')}"   value="${nm.replace(/"/g,'&quot;')}">`;
+          if (geom === 'line' || geom === 'polygon') {
+            cells += `<input type="number" class="sg-weight" id="${rowId(k,'weight')}" value="${wt}" min="1" max="12" step="1">`;
+          }
+          if (geom === 'line') {
+            cells += `<select class="sg-select" id="${rowId(k,'dash')}">
+              ${DASH_OPTS.map(o => `<option value="${o.v}"${o.v === dsh ? ' selected' : ''}>${o.l}</option>`).join('')}
+            </select>
+            <select class="sg-select" id="${rowId(k,'slot')}">
+              ${SLOT_OPTS.map(o => `<option value="${o.v}"${o.v === slt ? ' selected' : ''}>${o.l}</option>`).join('')}
+            </select>`;
+          }
+          s1 += `<div class="sg-row ${cls}" data-kind="${k}">${cells}</div>`;
+        });
+      });
+    });
+    s1 += `<div>
+      <button class="sg-apply-btn" id="sg-apply-btn">Apply &amp; Re-render</button>
+      <span id="sg-apply-status" style="margin-left:10px;font-size:11px;color:var(--ink-3)"></span>
+    </div></div>`;
+
+    // ── Section 2: Labels ──────────────────────────────────────────────────
+    let s2 = `<div class="sg-section"><div class="sg-section-title">Labels</div>`;
+    const LBL_ROWS = [
+      { key:'badgeShow',    type:'toggle', label:'SLD badge labels',
+        help:'Feature code badge shown on bars and pin circles in the strip log.' },
+      { key:'badgeColor',   type:'color',  label:'Badge text color' },
+      { key:'badgeSize',    type:'number', label:'Badge font size', min:6, max:18, unit:'px' },
+      { key:'mapLabelShow', type:'toggle', label:'Map pin code labels',
+        help:'Two-letter code overlay on Leaflet map pin markers.' },
+      { key:'staTickShow',  type:'toggle', label:'Station tick labels',
+        help:'STA labels along strip log edges.' },
+    ];
+    LBL_ROWS.forEach(f => {
+      const helpSpan = f.help ? `<br><span style="font-size:10px;color:var(--ink-3)">${f.help}</span>` : '';
+      if (f.type === 'toggle') {
+        s2 += `<div class="sg-label-row">
+          <span class="sg-label-name">${f.label}${helpSpan}</span>
+          <label class="sg-toggle-lbl">
+            <input type="checkbox" id="sgl_${f.key}"${LS[f.key] !== false ? ' checked' : ''}> On
+          </label></div>`;
+      } else if (f.type === 'color') {
+        const v = LS[f.key] || '#ffffff';
+        s2 += `<div class="sg-label-row">
+          <span class="sg-label-name">${f.label}</span>
+          <div class="sg-color-sml" style="background:${v};border:1.5px solid #d1d5db">
+            <input type="color" id="sgl_${f.key}" value="${v}"></div>
+        </div>`;
+      } else if (f.type === 'number') {
+        s2 += `<div class="sg-label-row">
+          <span class="sg-label-name">${f.label}</span>
+          <input type="number" class="sg-sz-input" id="sgl_${f.key}"
+            value="${LS[f.key] || 10}" min="${f.min}" max="${f.max}">
+          <span style="font-size:11px;color:var(--ink-3)">${f.unit || ''}</span>
+        </div>`;
+      }
+    });
+    s2 += `</div>`;
+
+    // ── Section 3: Hover Info Fields ───────────────────────────────────────
+    let s3 = `<div class="sg-section"><div class="sg-section-title">Hover Info Fields</div>
+      <div style="font-size:11px;color:var(--ink-3);margin-bottom:10px">
+        Toggle which fields appear when hovering over a feature on the map or SLD.</div>
+      <div class="sg-hover-grid">`;
+    HF_FIELDS.forEach(f => {
+      const on = HF[f.key] !== false;
+      s3 += `<label class="sg-hover-chip${on ? ' active' : ''}" id="sg-hfc-${f.key}">
+        <input type="checkbox" data-hf="${f.key}"${on ? ' checked' : ''}> ${f.label}
+      </label>`;
+    });
+    s3 += `</div></div>`;
+
+    body.innerHTML = s1 + s2 + s3;
+
+    // ── Wire feature style rows ────────────────────────────────────────────
+    FEATURE_CATALOG.forEach(cat => {
+      cat.items.forEach(item => {
+        const k = item.value;
+        const geom = cat.geom;
+        function ov() { if (!SO[k]) SO[k] = {}; return SO[k]; }
+
+        const colorEl  = document.getElementById(rowId(k, 'color'));
+        const swatchEl = colorEl?.closest('.sg-swatch');
+        if (colorEl) colorEl.oninput = e => {
+          ov().color = e.target.value;
+          if (swatchEl) swatchEl.style.background = e.target.value;
+        };
+
+        const codeEl = document.getElementById(rowId(k, 'code'));
+        if (codeEl) codeEl.oninput = e => { ov().code = e.target.value; };
+
+        const nameEl = document.getElementById(rowId(k, 'name'));
+        if (nameEl) nameEl.oninput = e => { ov().label = e.target.value; };
+
+        if (geom === 'line' || geom === 'polygon') {
+          const wtEl = document.getElementById(rowId(k, 'weight'));
+          if (wtEl) wtEl.oninput = e => { ov().weight = parseFloat(e.target.value) || 4; };
+        }
+        if (geom === 'line') {
+          const dashEl = document.getElementById(rowId(k, 'dash'));
+          if (dashEl) dashEl.onchange = e => { ov().dashArray = e.target.value || null; };
+          const slotEl = document.getElementById(rowId(k, 'slot'));
+          if (slotEl) slotEl.onchange = e => { ov().slot = e.target.value; };
+        }
+      });
+    });
+
+    // ── Apply button ───────────────────────────────────────────────────────
+    const applyBtn = document.getElementById('sg-apply-btn');
+    if (applyBtn) applyBtn.onclick = () => {
+      applyStyleOverrides();
+      const stEl = document.getElementById('sg-apply-status');
+      if (stEl) { stEl.textContent = 'Applied!'; setTimeout(() => { stEl.textContent = ''; }, 2000); }
+    };
+
+    // ── Label setting events ───────────────────────────────────────────────
+    LBL_ROWS.forEach(f => {
+      const el = document.getElementById('sgl_' + f.key);
+      if (!el) return;
+      if (f.type === 'toggle') {
+        el.onchange = e => { LS[f.key] = e.target.checked; window.sgApplyLabels(); };
+      } else if (f.type === 'color') {
+        el.oninput = e => {
+          LS[f.key] = e.target.value;
+          const sml = el.closest('.sg-color-sml');
+          if (sml) sml.style.background = e.target.value;
+          window.sgApplyLabels();
+        };
+      } else {
+        el.oninput = e => { LS[f.key] = parseFloat(e.target.value) || 10; window.sgApplyLabels(); };
+      }
+    });
+
+    // ── Hover field toggle events ──────────────────────────────────────────
+    document.querySelectorAll('[data-hf]').forEach(cb => {
+      cb.onchange = e => {
+        const key = e.target.dataset.hf;
+        HF[key] = e.target.checked;
+        const chip = document.getElementById('sg-hfc-' + key);
+        if (chip) chip.classList.toggle('active', e.target.checked);
+      };
+    });
+  };
+
+})();
+</script>
 
 </body>
 </html>
