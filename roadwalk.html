@@ -5824,6 +5824,16 @@ a { color: inherit; text-decoration: none; }
           labelLayers.push(L.marker(midLL, { icon: rotIcon, interactive: false }));
         }
       }
+      // Code badge at start-point of line — click/hover handled by featureGroup
+      if (latlngs.length >= 1) {
+        const badgeIcon = L.divIcon({
+          className: 'rw-pin rw-start-badge',
+          html: `<div style="background:${style.color};color:#F5F1EA;font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;padding:2px 4px;border:1.5px solid rgba(255,255,255,0.6);box-shadow:0 1px 3px rgba(0,0,0,0.3);white-space:nowrap;opacity:${status.opacity};letter-spacing:0.3px;cursor:pointer;">${style.code}</div>`,
+          iconSize: [24, 16],
+          iconAnchor: [12, 8],
+        });
+        labelLayers.push(L.marker(latlngs[0], { icon: badgeIcon, zIndexOffset: 500 }));
+      }
       return L.featureGroup(labelLayers);
     }
 
@@ -5860,6 +5870,16 @@ a { color: inherit; text-decoration: none; }
       }
       if (flags.id) {
         polyLayers.push(makeChipMarker([cLat, cLng], pin.id));
+      }
+      // Code badge at first vertex of polygon — click/hover handled by featureGroup
+      if (ring.length >= 1) {
+        const badgeIcon = L.divIcon({
+          className: 'rw-pin rw-start-badge',
+          html: `<div style="background:${style.color};color:#F5F1EA;font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;padding:2px 4px;border:1.5px solid rgba(255,255,255,0.6);box-shadow:0 1px 3px rgba(0,0,0,0.3);white-space:nowrap;opacity:${status.opacity};letter-spacing:0.3px;cursor:pointer;">${style.code}</div>`,
+          iconSize: [24, 16],
+          iconAnchor: [12, 8],
+        });
+        polyLayers.push(L.marker(ring[0], { icon: badgeIcon, zIndexOffset: 500 }));
       }
       return L.featureGroup(polyLayers);
     }
@@ -7634,8 +7654,8 @@ a { color: inherit; text-decoration: none; }
       bar.style.pointerEvents = 'auto'; bar.style.cursor = 'pointer';
       bar.addEventListener('click', () => openPinSheet(pin, sec));
       inner.appendChild(bar);
-      // Kind badge at bar start — desktop only (phone bars are too narrow)
-      if (horiz) {
+      // Kind badge at bar start — both horizontal (desktop/landscape) and vertical (portrait)
+      {
         const code  = PIN_STYLE[pin.kind]?.code || pin.kind.slice(0, 2).toUpperCase();
         const color = PIN_STYLE[pin.kind]?.color || '#444';
         const halfThick = Math.floor(slotThick / 2);
@@ -7644,11 +7664,19 @@ a { color: inherit; text-decoration: none; }
         badge.textContent = code; badge.title = `${pin.id} · ${pin.kind}`;
         badge.style.background = color;
         badge.addEventListener('click', () => openPinSheet(pin, sec));
-        badge.style.left = `${axisPct(startSta)}%`;
-        badge.style.transform = 'translate(-50%, -50%)';
-        badge.style.top = pin.attrs.side === 'L'
-          ? `calc(50% - ${baseOffset + slotThick + 28 - halfThick}px)`
-          : `calc(50% + ${baseOffset + 24 + halfThick}px)`;
+        if (horiz) {
+          badge.style.left = `${axisPct(startSta)}%`;
+          badge.style.transform = 'translate(-50%, -50%)';
+          badge.style.top = pin.attrs.side === 'L'
+            ? `calc(50% - ${baseOffset + slotThick + 28 - halfThick}px)`
+            : `calc(50% + ${baseOffset + 24 + halfThick}px)`;
+        } else {
+          badge.style.top = `${axisPct(startSta)}%`;
+          badge.style.transform = 'translate(-50%, -50%)';
+          badge.style.left = pin.attrs.side === 'L'
+            ? `calc(50% - ${baseOffset + slotThick + halfThick}px)`
+            : `calc(50% + ${baseOffset + halfThick}px)`;
+        }
         inner.appendChild(badge);
       }
     }
