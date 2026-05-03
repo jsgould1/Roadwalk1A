@@ -4114,7 +4114,7 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
           <div class="basemap-opacity-row">
             <label class="basemap-opacity-label" for="basemap-opacity">Opacity</label>
             <input type="range" id="basemap-opacity" class="basemap-opacity-slider"
-                   min="0" max="1" step="0.05" value="1" title="Basemap opacity">
+                   min="0" max="1" step="0.05" value="0.5" title="Basemap opacity">
           </div>
           <select class="basemap-select" id="basemap-select" title="Basemap">
             <option value="osm">OSM Street</option>
@@ -4868,9 +4868,10 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
     return [bestCum, bestDist];
   }
   function fmtSta(staFt) {
-    const s = Math.floor(staFt / 100);
-    const rem = staFt - s * 100;
-    return `${s}+${rem.toFixed(2).padStart(5, '0')}`;
+    const staInt = Math.round(staFt);
+    const s = Math.floor(staInt / 100);
+    const rem = staInt - s * 100;
+    return `${s}+${String(rem).padStart(2, '0')}`;
   }
   function fmtMp(mp) {
     return mp.toFixed(3);
@@ -5534,7 +5535,14 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
     // Swap
     if (state.currentBasemap) state.currentBasemap.remove();
     state.currentBasemap = layer;
-    if (state.map) layer.addTo(state.map);
+    if (state.map) {
+      layer.addTo(state.map);
+      // Apply the current opacity slider value (defaults to 0.5)
+      const opSlider = document.getElementById('basemap-opacity');
+      if (opSlider && typeof layer.setOpacity === 'function') {
+        layer.setOpacity(parseFloat(opSlider.value));
+      }
+    }
     state.settings.basemap = key;
     // Reflect in settings UI if open
     $$('#basemap-row .basemap-btn').forEach(b => {
