@@ -1201,6 +1201,16 @@ a { color: inherit; text-decoration: none; }
 .strip-pin:hover { z-index: 10; transform: translateY(-50%) scale(1.15); }
 .strip-pin.side-C:hover { transform: translate(-50%, -50%) scale(1.15); }
 
+/* SVG plan-view symbols — clear pill chrome so the raw SVG shows */
+.strip-pin-svg {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  overflow: visible;
+  width: auto; min-height: 0;
+}
+.strip-pin-svg svg { display: block; overflow: visible; }
+
 /* Shape variants — sign rides a circle (Si), monument rides a triangle (Mt). */
 .strip-pin.shape-circle {
   width: 18px;
@@ -1655,7 +1665,7 @@ a { color: inherit; text-decoration: none; }
   font-family: 'IBM Plex Mono', monospace;
   font-size: 9px;
   line-height: 1.1;
-  color: var(--ink-1);
+  color: var(--ink);
   background: rgba(251,250,246,0.92);
   border: 1px solid var(--rule);
   padding: 1px 3px;
@@ -2661,6 +2671,21 @@ a { color: inherit; text-decoration: none; }
 .sign-remove-panel { font-family: 'IBM Plex Mono', monospace; font-size: 9px; padding: 1px 6px; border: 1px solid var(--rule); background: var(--paper); color: var(--ink-3); cursor: pointer; margin-left: auto; border-radius: 2px; }
 .sign-remove-panel:hover { color: #ef4444; border-color: #ef4444; }
 .sign-field-notes { width: 100%; box-sizing: border-box; font-family: 'IBM Plex Mono', monospace; font-size: 10px; padding: 4px; border: 1px solid var(--rule); background: var(--paper); color: var(--ink); resize: vertical; }
+
+/* ---- Barrier / Guardrail / Retaining-Wall inspection sheet ---------- */
+.gr-photo-slot { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.gr-photo-thumb { width: 52px; height: 39px; object-fit: cover; border: 1px solid var(--rule); border-radius: 2px; cursor: pointer; }
+.gr-photo-btn { font-family: 'IBM Plex Mono', monospace; font-size: 10px; padding: 2px 7px;
+  border: 1px solid var(--rule); background: var(--paper); color: var(--ink-2); cursor: pointer; border-radius: 2px; }
+.gr-photo-btn:hover { background: var(--paper-2); }
+.gr-photo-clr { font-family: 'IBM Plex Mono', monospace; font-size: 9px; padding: 2px 5px;
+  border: 1px solid var(--rule); background: none; color: var(--ink-3); cursor: pointer; border-radius: 2px; }
+.gr-photo-clr:hover { color: #ef4444; border-color: #ef4444; }
+.gr-repair-thumbs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 7px; min-height: 0; }
+.gr-repair-thumb-wrap { position: relative; }
+.gr-repair-thumb-del { position: absolute; top: -5px; right: -5px; width: 15px; height: 15px;
+  border-radius: 50%; background: #ef4444; color: #fff; border: none; font-size: 9px;
+  cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; line-height: 1; }
 
 /* Per-feature label toggle popup — small floating box that follows the
    selected line/polygon's midpoint while in vertex-edit mode. */
@@ -5760,11 +5785,11 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
       { value: 'ln_cg',           label: 'C&G',         code: 'CG', color: '#8A5A2B' },
       { value: 'ln_sidewalk',     label: 'Sidewalk',    code: 'SW', color: '#8A5A2B' },
       { value: 'ln_misc_other',   label: 'Other',       code: 'OT', color: '#8A5A2B' },
-      { value: 'ln_fence',        label: 'Fence',       code: 'FN', color: '#8A5A2B' },
+      { value: 'ln_fence',        label: 'Fence',       code: 'FN', color: '#8A5A2B', lineStyle: 'fence' },
     ]},
     { geom: 'line', name: 'Drainage', items: [
       { value: 'ln_culvert',      label: 'Culvert',     code: 'Cv', color: '#0B3D66' },
-      { value: 'ln_swale',        label: 'Swale',       code: 'Sl', color: '#0B3D66' },
+      { value: 'ln_swale',        label: 'Swale',       code: 'Sl', color: '#0B3D66', lineStyle: 'swale' },
       { value: 'ln_box_culvert',  label: 'Box Culvert', code: 'BC', color: '#0B3D66' },
       { value: 'ln_drain_other',  label: 'Other',       code: 'OT', color: '#0B3D66' },
     ]},
@@ -5783,9 +5808,9 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
       { value: 'ln_oh',           label: 'O/H',         code: 'OH', color: '#6B4D8A' },
     ]},
     { geom: 'line', name: 'Safety', items: [
-      { value: 'ln_guardrail',      label: 'Guard Rail',     code: 'GR', color: '#4A6B4D', dashArray: '6 3' },
-      { value: 'ln_retaining_wall', label: 'Retaining Wall', code: 'RW', color: '#4A6B4D' },
-      { value: 'ln_barrier',        label: 'Barrier',        code: 'BR', color: '#4A6B4D' },
+      { value: 'ln_guardrail',      label: 'Guard Rail',     code: 'GR', color: '#4A6B4D', dashArray: '6 3', lineStyle: 'guardrail' },
+      { value: 'ln_retaining_wall', label: 'Retaining Wall', code: 'RW', color: '#4A6B4D', lineStyle: 'retaining_wall' },
+      { value: 'ln_barrier',        label: 'Barrier',        code: 'BR', color: '#4A6B4D', lineStyle: 'barrier' },
     ]},
     // ===== POLYGONS =====
     { geom: 'polygon', name: 'Misc', items: [
@@ -5812,6 +5837,7 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
       if (cat.geom === 'line')    entry.weight = item.weight || 4;
       if (cat.geom === 'polygon') entry.weight = item.weight || 2;
       if (item.dashArray)         entry.dashArray = item.dashArray;
+      if (item.lineStyle)         entry.lineStyle = item.lineStyle;
       PIN_STYLE[item.value] = entry;
     });
   });
@@ -5821,6 +5847,9 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
   window._RW = {
     get FEATURE_CATALOG() { return FEATURE_CATALOG; },
     get PIN_STYLE()        { return PIN_STYLE; },
+    // LINE_STYLE_MAP is built from LINE_STYLES by the style-guide script and injected
+    // via window._RW.LINE_STYLE_MAP = … at DOMContentLoaded. The bar renderer reads it
+    // for hatch/dash/double/thick properties. See LINE_STYLES array near bottom of file.
     get state()            { return state; },
     get SECTIONS()         { return typeof SECTIONS !== 'undefined' ? SECTIONS : []; },
     rerender() {
@@ -6042,6 +6071,50 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
   ];
   const SIGN_FACING = [
     {v:0,l:"0° (N)"},{v:90,l:"90° (E)"},{v:180,l:"180° (S)"},{v:270,l:"270° (W)"}
+  ];
+
+  // ── Barrier / Guardrail / Retaining-Wall lookup tables ──────────────────
+  const _GR_TYPES = [
+    'STEEL-BACKED TIMBER WITHOUT BLOCKOUT',
+    'STEEL-BACKED TIMBER WITH BLOCKOUT',
+    'STONE MASONRY WITHOUT CONCRETE CORE WALL',
+    'STONE MASONRY WITH CONCRETE CORE WALL',
+    'W-BEAM STRONG POST',
+    'W-BEAM WEAK POST',
+    'CABLE BARRIER',
+    'THRIE-BEAM',
+    'CONCRETE BARRIER (JERSEY)',
+    'OTHER',
+  ];
+  const _RW_TYPES = [
+    'DRY STONE MASONRY',
+    'MORTARED STONE MASONRY',
+    'CONCRETE GRAVITY',
+    'CONCRETE CANTILEVER',
+    'GABION',
+    'TIMBER CRIB',
+    'SOIL NAIL',
+    'OTHER',
+  ];
+  const _GR_TREATMENTS = [
+    'No action needed',
+    'Clear vegetation',
+    'Clean / repair drainage',
+    'Spot repair — panels',
+    'Spot repair — posts',
+    'Replace end terminal',
+    'Replace damaged section',
+    'Full replacement',
+    'Monitor',
+  ];
+  const _RW_TREATMENTS = [
+    'No action needed',
+    'Clear drainage',
+    'Point repair — mortar',
+    'Point repair — masonry',
+    'Rebuild section',
+    'Full reconstruction',
+    'Monitor',
   ];
 
   // Per-kind ID prefix derived from the PIN_STYLE code (e.g. 'SL' for swale).
@@ -6457,6 +6530,7 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
 
     // Display name: first populated descriptive field, fall back to id
     const name = pin.attrs?.name || pin.attrs?.loc_name || pin.attrs?.material ||
+                 pin.attrs?.rpt_type ||
                  pin.attrs?.barrier_material || pin.attrs?.wall_material ||
                  pin.attrs?.asset_id || pin.id;
     $('#fp-name').textContent = name;
@@ -6560,6 +6634,7 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
 
   function openPinSheet(pin, sec) {
     if (pin.kind === 'pt_sign') { openSignSheet(pin, sec); return; }
+    if (pin.kind === 'ln_guardrail' || pin.kind === 'ln_retaining_wall' || pin.kind === 'ln_barrier') { openBarrierSheet(pin, sec); return; }
     sheetState.pin = pin;
     sheetState.sec = sec;
     const style = PIN_STYLE[pin.kind] || { code: '?' };
@@ -7324,6 +7399,281 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
     render();
   } // end openSignSheet
 
+  // ── Guardrail / Retaining-Wall / Barrier inspection sheet ───────────────
+  // Uses a self-contained dynamic overlay (no els.sheetBackdrop dependency).
+  function openBarrierSheet(pin, sec) {
+    sheetState.pin = pin;
+    sheetState.sec = sec;
+
+    const isRW      = pin.kind === 'ln_retaining_wall';
+    const isBR      = pin.kind === 'ln_barrier';
+    const style     = PIN_STYLE[pin.kind] || {};
+    const typeLabel = isRW ? 'RETAINING WALL' : isBR ? 'BARRIER' : 'GUARDRAIL';
+    const kicker    = `${style.code || (isRW ? 'RW' : isBR ? 'BR' : 'GR')} · ${typeLabel} · ${pin.id}`;
+
+    // Ensure attrs exist with defaults
+    if (!pin.attrs) pin.attrs = {};
+    const a = pin.attrs;
+    if (a.condition        == null) a.condition        = 'NA';
+    if (a.rec_treatment    == null) a.rec_treatment    = '';
+    if (a.repair_length_ft == null) a.repair_length_ft = '';
+    if (a.notes            == null) a.notes            = '';
+    if (a.photo_start_term == null) a.photo_start_term = '';
+    if (a.photo_end_term   == null) a.photo_end_term   = '';
+    if (!Array.isArray(a.photos_repair)) a.photos_repair = [];
+
+    const types      = isRW ? _RW_TYPES      : _GR_TYPES;
+    const treatments = isRW ? _RW_TREATMENTS : _GR_TREATMENTS;
+
+    // ── Self-contained overlay — no els.sheetBackdrop dependency ────────────
+    const overlay = document.createElement('div');
+    overlay.style.cssText = [
+      'position:fixed', 'inset:0', 'background:rgba(17,20,24,0.45)',
+      'z-index:5000', 'display:flex', 'align-items:flex-end', 'justify-content:center',
+    ].join(';');
+    document.body.appendChild(overlay);
+
+    function close() {
+      if (overlay.parentNode) document.body.removeChild(overlay);
+      sheetState.pin = null;
+      sheetState.sec = null;
+    }
+
+    // Tap backdrop (outside sheet) → close
+    overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+
+    // ── HTML helpers ─────────────────────────────────────────────────────────
+    function mkSideBtns() {
+      return ['L','R','B'].map(s => {
+        const lbl = s === 'B' ? 'Both' : s;
+        const on  = a.side === s;
+        return `<button class="cond-btn" data-side="${s}"
+          style="background:${on?'var(--blue)':''}; color:${on?'#fff':''}; border-color:${on?'var(--blue)':''}">${lbl}</button>`;
+      }).join('');
+    }
+
+    function mkCondBtns() {
+      return SIGN_CONDITIONS.filter(c => c.v !== 'NA').concat(SIGN_CONDITIONS.filter(c => c.v === 'NA')).map(c => {
+        const on = a.condition === c.v;
+        return `<button class="cond-btn" data-cond="${c.v}"
+          style="background:${on?c.col:''}; color:${on?'#fff':''}; border-color:${on?c.col:''}">${c.v}</button>`;
+      }).join('');
+    }
+
+    function mkPhotoSlot(field, label) {
+      const src = a[field];
+      return `<div class="panel-row">
+        <span class="panel-lbl">${label}</span>
+        <div class="gr-photo-slot">
+          ${src ? `<img class="gr-photo-thumb" src="${src}" data-expand="${field}">` : ''}
+          <button class="gr-photo-btn" data-photo-field="${field}">📷 ${src ? 'Replace' : 'Take'}</button>
+          ${src ? `<button class="gr-photo-clr" data-clear-field="${field}">✕</button>` : ''}
+        </div>
+      </div>`;
+    }
+
+    function mkRepairPhotos() {
+      const thumbs = a.photos_repair.map((src, i) =>
+        `<div class="gr-repair-thumb-wrap">
+          <img class="gr-photo-thumb" src="${src}">
+          <button class="gr-repair-thumb-del" data-ri="${i}">✕</button>
+        </div>`).join('');
+      return `<div class="gr-repair-thumbs">${thumbs || ''}</div>
+        <button class="gr-photo-btn" data-gr-repair-add>📷 Add photo</button>`;
+    }
+
+    // ── Render ───────────────────────────────────────────────────────────────
+    function render() {
+      const typeOpts = [`<option value="">— type —</option>`]
+        .concat(types.map(t => `<option value="${t}"${a.rpt_type === t ? ' selected' : ''}>${t}</option>`))
+        .join('');
+      const treatOpts = [`<option value="">— select —</option>`]
+        .concat(treatments.map(t => `<option value="${t}"${a.rec_treatment === t ? ' selected' : ''}>${t}</option>`))
+        .join('');
+
+      const lengthDisp = a.length_ft != null ? `${a.length_ft} ft` : '—';
+      const mpDisp = (a.mp_start != null && a.mp_end != null)
+        ? `MP ${a.mp_start.toFixed(3)} – ${a.mp_end.toFixed(3)}` : '';
+
+      const infoLine = [`<strong>Status:</strong> ${(pin.status||'pending').toUpperCase()}`];
+      if (pin.sta)           infoLine.push(`<strong>STA:</strong> ${pin.sta}`);
+      if (a.inspection_date) infoLine.push(`<strong>Inspected:</strong> ${a.inspection_date}`);
+      if (pin.asset_id)      infoLine.push(`<strong>Asset:</strong> <code>${pin.asset_id}</code>`);
+
+      const displayName = a.display_name || (isRW ? 'Retaining Wall' : isBR ? 'Barrier' : 'Guardrail');
+
+      // Inject full sheet HTML into overlay (replaces previous render)
+      overlay.innerHTML = `
+        <div class="sheet" style="overflow-y:auto;max-height:95dvh;">
+          <div class="label">${kicker}</div>
+          <h2>${displayName}</h2>
+          <div class="sign-sheet">
+            <div style="font-size:11px;line-height:1.7;margin-bottom:8px;color:var(--ink-2);">
+              ${infoLine.join(' &nbsp;·&nbsp; ')}
+            </div>
+
+            <div class="sign-section">
+              <div class="sign-section-title">Confirm Existing Data</div>
+              <div class="panel-row">
+                <span class="panel-lbl">Side</span>
+                <div class="cond-btns">${mkSideBtns()}</div>
+              </div>
+              <div class="panel-row">
+                <span class="panel-lbl">Type</span>
+                <select class="sign-select" id="gr-type-sel" style="flex:1;min-width:0;">${typeOpts}</select>
+              </div>
+              <div class="panel-row">
+                <span class="panel-lbl">Length</span>
+                <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink);">${lengthDisp}</span>
+                ${mpDisp ? `<span style="font-size:10px;color:var(--ink-3);margin-left:6px;">${mpDisp}</span>` : ''}
+              </div>
+            </div>
+
+            <div class="sign-section">
+              <div class="sign-section-title">Field Assessment</div>
+              <div class="panel-row">
+                <span class="panel-lbl">Condition</span>
+                <div class="cond-btns">${mkCondBtns()}</div>
+              </div>
+              <div class="panel-row">
+                <span class="panel-lbl">Treatment</span>
+                <select class="sign-select" id="gr-treat-sel" style="flex:1;min-width:0;">${treatOpts}</select>
+              </div>
+            </div>
+
+            <div class="sign-section">
+              <div class="sign-section-title">Repair Needed</div>
+              <div class="panel-row">
+                <span class="panel-lbl">Repair length</span>
+                <input id="gr-repair-len" type="number" min="0" step="1" value="${a.repair_length_ft || ''}"
+                  style="width:80px;font-family:'IBM Plex Mono',monospace;font-size:11px;
+                         padding:3px 5px;border:1px solid var(--rule);background:var(--paper);color:var(--ink);">
+                <span style="font-size:11px;color:var(--ink-3);">ft</span>
+              </div>
+              <div class="panel-row" style="flex-direction:column;align-items:flex-start;gap:3px;">
+                <span class="panel-lbl">Notes</span>
+                <textarea class="sign-field-notes" id="gr-notes" rows="2">${(a.notes||'').replace(/</g,'&lt;')}</textarea>
+              </div>
+            </div>
+
+            <div class="sign-section">
+              <div class="sign-section-title">End Treatments</div>
+              ${mkPhotoSlot('photo_start_term', 'Start term')}
+              ${mkPhotoSlot('photo_end_term',   'End term')}
+            </div>
+
+            <div class="sign-section">
+              <div class="sign-section-title">Repair Photos</div>
+              ${mkRepairPhotos()}
+            </div>
+
+            <input type="file" id="gr-photo-start-input"  accept="image/*" capture="environment" style="display:none;">
+            <input type="file" id="gr-photo-end-input"    accept="image/*" capture="environment" style="display:none;">
+            <input type="file" id="gr-photo-repair-input" accept="image/*" capture="environment" style="display:none;">
+
+            <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+              <button class="btn" data-gr-confirm style="flex:1;background:var(--status-done);color:#fff;">✓ Confirm</button>
+              <button class="btn alt" data-gr-relocate style="flex:1;">Relocate</button>
+              <button class="btn alt" data-gr-discard  style="flex:0 0 auto;">✕ Discard</button>
+            </div>
+          </div>
+        </div>`;
+
+      // ── Wire interactions (all scoped through overlay) ───────────────────
+
+      // Side toggle
+      overlay.querySelectorAll('.cond-btn[data-side]').forEach(btn =>
+        btn.addEventListener('click', () => {
+          a.side = btn.dataset.side === a.side ? '' : btn.dataset.side;
+          render();
+        }));
+
+      // Type
+      overlay.querySelector('#gr-type-sel')?.addEventListener('change', e => { a.rpt_type = e.target.value; });
+
+      // Condition toggle
+      overlay.querySelectorAll('.cond-btn[data-cond]').forEach(btn =>
+        btn.addEventListener('click', () => {
+          a.condition = btn.dataset.cond === a.condition ? 'NA' : btn.dataset.cond;
+          render();
+        }));
+
+      // Treatment
+      overlay.querySelector('#gr-treat-sel')?.addEventListener('change', e => { a.rec_treatment = e.target.value; });
+
+      // Repair length
+      overlay.querySelector('#gr-repair-len')?.addEventListener('change', e => {
+        const v = parseFloat(e.target.value);
+        a.repair_length_ft = isNaN(v) ? '' : v;
+      });
+
+      // Notes
+      overlay.querySelector('#gr-notes')?.addEventListener('change', e => { a.notes = e.target.value; });
+
+      // Photo slot buttons (start/end terminal)
+      overlay.querySelectorAll('.gr-photo-btn[data-photo-field]').forEach(btn =>
+        btn.addEventListener('click', () => {
+          const fld = btn.dataset.photoField;
+          const inp = overlay.querySelector(fld === 'photo_start_term' ? '#gr-photo-start-input' : '#gr-photo-end-input');
+          if (inp) inp.click();
+        }));
+
+      // Photo clear (start/end terminal)
+      overlay.querySelectorAll('.gr-photo-clr[data-clear-field]').forEach(btn =>
+        btn.addEventListener('click', () => { a[btn.dataset.clearField] = ''; render(); }));
+
+      // Repair photo delete
+      overlay.querySelectorAll('.gr-repair-thumb-del').forEach(btn =>
+        btn.addEventListener('click', () => {
+          a.photos_repair.splice(parseInt(btn.dataset.ri, 10), 1);
+          render();
+        }));
+
+      // Repair photo add
+      overlay.querySelector('[data-gr-repair-add]')?.addEventListener('click', () =>
+        overlay.querySelector('#gr-photo-repair-input')?.click());
+
+      // File → DataURL helpers
+      const wirePhoto = (inputId, onLoad) => {
+        const inp = overlay.querySelector('#' + inputId);
+        if (!inp) return;
+        inp.addEventListener('change', e => {
+          const file = e.target.files?.[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = ev => { inp.value = ''; onLoad(ev.target.result); };
+          reader.readAsDataURL(file);
+        });
+      };
+      wirePhoto('gr-photo-start-input',  url => { a.photo_start_term = url; render(); });
+      wirePhoto('gr-photo-end-input',    url => { a.photo_end_term   = url; render(); });
+      wirePhoto('gr-photo-repair-input', url => { a.photos_repair.push(url); render(); });
+
+      // Thumbnail expand (tap to full-screen)
+      overlay.querySelectorAll('.gr-photo-thumb[data-expand]').forEach(img =>
+        img.addEventListener('click', () => {
+          if (typeof openCropModal === 'function') {
+            openCropModal({ src: img.src, title: 'Photo', onSave: () => {} });
+          }
+        }));
+
+      // Action buttons
+      const refreshPin = status => {
+        pin.status = status;
+        const sec2 = SECTIONS.find(s => s.id === state.sectionId);
+        if (sec2) initOrUpdateMap(sec2);
+      };
+      overlay.querySelector('[data-gr-confirm]')?.addEventListener('click',  () => { refreshPin('confirmed'); close(); });
+      overlay.querySelector('[data-gr-discard]')?.addEventListener('click',  () => { refreshPin('discarded'); close(); });
+      overlay.querySelector('[data-gr-relocate]')?.addEventListener('click', () => {
+        close();
+        if (window._rwStartRelocate) window._rwStartRelocate(pin, sec);
+      });
+    } // end render()
+
+    render();
+  } // end openBarrierSheet
+
   // Photo crop modal — full-screen overlay with the image and a draggable
   // rectangle. On save, draws the rect into a canvas at the image's natural
   // resolution and returns a JPEG data URL via onSave().
@@ -7558,9 +7908,9 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
     parking:              'loc_name',
     ln_culvert:           'material',
     ln_box_culvert:       'material',
-    ln_guardrail:         'barrier_material',
-    ln_retaining_wall:    'wall_material',
-    ln_barrier:           'barrier_material',
+    ln_guardrail:         'rpt_type',
+    ln_retaining_wall:    'rpt_type',
+    ln_barrier:           'rpt_type',
   };
   state.stripLabels = state.stripLabels || {};
 
@@ -8177,6 +8527,146 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
   const _AL_BASE  = { fence: 32, swale: 24, guardrail: 16, sidewalk: 8, curb: 2, line: 0 };
   const _AL_THICK = { fence:  4, swale:  6, guardrail:  5, sidewalk: 6, curb: 4, line: 4 };
 
+  // ── Plan-view SVG symbols for roadside point features ───────────────────
+  // Returns an SVG string (inject as innerHTML) or null → use default pill.
+  // All symbols use compass orientation: 0°=N=up, 90°=E=right, etc.
+  function makeStripPinSvg(pin, color) {
+    const k = pin.kind;
+    const c = color || '#666';
+
+    // ── Sign: post dot + panel line(s) oriented by compass facing ──────────
+    if (k === 'pt_sign') {
+      const CX = 12, CY = 12, R = 3.5, PL = 7.5;
+      const panels = Array.isArray(pin.attrs?.panels) ? pin.attrs.panels : [];
+      let lines = '';
+      for (const panel of panels) {
+        const f  = ((panel.facing_degrees ?? 0) * Math.PI) / 180;
+        const dx = Math.sin(f), dy = -Math.cos(f);        // N=up in SVG (y-up)
+        const x1 = (CX + dx * (R + 1)).toFixed(1);
+        const y1 = (CY + dy * (R + 1)).toFixed(1);
+        const x2 = (CX + dx * (R + PL)).toFixed(1);
+        const y2 = (CY + dy * (R + PL)).toFixed(1);
+        lines += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="2" stroke-linecap="round"/>`;
+      }
+      const dot = `<circle cx="${CX}" cy="${CY}" r="${R}" fill="${c}"/>`;
+      return `<svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" overflow="visible">${lines}${dot}</svg>`;
+    }
+
+    // ── Light pole / flagpole: hollow circle + centre dot ──────────────────
+    if (k === 'pt_light_pole' || k === 'pt_flagpole') {
+      return `<svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">` +
+        `<circle cx="9" cy="9" r="5.5" fill="none" stroke="${c}" stroke-width="1.5"/>` +
+        `<circle cx="9" cy="9" r="2"   fill="${c}"/></svg>`;
+    }
+
+    // ── Guy wire anchor: circled × ──────────────────────────────────────────
+    if (k === 'pt_guy_wire') {
+      return `<svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">` +
+        `<circle cx="9" cy="9" r="5.5" fill="none" stroke="${c}" stroke-width="1.5"/>` +
+        `<line x1="5.5" y1="5.5" x2="12.5" y2="12.5" stroke="${c}" stroke-width="1.5"/>` +
+        `<line x1="12.5" y1="5.5" x2="5.5" y2="12.5" stroke="${c}" stroke-width="1.5"/></svg>`;
+    }
+
+    // ── Fire hydrant: plan-view profile ────────────────────────────────────
+    if (k === 'pt_hyd') {
+      return `<svg width="16" height="18" viewBox="0 0 16 18" xmlns="http://www.w3.org/2000/svg">` +
+        `<rect x="3"  y="12" width="10" height="5"  rx="1"   fill="${c}"/>` +
+        `<rect x="2"  y="6"  width="12" height="8"  rx="2"   fill="${c}"/>` +
+        `<rect x="5"  y="3"  width="6"  height="5"  rx="1"   fill="${c}"/>` +
+        `<rect x="0"  y="8"  width="2"  height="4"  rx="0.5" fill="${c}"/>` +
+        `<rect x="14" y="8"  width="2"  height="4"  rx="0.5" fill="${c}"/></svg>`;
+    }
+
+    // ── Delineator: reflective dot ──────────────────────────────────────────
+    if (k === 'pt_delineator') {
+      return `<svg width="14" height="14" viewBox="0 0 14 14" xmlns="http://www.w3.org/2000/svg">` +
+        `<circle cx="7" cy="7" r="5"   fill="${c}"/>` +
+        `<circle cx="7" cy="7" r="2.5" fill="white" opacity="0.5"/></svg>`;
+    }
+
+    // ── Mailbox: overhead rectangle (box) + post stem ──────────────────────
+    if (k === 'pt_mailbox') {
+      return `<svg width="20" height="18" viewBox="0 0 20 18" xmlns="http://www.w3.org/2000/svg">` +
+        `<line x1="7" y1="13" x2="7" y2="17" stroke="${c}" stroke-width="1.5" stroke-linecap="round"/>` +
+        `<rect x="1" y="6" width="14" height="8" rx="1.5" fill="none" stroke="${c}" stroke-width="1.5"/></svg>`;
+    }
+
+    // ── Catch Basin: square + diagonal X ───────────────────────────────────
+    if (k === 'pt_cb') {
+      return `<svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">` +
+        `<rect x="2" y="2" width="14" height="14" rx="1" fill="none" stroke="${c}" stroke-width="1.5"/>` +
+        `<line x1="2" y1="2" x2="16" y2="16" stroke="${c}" stroke-width="1.5"/>` +
+        `<line x1="16" y1="2" x2="2"  y2="16" stroke="${c}" stroke-width="1.5"/></svg>`;
+    }
+
+    // ── Drop Inlet: square + inscribed circle ───────────────────────────────
+    if (k === 'pt_di') {
+      return `<svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">` +
+        `<rect x="2" y="2" width="14" height="14" rx="1" fill="none" stroke="${c}" stroke-width="1.5"/>` +
+        `<circle cx="9" cy="9" r="4" fill="none" stroke="${c}" stroke-width="1.5"/></svg>`;
+    }
+
+    // ── Sanitary Manhole: circle + diagonal X ──────────────────────────────
+    if (k === 'pt_smh') {
+      return `<svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">` +
+        `<circle cx="9" cy="9" r="6.5" fill="none" stroke="${c}" stroke-width="1.5"/>` +
+        `<line x1="4.4" y1="4.4" x2="13.6" y2="13.6" stroke="${c}" stroke-width="1.5"/>` +
+        `<line x1="13.6" y1="4.4" x2="4.4" y2="13.6" stroke="${c}" stroke-width="1.5"/></svg>`;
+    }
+
+    // ── Drainage/Telecom Manhole: circle + plus cross ──────────────────────
+    if (k === 'pt_dmh') {
+      return `<svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">` +
+        `<circle cx="9" cy="9" r="6.5" fill="none" stroke="${c}" stroke-width="1.5"/>` +
+        `<line x1="9" y1="2.5" x2="9"    y2="15.5" stroke="${c}" stroke-width="1.5"/>` +
+        `<line x1="2.5" y1="9" x2="15.5" y2="9"    stroke="${c}" stroke-width="1.5"/></svg>`;
+    }
+
+    // ── Electric Manhole: circle + 3 horizontal parallel lines ────────────
+    if (k === 'pt_emh') {
+      return `<svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">` +
+        `<circle cx="9" cy="9" r="6.5" fill="none" stroke="${c}" stroke-width="1.5"/>` +
+        `<line x1="4.5" y1="6"  x2="13.5" y2="6"  stroke="${c}" stroke-width="1.2"/>` +
+        `<line x1="3.5" y1="9"  x2="14.5" y2="9"  stroke="${c}" stroke-width="1.2"/>` +
+        `<line x1="4.5" y1="12" x2="13.5" y2="12" stroke="${c}" stroke-width="1.2"/></svg>`;
+    }
+
+    // ── Gas Gate: open diamond (valve box) ─────────────────────────────────
+    if (k === 'pt_gg') {
+      return `<svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">` +
+        `<polygon points="9,2 16,9 9,16 2,9" fill="none" stroke="${c}" stroke-width="1.5"/></svg>`;
+    }
+
+    // ── Water Gate: diamond + centre dot ───────────────────────────────────
+    if (k === 'pt_wg') {
+      return `<svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">` +
+        `<polygon points="9,2 16,9 9,16 2,9" fill="none" stroke="${c}" stroke-width="1.5"/>` +
+        `<circle cx="9" cy="9" r="2" fill="${c}"/></svg>`;
+    }
+
+    // ── Monument: solid upward triangle ────────────────────────────────────
+    if (k === 'pt_monument') {
+      return `<svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">` +
+        `<polygon points="9,2 17,16 1,16" fill="${c}"/></svg>`;
+    }
+
+    return null;   // → default pill rendering
+  }
+
+  // All kinds that render as SVG plan-view symbols instead of pill chips
+  const _SVG_PIN_KINDS = new Set([
+    'pt_sign', 'pt_light_pole', 'pt_flagpole', 'pt_guy_wire',
+    'pt_hyd', 'pt_delineator', 'pt_mailbox',
+    'pt_cb', 'pt_di', 'pt_smh', 'pt_dmh', 'pt_emh',
+    'pt_gg', 'pt_wg', 'pt_monument'
+  ]);
+  // Subset that belong at slot-6 cross-section offset (ROW-line roadside hardware).
+  // Utility structures (CB, DI, manholes, gates) sit at pavement or curb, not slot 6.
+  const _SLOT6_KINDS = new Set([
+    'pt_sign', 'pt_light_pole', 'pt_flagpole',
+    'pt_guy_wire', 'pt_hyd', 'pt_delineator', 'pt_mailbox'
+  ]);
+
   function renderStrip() {
     if (!stripCurrentSec) return;
     const sec = stripCurrentSec;
@@ -8373,10 +8863,19 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
       const bar = document.createElement('div');
       bar.className = `strip-feature-bar kind-${pin.kind}`;
       const _barColor = PIN_STYLE[pin.kind]?.color || '#666';
-      const _barLsKey = PIN_STYLE[pin.kind]?.lineStyle || '';
+      const _barLsKey = state.settings?.styleOverrides?.[pin.kind]?.lineStyle
+                        ?? PIN_STYLE[pin.kind]?.lineStyle ?? '';
       const _barPat   = window._RW?.LINE_STYLE_MAP?.[_barLsKey];
-      if (_barPat?.sld) {
-        // Symbol pattern via CSS gradient
+      if (_barPat?.hatch) {
+        // Hatch/tick overlay on solid base color (guardrail teeth, diagonal fill, X-fence)
+        bar.style.backgroundColor = _barColor;
+        bar.style.backgroundImage = _barPat.hatch.replace(/{c}/g, 'rgba(255,255,255,0.72)');
+      } else if (_barPat?.dash) {
+        // Dashed: transparent gaps, feature color for solid portions
+        bar.style.backgroundColor = 'transparent';
+        bar.style.backgroundImage = _barPat.dash.replace(/{c}/g, _barColor);
+      } else if (_barPat?.sld) {
+        // Legacy alias for hatch
         bar.style.backgroundColor = _barColor;
         bar.style.backgroundImage = _barPat.sld.replace(/{c}/g, 'rgba(255,255,255,0.65)');
       } else if (_barPat?.double) {
@@ -8389,7 +8888,7 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
       const slotLevel  = state.settings?.styleOverrides?.[pin.kind]?.slotLevel
                          ?? _KIND_SLOT_LV[pin.kind] ?? 0;
       const baseOffset = slotLevel * 5;
-      const slotThick  = 4;
+      const slotThick  = _barPat?.thick ?? 4;
       const roadHalf = 20; // half of 40px pavement band
       if (horiz) {
         bar.style.left  = `${p1}%`; bar.style.width = `${p2 - p1}%`;
@@ -8404,7 +8903,12 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
       }
       bar.title = `${pin.id} · ${pin.kind} · ${pin.attrs.length_ft || '?'} ft ${pin.attrs.length_source === 'estimated_pending_ocr' ? '(est)' : ''}`;
       bar.style.pointerEvents = 'auto'; bar.style.cursor = 'pointer';
-      bar.addEventListener('click', (e) => { e.stopPropagation(); openFeaturePopup(pin, sec, e); });
+      const _isBarrierKind = pin.kind === 'ln_guardrail' || pin.kind === 'ln_retaining_wall' || pin.kind === 'ln_barrier';
+      bar.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (_isBarrierKind) openBarrierSheet(pin, sec);
+        else openFeaturePopup(pin, sec, e);
+      });
       inner.appendChild(bar);
       // ── Vertex labels: start badge, mid text, end text ─────────────────────
       const _BL      = state.settings?.labelSettings?.barLabels || {};
@@ -8433,7 +8937,7 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
         badge.style.color = '#fff';   // always white — badge is a colored chip, not a text label
         badge.style.transform = 'translate(-50%, -50%)';
         if (blStart.size) badge.style.fontSize = blStart.size + 'px';
-        badge.addEventListener('click', (e) => { e.stopPropagation(); openFeaturePopup(pin, sec, e); });
+        badge.addEventListener('click', (e) => { e.stopPropagation(); if (_isBarrierKind) openBarrierSheet(pin, sec); else openFeaturePopup(pin, sec, e); });
         if (horiz) {
           badge.style.left = `${axisPct(startSta)}%`;
           badge.style.top = pin.attrs.side === 'L'
@@ -8730,15 +9234,21 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
       if (style.shape) el.classList.add('shape-' + style.shape);
       el.style[axisKey] = `${pct}%`;
 
-      // Sign/post on a named side → slot 6 cross-section position (matches ln_fence band).
-      // Slot 6: baseOffset = 6 × 5 = 30px; pin centre sits roadHalf + 30 = 50px from CL.
-      const _signOnSide = pin.kind === 'pt_sign' &&
-                          (pin.attrs?.side === 'L' || pin.attrs?.side === 'R');
-      const _SL6_BASE  = 30;   // slot-6 offset (px)
-      const _RD_HALF   = 20;   // half of 40px pavement band
-      const _PIN_H     = 16;   // .strip-pin height (px)
-      // pin_width for the 'Si' pill is ~20px; half ≈ 10px used in vertical calcs
-      const _PIN_W_HALF = 10;
+      // SVG-symbol kinds render plan-view shapes instead of pill chips.
+      const _usesSvg    = _SVG_PIN_KINDS.has(pin.kind);
+      const _isSlot6    = _SLOT6_KINDS.has(pin.kind);
+      // Non-slot-6 SVG kinds (CBs, manholes, gates, monuments) sit at slot −2
+      // (10 px INSIDE the pavement edge, toward CL).
+      const _isSlotNeg2 = _usesSvg && !_isSlot6;
+      const _hasSide    = pin.attrs?.side === 'L' || pin.attrs?.side === 'R';
+      // Both slot-6 and slot-neg2 get explicit cross-section placement on named sides.
+      const _signOnSide = (_isSlot6 || _isSlotNeg2) && _hasSide;
+      // Slot offset: +px = outside pavement edge, −px = inside.
+      // slot 6 → +30 px  |  slot −2 → −10 px
+      const _slotPx    =  _isSlot6 ? 30 : _isSlotNeg2 ? -10 : 0;
+      const _RD_HALF   = 20;   // half of 40 px pavement band
+      const _PIN_H     = _usesSvg ? 20 : 16;
+      const _PIN_W_HALF = _usesSvg ? 10 : 10;
 
       if (horiz) {
         // Base CSS positions pins as vertical-mode markers (right:50%, no top).
@@ -8746,10 +9256,11 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
         const _PIN_TOP = { L: 'calc(50% - 100px)', R: 'calc(50% + 92px)', C: 'calc(50% - 8px)' };
         const _side = pin.attrs?.side || 'C';
         if (_signOnSide) {
-          // top = slot-6-centre − halfPinHeight  (translateX(-50%) so no Y centering)
+          // top = CL ± (roadHalf + slotPx ± halfPinH)
+          // positive slotPx → outside pavement; negative → inside.
           el.style.top = _side === 'L'
-            ? `calc(50% - ${_RD_HALF + _SL6_BASE + _PIN_H / 2}px)`   // 50% - 58px
-            : `calc(50% + ${_RD_HALF + _SL6_BASE - _PIN_H / 2}px)`;  // 50% + 42px
+            ? `calc(50% - ${_RD_HALF + _slotPx + _PIN_H / 2}px)`
+            : `calc(50% + ${_RD_HALF + _slotPx - _PIN_H / 2}px)`;
         } else {
           el.style.top = _PIN_TOP[_side] || 'calc(50% - 8px)';
         }
@@ -8759,25 +9270,31 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
         el.style.marginRight = '0';
         el.style.transform = _side === 'C' ? 'translate(-50%,-50%)' : 'translateX(-50%)';
       } else if (_signOnSide) {
-        // Vertical strip: override the CSS right/left defaults so pin sits at slot 6.
-        // right/left = 50% + (roadHalf + slot6 − pinHalfWidth) → pin centre at 50px from CL.
-        const _outerEdge = `calc(50% + ${_RD_HALF + _SL6_BASE - _PIN_W_HALF}px)`; // 50% + 40px
+        // Vertical strip: right/left = 50% + (roadHalf + slotPx − pinHalfW)
+        // → pin centre at (roadHalf + slotPx) px from CL.
+        const _slotEdge = `calc(50% + ${_RD_HALF + _slotPx - _PIN_W_HALF}px)`;
         if (pin.attrs.side === 'L') {
-          el.style.right = _outerEdge;
+          el.style.right = _slotEdge;
           el.style.left = 'auto';
           el.style.marginRight = '0';
         } else {
-          el.style.left = _outerEdge;
+          el.style.left = _slotEdge;
           el.style.right = 'auto';
           el.style.marginLeft = '0';
         }
       }
 
-      el.style.background = style.color;
       el.style.opacity = pin.status === 'discarded' ? '0.3' : '1';
       el.style.zIndex = '3';       // above pavement band (z-index:1) and feature bars (z-index:2)
       el.style.cursor = 'pointer';
-      el.textContent = style.code;
+      const _svgHtml = _usesSvg ? makeStripPinSvg(pin, style.color) : null;
+      if (_svgHtml) {
+        el.classList.add('strip-pin-svg');
+        el.innerHTML = _svgHtml;
+      } else {
+        el.style.background = style.color;
+        el.textContent = style.code;
+      }
       el.title = `${pin.id} · ${pin.kind.replace('_',' ')} · STA ${pin.sta} · ${pin.attrs?.side || ''}`;
       el.addEventListener('click', (e) => { e.stopPropagation(); openFeaturePopup(pin, sec, e); });
       inner.appendChild(el);
@@ -8788,19 +9305,20 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
         lab.textContent = labelText; lab.title = `${pin.id} · ${labelText}`;
         if (horiz) {
           lab.style.left = `${pct}%`; lab.style.transform = 'translateX(-50%)';
-          if (_signOnSide) {
-            // Label just outside the slot-6 pin (above for L, below for R)
+          if (_isSlot6 && _hasSide) {
+            // Slot-6 label just outside the pin (above for L, below for R)
             lab.style.top = pin.attrs.side === 'L'
-              ? `calc(50% - ${_RD_HALF + _SL6_BASE + _PIN_H / 2 + 14}px)` // 50% - 72px
-              : `calc(50% + ${_RD_HALF + _SL6_BASE - _PIN_H / 2 + 18}px)`; // 50% + 60px
+              ? `calc(50% - ${_RD_HALF + 30 + _PIN_H / 2 + 14}px)`  // 50% − 74px
+              : `calc(50% + ${_RD_HALF + 30 - _PIN_H / 2 + 18}px)`; // 50% + 58px
           } else {
+            // Slot-neg2 and others: labels float to the far outer band
             lab.style.top = pin.attrs?.side === 'R' ? 'calc(50% + 110px)' : 'calc(50% - 122px)';
           }
         } else {
           lab.style.top = `${pct}%`; lab.style.transform = 'translateY(-50%)';
-          if (_signOnSide) {
-            // Label beyond the pin (further from CL than pin's outer edge)
-            const _labOuter = `calc(50% + ${_RD_HALF + _SL6_BASE + _PIN_W_HALF + 4}px)`; // 50% + 64px
+          if (_isSlot6 && _hasSide) {
+            // Slot-6 label beyond the pin (further from CL)
+            const _labOuter = `calc(50% + ${_RD_HALF + 30 + _PIN_W_HALF + 4}px)`; // 50% + 64px
             if (pin.attrs.side === 'R') lab.style.left = _labOuter;
             else                         lab.style.right = _labOuter;
           } else {
@@ -13537,6 +14055,16 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
     { v: 'greater_than',      l: 'Greater-than  > > > >',   da: '4 2 2 3' },
     { v: 'less_than',         l: 'Less-than  < < < <',      da: '2 3 4 2' },
     { v: 'tilde',             l: 'Tildes  ~ ~ ~ ~',         da: '5 2 2 2 1 2' },
+    // ── Feature-specific defaults (auto-assigned from catalog; re-selectable) ─
+    { v: 'guardrail',      l: 'Guard rail  | | |',       da: '6 3',
+      hatch: 'repeating-linear-gradient(90deg,transparent 0 6px,{c} 6px 8px)', thick: 6 },
+    { v: 'retaining_wall', l: 'Retaining wall  /////',   da: null,
+      hatch: 'repeating-linear-gradient(-45deg,transparent 0 2px,{c} 2px 3px,transparent 3px 5px)', thick: 7 },
+    { v: 'barrier',        l: 'Barrier  ═══',            da: null,  double: true, thick: 6 },
+    { v: 'fence',          l: 'Fence  × × ×',           da: '3 3',
+      hatch: 'repeating-linear-gradient(45deg,transparent 0 2px,{c} 2px 3px,transparent 3px 5px),repeating-linear-gradient(-45deg,transparent 0 2px,{c} 2px 3px,transparent 3px 5px)', thick: 6 },
+    { v: 'swale',          l: 'Swale  ——  ——',           da: '8 5',
+      dash: 'repeating-linear-gradient(90deg,{c} 0 8px,transparent 8px 14px)' },
   ];
   const LINE_STYLE_MAP = Object.fromEntries(LINE_STYLES.map(s => [s.v, s]));
   // Expose so buildPinLayer (inside main IIFE) can resolve lineStyle patterns
