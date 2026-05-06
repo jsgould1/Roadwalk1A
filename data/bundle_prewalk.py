@@ -47,6 +47,8 @@ SECTIONS_META = [
         'project_code': 'TN NP GRSM 12(4)', 'type': 'linear',
         'mp_start': 0.0, 'mp_end': 4.64,
         'alignment_file': 'section-A-gatlinburg-bypass.geojson',
+        # Ramp sub-alignments sourced from gatlinburg-bypass.geojson (role='ramp' features)
+        'sub_alignments_file': 'gatlinburg-bypass.geojson',
         'pathweb_refs': [
             {'id': 6416, 'role': 'mainline', 'mp_start': 0.0, 'mp_end': 3.747},
             {'id': 6410, 'role': 'ramp_NB_AZ', 'mp_start': 0.0, 'mp_end': 0.231},
@@ -170,6 +172,22 @@ totals = {}
 for meta in SECTIONS_META:
     sec_id = meta['id']
     align = load_alignment(os.path.join(DATA, meta['alignment_file']))
+
+    # Sub-alignments: ramp / spur centerlines for display alongside the mainline.
+    sub_alignments = []
+    if 'sub_alignments_file' in meta:
+        with open(os.path.join(DATA, meta['sub_alignments_file']), encoding='utf-8') as f:
+            sa_data = json.load(f)
+        for ft in sa_data.get('features', []):
+            p = ft.get('properties', {})
+            if p.get('role') == 'ramp':
+                sub_alignments.append({
+                    'role': 'ramp',
+                    'name': p.get('name', 'Ramp'),
+                    'length_ft': round(p.get('length_ft', 0), 1),
+                    'coordinates': ft['geometry']['coordinates'],  # [lng, lat] GeoJSON order
+                })
+
     pins = []
     pin_counter = {}  # per-kind counter for stable IDs
     for pattern, kind, source in PIN_SOURCES:
@@ -190,7 +208,8 @@ for meta in SECTIONS_META:
         'mp_start': meta['mp_start'],
         'mp_end': meta['mp_end'],
         'pathweb_refs': meta['pathweb_refs'],
-        'alignment': align,  # [lng, lat] pairs (GeoJSON convention)
+        'alignment': align,           # [lng, lat] pairs (GeoJSON convention)
+        'sub_alignments': sub_alignments,  # ramp/spur lines; empty list if none
         'pins': pins,
     })
 

@@ -4677,21 +4677,29 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
       const alignmentLL = s.alignment.map(c => [c[1], c[0]]);
       const mid = alignmentLL[Math.floor(alignmentLL.length / 2)];
       const pinCount = (s.pins || []).length;
+      // Sub-alignments (ramps, spurs) — convert [lng,lat] → [lat,lng] for Leaflet
+      const subAlignmentsLL = (s.sub_alignments || []).map(sa => ({
+        role:      sa.role,
+        name:      sa.name,
+        lengthFt:  sa.length_ft,
+        coords:    sa.coordinates.map(c => [c[1], c[0]]),
+      }));
       return {
-        id:           s.id,
-        name:         s.name,
-        type:         s.type,
-        status:       'prog',
-        featureCount: pinCount,
-        meta:         `${s.project_code} · ${s.mp_start.toFixed(2)} → ${s.mp_end.toFixed(2)} MP · ${pinCount} pins`,
-        kickoff:      true,
-        center:       mid,
-        alignment:    alignmentLL,
-        pathwebRefs:  s.pathweb_refs,
-        projectCode:  s.project_code,
-        mpStart:      s.mp_start,
-        mpEnd:        s.mp_end,
-        pins:         s.pins || [],
+        id:             s.id,
+        name:           s.name,
+        type:           s.type,
+        status:         'prog',
+        featureCount:   pinCount,
+        meta:           `${s.project_code} · ${s.mp_start.toFixed(2)} → ${s.mp_end.toFixed(2)} MP · ${pinCount} pins`,
+        kickoff:        true,
+        center:         mid,
+        alignment:      alignmentLL,
+        subAlignments:  subAlignmentsLL,
+        pathwebRefs:    s.pathweb_refs,
+        projectCode:    s.project_code,
+        mpStart:        s.mp_start,
+        mpEnd:          s.mp_end,
+        pins:           s.pins || [],
       };
     });
     // Update project header
@@ -4965,7 +4973,7 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
       size_notes: '', dmg_pct_mode: false,
     },
     map: null,
-    mapLayers: { alignment: null, features: null, me: null },
+    mapLayers: { alignment: null, subAlignments: [], features: null, me: null },
     // Live GPS — updated by watchPosition, drives the blue dot on map + strip
     gpsPos: null,   // { lat, lng, accuracy } or null before first fix
     gpsDot: null,   // L.circleMarker instance (created once, reused)
@@ -5412,6 +5420,9 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
       state.mapLayers.alignment.remove();
       state.mapLayers.alignment = null;
     }
+    // Clear sub-alignments (ramps / spurs)
+    (state.mapLayers.subAlignments || []).forEach(l => { try { l.remove(); } catch (_) {} });
+    state.mapLayers.subAlignments = [];
     if (state.mapLayers.features) {
       state.mapLayers.features.remove();
       state.mapLayers.features = null;
@@ -5440,6 +5451,22 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
       }).addTo(state.map);
       state.mapLayers.alignment = alignmentLayer;
       state.mapLayers.alignmentHit = alignmentHit;
+
+      // Sub-alignments: ramp / spur centerlines drawn dashed alongside the mainline.
+      // Visibility mirrors the centerline toggle (off by default, shown when CL is on).
+      for (const sa of (sec.subAlignments || [])) {
+        const rampLine = L.polyline(sa.coords, {
+          color: '#C85A2B',
+          weight: 2.5,
+          opacity: 0,          // start hidden; applyCenterlineVisibility controls this
+          dashArray: '6 5',
+          lineCap: 'butt',
+          interactive: false,
+          pane: 'overlayPane',
+        }).addTo(state.map);
+        rampLine._saName = sa.name;
+        state.mapLayers.subAlignments.push(rampLine);
+      }
       // Build the station-tick layer (50' "+", 100' "55+00") tied to CL visibility
       buildStationTicks(sec);
       // Honor the user's last centerline-visibility preference (default off)
@@ -11871,6 +11898,8 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
     if (state.mapLayers.alignment) {
       state.mapLayers.alignment.setStyle({ opacity: show ? 0.9 : 0 });
     }
+    // Ramp sub-alignments toggle with the same button at slightly lower opacity
+    (state.mapLayers.subAlignments || []).forEach(l => l.setStyle({ opacity: show ? 0.65 : 0 }));
     const hit = state.mapLayers.alignmentHit;
     if (hit && state.map && !state.map.hasLayer(hit)) hit.addTo(state.map);
     refreshStationTicksVisibility();
