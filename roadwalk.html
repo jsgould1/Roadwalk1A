@@ -4461,6 +4461,182 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
   -webkit-overflow-scrolling: touch;
 }
 
+/* --- Full-export modal (#export-modal) ---------------------------------------------
+   Centred card overlay. Shows a live pre-flight summary of each data
+   category (inspections, logs, photos, etc.) with counts before the
+   user commits to the download. A checkbox lets them opt in/out of
+   including photo blobs (base64) which can inflate file size.
+   --------------------------------------------------------------------------- */
+#export-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.52);
+  z-index: 870;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+#export-modal[hidden] { display: none; }
+.exp-card {
+  background: var(--paper);
+  width: min(440px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.32);
+  display: flex;
+  flex-direction: column;
+}
+/* Header bar */
+.exp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid var(--rule);
+  flex-shrink: 0;
+}
+.exp-title {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  color: var(--ink-3);
+  text-transform: uppercase;
+}
+.exp-close {
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; color: var(--ink-3); cursor: pointer;
+  background: none; border: none;
+}
+.exp-close:hover { color: var(--ink); }
+/* Scanning / progress state */
+.exp-scanning {
+  padding: 24px 16px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--ink-3);
+  text-align: center;
+}
+/* Summary rows — one per data category */
+.exp-summary {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 0;
+  flex: 1;
+}
+.exp-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--rule-soft);
+}
+.exp-row:last-child { border-bottom: none; }
+/* Status icon (✓ ready / ⚠ empty / … scanning) */
+.exp-icon {
+  width: 20px; height: 20px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.exp-icon.ok   { color: var(--status-done); }
+.exp-icon.warn { color: var(--orange); }
+.exp-icon.info { color: var(--ink-mute); }
+.exp-row-body { flex: 1; min-width: 0; }
+.exp-row-label {
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.2;
+}
+.exp-row-sub {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--ink-3);
+  margin-top: 1px;
+}
+.exp-count {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-2);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+/* Photo opt-in toggle */
+.exp-photo-opt {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--rule);
+  cursor: pointer;
+}
+.exp-photo-opt input[type="checkbox"] { margin-top: 2px; flex-shrink: 0; }
+.exp-photo-opt-text {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--ink-2);
+  line-height: 1.5;
+}
+.exp-photo-opt-text strong { color: var(--ink); }
+/* Footer: size estimate + buttons */
+.exp-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--rule);
+  background: var(--paper-2);
+  flex-shrink: 0;
+}
+.exp-size-est {
+  flex: 1;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  color: var(--ink-3);
+  line-height: 1.4;
+}
+.exp-btn {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  padding: 8px 14px;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  color: var(--ink-2);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.exp-btn:hover { border-color: var(--ink-2); }
+.exp-btn--primary {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #fff;
+}
+.exp-btn--primary:hover { background: var(--blue-2); border-color: var(--blue-2); }
+.exp-btn--primary:disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+/* Progress bar shown during download build */
+.exp-progress {
+  height: 3px;
+  background: var(--rule);
+  flex-shrink: 0;
+}
+.exp-progress-bar {
+  height: 100%;
+  background: var(--blue);
+  width: 0%;
+  transition: width 0.2s ease;
+}
+
 /* --- Mobile / phone preview mode --------------------------------------------------
    Activated by #view-toggle-btn. Constrains #app to 390px centred on desktop,
    mimicking iPhone viewport. Matches existing view-toggle-btn behaviour.
@@ -5369,6 +5545,132 @@ body.mobile-mode #app {
     </div>
   </div>
 </div>
+
+<!-- ============================================================
+     FULL EXPORT MODAL (#export-modal)
+     Opened by the Dashboard "Export" button.
+     Scans all data sources (IDB + localStorage) before downloading,
+     shows a count-per-category summary, and lets the user choose
+     whether to include photo blobs (base64 in JSON).
+
+     Export JSON structure:
+     {
+       _export_meta: { version, exported_at, app },
+       bundle:       { ...prewalk bundle... },
+       field_data: {
+         inspections: [...],    ← IDB 'inspections' store
+         daily_logs:  [...],    ← IDB 'daily_logs' store
+         safety:      {...},    ← IDB 'safety' store (singleton)
+         pin_statuses: {...},   ← localStorage rw_v1.pinStatuses
+         layers_vis:   {...},   ← localStorage rw_v1.layersVis
+         settings:     {...},   ← localStorage rw_v1.settings
+       },
+       photos: [              ← IDB 'photos' store (only if user opts in)
+         { photo_id, pin_id, caption, taken_at, data_url }
+       ]
+     }
+     ============================================================ -->
+<div id="export-modal" hidden role="dialog" aria-modal="true" aria-labelledby="exp-modal-title">
+  <div class="exp-card">
+
+    <!-- Header -->
+    <div class="exp-header">
+      <span class="exp-title" id="exp-modal-title">Export Project Data</span>
+      <button class="exp-close" id="exp-close-btn" aria-label="Close export">✕</button>
+    </div>
+
+    <!-- Progress bar (visible during scan and during download build) -->
+    <div class="exp-progress"><div class="exp-progress-bar" id="exp-progress-bar"></div></div>
+
+    <!-- Scanning state — shown while IDB reads are in flight -->
+    <div class="exp-scanning" id="exp-scanning">Scanning data stores…</div>
+
+    <!-- Summary rows — injected by openExportModal() after scan completes -->
+    <div class="exp-summary" id="exp-summary" hidden>
+
+      <!-- Bundle row -->
+      <div class="exp-row" id="exp-row-bundle">
+        <span class="exp-icon info">…</span>
+        <div class="exp-row-body">
+          <div class="exp-row-label">Pre-walk bundle</div>
+          <div class="exp-row-sub">Sections, alignments, ghost pins</div>
+        </div>
+        <span class="exp-count" id="exp-count-bundle">—</span>
+      </div>
+
+      <!-- Inspections row -->
+      <div class="exp-row" id="exp-row-inspections">
+        <span class="exp-icon info">…</span>
+        <div class="exp-row-body">
+          <div class="exp-row-label">Field inspections</div>
+          <div class="exp-row-sub">Data entered per pin during the walk</div>
+        </div>
+        <span class="exp-count" id="exp-count-inspections">—</span>
+      </div>
+
+      <!-- Daily logs row -->
+      <div class="exp-row" id="exp-row-logs">
+        <span class="exp-icon info">…</span>
+        <div class="exp-row-body">
+          <div class="exp-row-label">Daily field logs</div>
+          <div class="exp-row-sub">Weather, crew, hours per day</div>
+        </div>
+        <span class="exp-count" id="exp-count-logs">—</span>
+      </div>
+
+      <!-- Safety row -->
+      <div class="exp-row" id="exp-row-safety">
+        <span class="exp-icon info">…</span>
+        <div class="exp-row-body">
+          <div class="exp-row-label">Safety records</div>
+          <div class="exp-row-sub">Contacts, JSB, THA, incidents</div>
+        </div>
+        <span class="exp-count" id="exp-count-safety">—</span>
+      </div>
+
+      <!-- Pin statuses row -->
+      <div class="exp-row" id="exp-row-statuses">
+        <span class="exp-icon info">…</span>
+        <div class="exp-row-body">
+          <div class="exp-row-label">Pin status overrides</div>
+          <div class="exp-row-sub">Confirmed / discarded / relocated</div>
+        </div>
+        <span class="exp-count" id="exp-count-statuses">—</span>
+      </div>
+
+      <!-- Photos row -->
+      <div class="exp-row" id="exp-row-photos">
+        <span class="exp-icon info">…</span>
+        <div class="exp-row-body">
+          <div class="exp-row-label">Photos</div>
+          <div class="exp-row-sub">Condition photos taken in the field</div>
+        </div>
+        <span class="exp-count" id="exp-count-photos">—</span>
+      </div>
+
+    </div><!-- /.exp-summary -->
+
+    <!-- Photo opt-in: only shown when photos exist -->
+    <label class="exp-photo-opt" id="exp-photo-opt" style="display:none;">
+      <input type="checkbox" id="exp-include-photos" checked>
+      <span class="exp-photo-opt-text">
+        <strong>Include photos as base64.</strong>
+        Each photo adds ~300 KB to the export file. Uncheck to export
+        metadata only — photos remain in the browser's local storage.
+      </span>
+    </label>
+
+    <!-- Footer: estimated file size + action buttons -->
+    <div class="exp-footer">
+      <div class="exp-size-est" id="exp-size-est">Calculating…</div>
+      <button class="exp-btn" id="exp-cancel-btn">Cancel</button>
+      <button class="exp-btn exp-btn--primary" id="exp-download-btn" disabled>
+        Download →
+      </button>
+    </div>
+
+  </div>
+</div><!-- /#export-modal -->
 
 <!-- ============================================================
      DAILY LOG REMINDER MODAL (#daily-log-modal)
@@ -16147,31 +16449,14 @@ body.mobile-mode #app {
     });
 
     // ── Export Project ───────────────────────────────────────────
-    // Downloads the current in-memory bundle as a JSON file.
-    // In Phase 5 this will also offer XLSX and GeoJSON formats.
+    // Opens the full-export modal which scans all IDB stores + localStorage
+    // and lets the user review counts before downloading.
     document.getElementById('dash-export-btn')?.addEventListener('click', function () {
-      const bundle = window.BUNDLE;
-      if (!bundle) {
+      if (!window.BUNDLE) {
         alert('No project loaded. Import a project first.');
         return;
       }
-      try {
-        const json    = JSON.stringify(bundle, null, 2);
-        const blob    = new Blob([json], { type: 'application/json' });
-        const url     = URL.createObjectURL(blob);
-        const a       = document.createElement('a');
-        const safeName = (bundle.short_name || 'roadwalk-project')
-                          .replace(/[^a-z0-9_\-]/gi, '-').toLowerCase();
-        a.href     = url;
-        a.download = safeName + '-bundle.json';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      } catch (err) {
-        console.warn('[RoadWalk] Export failed:', err);
-        alert('Export failed — see console for details.');
-      }
+      openExportModal();
     });
 
     // ── New Section ──────────────────────────────────────────────
@@ -16190,6 +16475,379 @@ body.mobile-mode #app {
     });
 
   }
+
+
+  /* ---------------------------------------------------------------
+     10. FULL EXPORT ENGINE
+     ---------------------------------------------------------------
+     openExportModal()  — opens the modal, starts the async scan
+     _scanExportData()  — reads all IDB stores + localStorage,
+                          returns an object with counts and raw data
+     _buildExportBlob() — assembles the final JSON and creates a
+                          Blob URL for download
+     _triggerDownload() — fires the <a download> click
+
+     Export JSON schema  (roadwalk-export-v1):
+     {
+       _export_meta: {
+         version:     'roadwalk-export-v1',
+         exported_at: ISO string,
+         app:         'RoadWalk v0.2',
+         project_name: string,
+       },
+       bundle: { ...full prewalk bundle... },
+       field_data: {
+         inspections:  [...],   // IDB 'inspections' — keyed by pin_id
+         daily_logs:   [...],   // IDB 'daily_logs'  — keyed by date
+         safety:       {...}|null, // IDB 'safety' singleton
+         pin_statuses: {...},   // localStorage rw_v1.pinStatuses
+         layers_vis:   {...},   // localStorage rw_v1.layersVis
+         settings:     {...},   // localStorage rw_v1.settings
+       },
+       photos: [               // IDB 'photos' — only if user opts in
+         {
+           photo_id: number,
+           pin_id:   string,
+           caption:  string,
+           taken_at: ISO string,
+           data_url: 'data:image/jpeg;base64,...'
+         }
+       ] | null   // null = user opted out; [] = opted in but none found
+     }
+     --------------------------------------------------------------- */
+
+  /**
+   * Convert a Blob to a base64 data-URL string.
+   * @param {Blob} blob
+   * @returns {Promise<string>}
+   */
+  function _blobToDataURL(blob) {
+    return new Promise(function (resolve, reject) {
+      const reader = new FileReader();
+      reader.onload  = function () { resolve(reader.result); };
+      reader.onerror = function () { reject(reader.error); };
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  /**
+   * Helper: update one row in the export modal summary.
+   * @param {string} key       — 'bundle'|'inspections'|'logs'|'safety'|'statuses'|'photos'
+   * @param {string} iconClass — 'ok'|'warn'|'info'
+   * @param {string} icon      — single character / emoji
+   * @param {string} countText — text for the count cell
+   */
+  function _expRowUpdate(key, iconClass, icon, countText) {
+    const row = document.getElementById('exp-row-' + key);
+    if (!row) return;
+    const iconEl  = row.querySelector('.exp-icon');
+    const countEl = document.getElementById('exp-count-' + key);
+    if (iconEl)  { iconEl.textContent = icon; iconEl.className = 'exp-icon ' + iconClass; }
+    if (countEl) { countEl.textContent = countText; }
+  }
+
+  /**
+   * Scan all data sources and return a summary object.
+   * Updates the modal rows progressively as each source resolves.
+   * @param {Function} onProgress — called with (pct 0-100) as reads complete
+   * @returns {Promise<Object>} scanResult
+   */
+  async function _scanExportData(onProgress) {
+    const result = {
+      bundle:       window.BUNDLE || null,
+      inspections:  [],
+      daily_logs:   [],
+      safety:       null,
+      pin_statuses: {},
+      layers_vis:   {},
+      settings:     {},
+      photos:       [],
+    };
+
+    // ── Step 1/6: Bundle (synchronous — already in memory) ──────
+    onProgress(10);
+    if (result.bundle) {
+      const pinCount = (result.bundle.sections || []).reduce(function (n, s) {
+        return n + (s.pins || []).length;
+      }, 0);
+      const secCount = (result.bundle.sections || []).length;
+      _expRowUpdate('bundle', 'ok', '✓',
+        secCount + ' section' + (secCount !== 1 ? 's' : '') +
+        ' · ' + pinCount + ' pins');
+    } else {
+      _expRowUpdate('bundle', 'warn', '⚠', 'No bundle loaded');
+    }
+
+    // ── Step 2/6: Inspections (IDB) ─────────────────────────────
+    try {
+      result.inspections = (await idbGetAll('inspections'))
+        .filter(function (r) { return r.pin_id !== '__backup_marker__'; });
+      const n = result.inspections.length;
+      _expRowUpdate('inspections', n > 0 ? 'ok' : 'info',
+        n > 0 ? '✓' : '○',
+        n > 0 ? n + ' record' + (n !== 1 ? 's' : '') : 'None yet');
+    } catch (e) {
+      result.inspections = [];
+      _expRowUpdate('inspections', 'warn', '⚠', 'Read error');
+      console.warn('[RoadWalk] Export: inspections IDB error', e);
+    }
+    onProgress(30);
+
+    // ── Step 3/6: Daily logs (IDB) ──────────────────────────────
+    try {
+      result.daily_logs = await idbGetAll('daily_logs');
+      const n = result.daily_logs.length;
+      _expRowUpdate('logs', n > 0 ? 'ok' : 'info',
+        n > 0 ? '✓' : '○',
+        n > 0 ? n + ' day' + (n !== 1 ? 's' : '') : 'None yet');
+    } catch (e) {
+      result.daily_logs = [];
+      _expRowUpdate('logs', 'warn', '⚠', 'Read error');
+    }
+    onProgress(50);
+
+    // ── Step 4/6: Safety (IDB singleton) ────────────────────────
+    try {
+      result.safety = await idbGet('safety', 'singleton');
+      const hasData = result.safety && Object.keys(result.safety).length > 0;
+      _expRowUpdate('safety', hasData ? 'ok' : 'info',
+        hasData ? '✓' : '○',
+        hasData ? 'Saved' : 'None yet');
+    } catch (e) {
+      result.safety = null;
+      _expRowUpdate('safety', 'warn', '⚠', 'Read error');
+    }
+    onProgress(65);
+
+    // ── Step 5/6: Pin statuses + settings (localStorage) ────────
+    try {
+      const ls = lsLoad();
+      result.pin_statuses = ls.pinStatuses || {};
+      result.layers_vis   = ls.layersVis   || {};
+      result.settings     = ls.settings    || {};
+      const n = Object.keys(result.pin_statuses).length;
+      _expRowUpdate('statuses', n > 0 ? 'ok' : 'info',
+        n > 0 ? '✓' : '○',
+        n > 0 ? n + ' override' + (n !== 1 ? 's' : '') : 'None yet');
+    } catch (e) {
+      _expRowUpdate('statuses', 'warn', '⚠', 'Read error');
+    }
+    onProgress(80);
+
+    // ── Step 6/6: Photos (IDB) ──────────────────────────────────
+    try {
+      result.photos = await idbGetAll('photos');
+      const n = result.photos.length;
+      _expRowUpdate('photos', n > 0 ? 'ok' : 'info',
+        n > 0 ? '✓' : '○',
+        n > 0 ? n + ' photo' + (n !== 1 ? 's' : '') : 'None yet');
+      // Show the opt-in checkbox only when photos exist
+      const optEl = document.getElementById('exp-photo-opt');
+      if (optEl) optEl.style.display = n > 0 ? 'flex' : 'none';
+    } catch (e) {
+      result.photos = [];
+      _expRowUpdate('photos', 'warn', '⚠', 'Read error');
+    }
+    onProgress(100);
+
+    return result;
+  }
+
+  /**
+   * Assemble the full export JSON from scanned data.
+   * Converts photo blobs to base64 data-URLs if includePhotos is true.
+   * @param {Object} scanResult — from _scanExportData()
+   * @param {boolean} includePhotos
+   * @param {Function} onProgress — called with (pct 0-100)
+   * @returns {Promise<string>} JSON string
+   */
+  async function _buildExportJSON(scanResult, includePhotos, onProgress) {
+    onProgress(5);
+
+    // Build photos array
+    let photosOut = null;
+    if (includePhotos) {
+      photosOut = [];
+      const total = scanResult.photos.length;
+      for (let i = 0; i < total; i++) {
+        const photo = scanResult.photos[i];
+        let dataUrl = null;
+        if (photo.blob instanceof Blob) {
+          try { dataUrl = await _blobToDataURL(photo.blob); } catch (_) {}
+        } else if (typeof photo.data_url === 'string') {
+          dataUrl = photo.data_url;
+        }
+        photosOut.push({
+          photo_id: photo.photo_id,
+          pin_id:   photo.pin_id,
+          caption:  photo.caption  || '',
+          taken_at: photo.taken_at || null,
+          data_url: dataUrl,
+        });
+        onProgress(5 + Math.round(85 * (i + 1) / Math.max(total, 1)));
+      }
+    }
+    onProgress(90);
+
+    const exportObj = {
+      _export_meta: {
+        version:      'roadwalk-export-v1',
+        exported_at:  new Date().toISOString(),
+        app:          'RoadWalk v0.2',
+        project_name: window.PROJECT?.name || (scanResult.bundle?.name) || 'Unknown',
+      },
+      bundle: scanResult.bundle,
+      field_data: {
+        inspections:  scanResult.inspections,
+        daily_logs:   scanResult.daily_logs,
+        safety:       scanResult.safety,
+        pin_statuses: scanResult.pin_statuses,
+        layers_vis:   scanResult.layers_vis,
+        settings:     scanResult.settings,
+      },
+      photos: photosOut,   // null = opted out; [] = opted in, none found
+    };
+
+    onProgress(98);
+    const json = JSON.stringify(exportObj, null, 2);
+    onProgress(100);
+    return json;
+  }
+
+  /**
+   * Trigger a file download from a string of content.
+   * @param {string} content  — file content
+   * @param {string} filename — suggested filename
+   * @param {string} mime     — MIME type
+   */
+  function _triggerDownload(content, filename, mime) {
+    const blob = new Blob([content], { type: mime });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    // Revoke after a brief delay so iOS Safari has time to process the URL
+    setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+  }
+
+  /**
+   * Format a byte count as a human-readable string (KB or MB).
+   * @param {number} bytes
+   * @returns {string}
+   */
+  function _fmtBytes(bytes) {
+    if (bytes < 1024)       return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  }
+
+  /**
+   * Open the export modal: scan data, populate summary, wire buttons.
+   * This is the entry point called by the Dashboard Export button.
+   */
+  function openExportModal() {
+    const modal      = document.getElementById('export-modal');
+    const scanEl     = document.getElementById('exp-scanning');
+    const summaryEl  = document.getElementById('exp-summary');
+    const progressEl = document.getElementById('exp-progress-bar');
+    const sizeEl     = document.getElementById('exp-size-est');
+    const dlBtn      = document.getElementById('exp-download-btn');
+    const cancelBtn  = document.getElementById('exp-cancel-btn');
+    const closeBtn   = document.getElementById('exp-close-btn');
+    if (!modal) return;
+
+    // ── Reset to scanning state ──────────────────────────────────
+    scanEl.hidden     = false;
+    summaryEl.hidden  = true;
+    dlBtn.disabled    = true;
+    progressEl.style.width = '0%';
+    if (sizeEl) sizeEl.textContent = 'Calculating…';
+    document.getElementById('exp-photo-opt').style.display = 'none';
+    modal.removeAttribute('hidden');
+
+    let _scanResult = null;
+
+    // ── Run the async scan ───────────────────────────────────────
+    _scanExportData(function (pct) {
+      progressEl.style.width = pct + '%';
+    }).then(function (result) {
+      _scanResult = result;
+      scanEl.hidden    = false;
+      scanEl.textContent = 'Scan complete. Review below.';
+      summaryEl.hidden = false;
+      dlBtn.disabled   = false;
+      progressEl.style.width = '100%';
+
+      // Estimate size: ~bundle JSON + ~2KB per inspection + ~300KB per photo
+      const bundleBytes   = JSON.stringify(result.bundle || {}).length;
+      const inspBytes     = result.inspections.length * 2048;
+      const photoBytes    = result.photos.length * 307200;   // ~300 KB each
+      const baseBytes     = bundleBytes + inspBytes + 10240; // +10 KB overhead
+      const withPhotos    = baseBytes + photoBytes;
+      if (sizeEl) {
+        sizeEl.innerHTML =
+          'Without photos: ~' + _fmtBytes(baseBytes) + '<br>' +
+          (result.photos.length > 0
+            ? 'With photos: ~' + _fmtBytes(withPhotos)
+            : 'No photos stored');
+      }
+    }).catch(function (err) {
+      scanEl.textContent = 'Scan failed — ' + err.message;
+      console.error('[RoadWalk] Export scan error:', err);
+    });
+
+    // ── Download button ──────────────────────────────────────────
+    function _onDownload() {
+      if (!_scanResult) return;
+      const includePhotos = document.getElementById('exp-include-photos')?.checked ?? true;
+      dlBtn.disabled    = true;
+      dlBtn.textContent = 'Building…';
+      progressEl.style.width = '0%';
+      scanEl.hidden = false;
+      scanEl.textContent = 'Building export file…';
+
+      _buildExportJSON(_scanResult, includePhotos, function (pct) {
+        progressEl.style.width = pct + '%';
+      }).then(function (json) {
+        const project  = window.PROJECT || {};
+        const safeName = (project.name || 'roadwalk-project')
+          .replace(/[^a-z0-9_\-\s]/gi, '').trim().replace(/\s+/g, '-').toLowerCase()
+          .slice(0, 40);
+        const dateStr  = new Date().toISOString().slice(0, 10);
+        const filename = safeName + '-export-' + dateStr + '.json';
+        _triggerDownload(json, filename, 'application/json');
+        // Reset button
+        dlBtn.textContent = 'Download →';
+        dlBtn.disabled    = false;
+        scanEl.textContent = '✓ Download started — ' + _fmtBytes(json.length);
+        progressEl.style.width = '100%';
+      }).catch(function (err) {
+        dlBtn.textContent = 'Download →';
+        dlBtn.disabled    = false;
+        scanEl.textContent = 'Build failed — ' + err.message;
+        console.error('[RoadWalk] Export build error:', err);
+      });
+    }
+
+    // Remove old handler and add fresh one (prevents stacking on repeated opens)
+    dlBtn.replaceWith(dlBtn.cloneNode(true));
+    document.getElementById('exp-download-btn').addEventListener('click', _onDownload);
+
+    // ── Close / cancel buttons ───────────────────────────────────
+    function _closeModal() { modal.setAttribute('hidden', ''); }
+    cancelBtn?.addEventListener('click', _closeModal);
+    closeBtn?.addEventListener('click',  _closeModal);
+    // Click backdrop to close
+    modal.addEventListener('click', function (e) {
+      if (e.target === modal) _closeModal();
+    }, { once: true });
+  }
+
+  // Expose so other modules can trigger the export modal directly
+  window.openExportModal = openExportModal;
 
 
   /* ---------------------------------------------------------------
