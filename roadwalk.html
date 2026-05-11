@@ -3228,8 +3228,10 @@ a { color: inherit; text-decoration: none; }
 }
 @media (max-width: 1099px) {
   .desktop-note { display: none; }
-  /* Toggle button only makes sense on desktop widths */
-  .view-toggle-btn { display: none !important; }
+  /* Phone/desktop toggle only makes sense on desktop widths — hide on mobile */
+  .view-toggle-btn, #view-toggle-btn { display: none !important; }
+  /* On mobile, the AECOM brand mark can be omitted to save space */
+  #app-nav .aecom-brand { display: none; }
 }
 
 /* ============================================================
@@ -3947,6 +3949,389 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
   display: inline-flex; align-items: center; justify-content: center; }
 .header-styleguide-btn:hover { background: var(--hover); }
 
+/* ============================================================
+   PHASE 1: Multi-module shell
+   Two-tier navigation: #app-nav (brand/actions) + #app-tabs (module tabs)
+   Plus contextual #module-toolbar, module panels, IDB, auto-save UI.
+   Design refs: geofield_v14 two-tier nav, culvert_inventory_v2 IDB patterns.
+   ============================================================ */
+
+/* --- #app-nav: top action bar (44px) ------------------------------------------------
+   Dark blue bar across the full width. Contains:
+   - AECOM brand mark (left)
+   - Back button (hidden at module root, shown inside a section)
+   - Tool/section title (flex 1 — fills remaining space)
+   - Auto-save badge (last save time)
+   - Save / Sync / Style / Settings / Phone-toggle icon buttons (right)
+   --------------------------------------------------------------------------- */
+#app-nav {
+  flex: 0 0 44px;
+  height: 44px;
+  background: var(--blue);
+  display: flex;
+  align-items: center;
+  padding: 0 6px 0 10px;
+  gap: 2px;
+  z-index: 60;
+  border-bottom: 1px solid rgba(0,0,0,0.25);
+}
+/* AECOM wordmark — fixed left; right-border separates from rest */
+#app-nav .aecom-brand {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 1.8px;
+  color: rgba(255,255,255,0.92);
+  text-transform: uppercase;
+  border-right: 1px solid rgba(255,255,255,0.18);
+  padding-right: 10px;
+  margin-right: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+/* Back button inside nav — reuses existing #back-btn id */
+#app-nav .nav-icon-btn {
+  width: 34px; height: 34px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: rgba(255,255,255,0.85);
+  font-size: 14px;
+  background: none; border: none; cursor: pointer;
+  flex-shrink: 0;
+  border-radius: 0;
+}
+#app-nav .nav-icon-btn:hover { background: rgba(255,255,255,0.12); }
+/* Title block: two-line kicker + name */
+.nav-title-block {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+  padding: 0 4px;
+}
+.nav-title-block span {     /* kicker (e.g. "SECTION · LINEAR") */
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 1.4px;
+  color: rgba(255,255,255,0.6);
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+}
+.nav-title-block strong {   /* tool / section name */
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+}
+/* Auto-save badge — tiny monospace time string updated by doAutoSave() */
+#autosave-nav-badge {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  color: rgba(255,255,255,0.5);
+  white-space: nowrap;
+  flex-shrink: 0;
+  padding: 0 4px;
+}
+/* Generic nav icon buttons (save, styleguide, settings, view-toggle) */
+.nav-btn {
+  width: 36px; height: 36px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: rgba(255,255,255,0.85);
+  font-size: 15px;
+  background: none; border: none; cursor: pointer;
+  flex-shrink: 0;
+  border-radius: 0;
+}
+.nav-btn:hover { background: rgba(255,255,255,0.12); }
+/* Save button gets a slightly larger touch area and mono label */
+.nav-btn.nav-save-btn {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* --- #app-tabs: module tab bar (38px) -----------------------------------------------
+   One button per module. Active module tab underlined with --blue accent.
+   Tabs scroll horizontally on small screens (scrollbar hidden via CSS).
+   --------------------------------------------------------------------------- */
+#app-tabs {
+  flex: 0 0 38px;
+  height: 38px;
+  background: var(--paper);
+  border-bottom: 2px solid var(--rule);
+  display: flex;
+  align-items: stretch;
+  z-index: 55;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;        /* Firefox */
+}
+#app-tabs::-webkit-scrollbar { display: none; } /* Chrome/Safari */
+/* Individual module tab button */
+.app-tab {
+  flex: 1;
+  min-width: 52px;
+  padding: 0 6px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  border: none;
+  /* Bottom border is the active indicator — 3px solid replaces the row border */
+  border-bottom: 3px solid transparent;
+  background: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  white-space: nowrap;
+  transition: color 0.12s, background 0.12s;
+  /* Offset bottom border so it sits on the #app-tabs bottom-border line */
+  margin-bottom: -2px;
+}
+.app-tab:hover { color: var(--ink-2); background: var(--paper-2); }
+.app-tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+/* Optional notification dot on a tab (e.g. unread safety alert, pending log) */
+.app-tab .tab-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--orange);
+  flex-shrink: 0;
+}
+
+/* --- #module-toolbar: contextual sub-toolbar (34px, hidden until needed) ------------
+   Content is injected by showModule() per module:
+   - Map module: layer toggle buttons
+   - Data module: filter chips
+   - Safety/Log: section jumpers
+   Hidden entirely when the active module has no sub-nav.
+   --------------------------------------------------------------------------- */
+#module-toolbar {
+  flex: 0 0 auto;
+  min-height: 34px;
+  background: var(--paper-2);
+  border-bottom: 1px solid var(--rule-soft);
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  gap: 5px;
+  z-index: 50;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+#module-toolbar::-webkit-scrollbar { display: none; }
+#module-toolbar[hidden] { display: none; }
+/* Toolbar pill button — used for layer toggles, filter chips, section jumpers */
+.mtb-btn {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: var(--ink-2);
+  text-transform: uppercase;
+  padding: 4px 9px;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  cursor: pointer;
+  white-space: nowrap;
+  border-radius: 0;
+  transition: background 0.1s, border-color 0.1s, color 0.1s;
+}
+.mtb-btn:hover { border-color: var(--ink-2); }
+.mtb-btn.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+.mtb-btn.active:hover { background: var(--blue-2); }
+/* Thin vertical rule separator between toolbar groups */
+.mtb-sep { width: 1px; height: 16px; background: var(--rule); flex-shrink: 0; margin: 0 3px; }
+/* Toolbar label (e.g. "Layers:") */
+.mtb-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: var(--ink-mute);
+  text-transform: uppercase;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* --- Module panels (.module-view) ---------------------------------------------------
+   Each module is a full-bleed div inside .app-main.
+   Modules are position:absolute; inset:0 so they stack and only one shows at a time.
+   #mod-map wraps the existing .view system (view-list / view-field / etc.) and must
+   also be position:relative so those inner views remain properly positioned.
+   --------------------------------------------------------------------------- */
+.module-view {
+  position: absolute;
+  inset: 0;
+  display: none;            /* hidden by default — showModule() toggles .active */
+  flex-direction: column;
+  background: var(--paper);
+  overflow: hidden;
+}
+.module-view.active { display: flex; }
+
+/* Map module: needs display:block (not flex) so the inner .view absolute layout works */
+#mod-map {
+  position: absolute;
+  inset: 0;
+  display: none;
+  /* position:relative makes #mod-map the offset parent for inner .view elements */
+  /* (the existing .view elements use position:absolute;inset:0) */
+}
+#mod-map.active { display: block; }
+
+/* --- Scaffold placeholder (shown while a module is pending full build) -------------- */
+.mod-scaffold {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 32px 24px;
+  gap: 10px;
+  color: var(--ink-3);
+}
+.mod-scaffold-icon { font-size: 40px; opacity: 0.3; }
+.mod-scaffold-title {
+  font-family: 'IBM Plex Serif', serif;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.mod-scaffold-sub {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10.5px;
+  color: var(--ink-3);
+  text-align: center;
+  max-width: 280px;
+  line-height: 1.7;
+}
+/* Phase badge under scaffold subtitle */
+.mod-scaffold-phase {
+  margin-top: 4px;
+  display: inline-block;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  color: var(--blue);
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border: 1px solid var(--blue);
+  opacity: 0.6;
+}
+
+/* --- Daily log reminder modal -------------------------------------------------------
+   Bottom-sheet style modal. Fires on page load when no daily_log record exists
+   for today's date in the 'daily_logs' IDB store. User can fill quick details
+   (weather, crew, hours) or skip. Full log form lives in the Log module (Phase 4).
+   --------------------------------------------------------------------------- */
+#daily-log-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.48);
+  z-index: 850;             /* above map controls, below nsd-overlay (z:900) */
+  display: flex;
+  align-items: flex-end;
+  padding-bottom: var(--safe-bottom);
+}
+#daily-log-modal[hidden] { display: none; }
+.dlm-card {
+  background: var(--paper);
+  width: 100%;
+  border-radius: 12px 12px 0 0;
+  padding: 22px 18px 18px;
+  box-shadow: 0 -4px 24px rgba(0,0,0,0.2);
+}
+.dlm-title {
+  font-family: 'IBM Plex Serif', serif;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 2px;
+}
+.dlm-sub {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--ink-3);
+  margin-bottom: 14px;
+}
+.dlm-fields { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+.dlm-row label {
+  display: block;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  margin-bottom: 3px;
+}
+.dlm-row input, .dlm-row select {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  color: var(--ink);
+  border-radius: 0;
+  -webkit-appearance: none;
+}
+.dlm-btns { display: flex; gap: 8px; }
+.dlm-btn-skip {
+  flex: 1;
+  padding: 11px;
+  border: 1px solid var(--rule);
+  background: none;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.dlm-btn-skip:hover { border-color: var(--ink-2); color: var(--ink-2); }
+.dlm-btn-save {
+  flex: 2;
+  padding: 11px;
+  background: var(--blue);
+  color: #fff;
+  border: none;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.dlm-btn-save:hover { background: var(--blue-2); }
+
+/* --- Mobile / phone preview mode --------------------------------------------------
+   Activated by #view-toggle-btn. Constrains #app to 390px centred on desktop,
+   mimicking iPhone viewport. Matches existing view-toggle-btn behaviour.
+   --------------------------------------------------------------------------- */
+body.mobile-mode #app {
+  max-width: 390px;
+  margin: 0 auto;
+  border-left: 1px solid var(--rule);
+  border-right: 1px solid var(--rule);
+}
+
 </style>
 </head>
 <body>
@@ -3957,31 +4342,105 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
 
 <div id="app">
 
-  <!-- ============== HEADER ============== -->
-  <header class="app-header">
-    <div class="left">
-      <button class="icon-btn" id="back-btn" aria-label="Back">◀</button>
-    </div>
-    <div class="h-title" id="header-title">
+  <!-- ============================================================
+       TOP NAV BAR (#app-nav, 44px)
+       Fixed-height dark-blue bar. Left→right:
+         AECOM brand  |  back button  |  section/tool title (flex)
+         | autosave badge | save | sync chip | styleguide | settings | phone toggle
+       All existing element IDs (back-btn, header-kicker, header-name, sync-chip, etc.)
+       are preserved so the existing showView() JS wiring continues to work unchanged.
+       ============================================================ -->
+  <nav id="app-nav" aria-label="Application navigation">
+
+    <!-- Brand wordmark — always visible at left edge -->
+    <span class="aecom-brand" aria-label="AECOM">AECOM</span>
+
+    <!-- Back button: hidden at module root; shown when inside a section.
+         Existing JS uses els.backBtn.style.visibility to toggle this. -->
+    <button class="nav-icon-btn" id="back-btn" aria-label="Back to section list"
+            style="visibility:hidden;">◀</button>
+
+    <!-- Two-line title block: kicker (e.g. "SECTION · LINEAR") + name.
+         Existing JS writes to #header-kicker and #header-name directly. -->
+    <div class="nav-title-block" id="header-title">
       <span id="header-kicker">PROJECT</span>
-      <strong id="header-name">CN Yard · Houston</strong>
+      <strong id="header-name">GRSM RoadWalk</strong>
     </div>
-    <div class="right">
 
-      <button class="view-toggle-btn" id="view-toggle-btn" title="Switch between phone preview and desktop full-width">
-        <span id="view-toggle-label">📱 Phone</span>
-      </button>
-      <span class="sync-chip" data-state="solo" id="sync-chip">
-        <span class="dot"></span>
-        <span id="sync-text">Solo</span>
-      </span>
-      <button class="header-styleguide-btn" id="header-styleguide-btn" title="Style Guide &amp; Labels" type="button" aria-label="Style Guide">◈</button>
-      <button class="header-settings-btn" id="header-settings-btn" title="Settings" type="button" aria-label="Settings">⋯</button>
-    </div>
-  </header>
+    <!-- Auto-save badge — updated by doAutoSave() with last save time (e.g. "💾 10:32") -->
+    <span id="autosave-nav-badge" title="Last auto-save time" aria-live="polite"></span>
 
-  <!-- ============== MAIN VIEWS ============== -->
+    <!-- Manual save button — triggers doAutoSave(true) for immediate local save -->
+    <button class="nav-btn nav-save-btn" id="nav-save-btn"
+            title="Save to browser storage now" aria-label="Save">💾</button>
+
+    <!-- Sync status chip — existing CSS (.sync-chip) and JS (sync-chip, sync-text) unchanged -->
+    <span class="sync-chip" data-state="solo" id="sync-chip">
+      <span class="dot"></span>
+      <span id="sync-text">Solo</span>
+    </span>
+
+    <!-- Style guide / label editor (existing) -->
+    <button class="nav-btn" id="header-styleguide-btn"
+            title="Style Guide &amp; Labels" type="button" aria-label="Style Guide">◈</button>
+
+    <!-- Settings panel (existing) -->
+    <button class="nav-btn header-settings-btn" id="header-settings-btn"
+            title="Settings" type="button" aria-label="Settings">⋯</button>
+
+    <!-- Phone / desktop layout toggle (existing view-toggle-btn logic preserved) -->
+    <button class="nav-btn" id="view-toggle-btn"
+            title="Switch between phone preview and desktop full-width">
+      <span id="view-toggle-label">📱</span>
+    </button>
+
+  </nav><!-- /#app-nav -->
+
+  <!-- ============================================================
+       MODULE TAB BAR (#app-tabs, 38px)
+       One button per top-level module. Clicking calls showModule(name).
+       'Map' is the default active module (matches existing behaviour).
+       data-module attribute is consumed by showModule() and the tab-click handler.
+       ============================================================ -->
+  <div id="app-tabs" role="tablist" aria-label="Module navigation">
+    <button class="app-tab" data-module="dashboard"
+            role="tab" aria-selected="false" title="Summary Dashboard">📊 Dash</button>
+    <button class="app-tab active" data-module="map"
+            role="tab" aria-selected="true"  title="Map & Feature inventory">🗺 Map</button>
+    <button class="app-tab" data-module="data"
+            role="tab" aria-selected="false" title="Data entry &amp; table">📋 Data</button>
+    <button class="app-tab" data-module="safety"
+            role="tab" aria-selected="false" title="Safety (JSB, PPE, THA)">⚠ Safety</button>
+    <button class="app-tab" data-module="log"
+            role="tab" aria-selected="false" title="Daily field log">📅 Log</button>
+    <button class="app-tab" data-module="settings"
+            role="tab" aria-selected="false" title="App settings &amp; export">⚙ Settings</button>
+  </div><!-- /#app-tabs -->
+
+  <!-- ============================================================
+       MODULE TOOLBAR (#module-toolbar, 34px, contextual)
+       Content is injected by showModule() for modules that have sub-nav.
+       Map module: layer visibility toggles (Guardrails, Walls, Culverts, Signs…)
+       Data module: filter chips (All / Section / Feature-type)
+       Hidden entirely for modules that need no sub-nav.
+       ============================================================ -->
+  <div id="module-toolbar" hidden aria-label="Module toolbar"></div>
+
+  <!-- ============================================================
+       APP MAIN — fills all space below the nav bars.
+       Contains one .module-view per top-level module; showModule() toggles active.
+       The existing .view system (position:absolute inside #mod-map) is unchanged.
+       ============================================================ -->
   <main class="app-main">
+
+    <!-- ============================================================
+         MODULE: MAP  (default active — matches existing behaviour)
+         Wraps the entire existing view system: view-list, view-field,
+         view-kickoff, view-ko-picker, view-settings, view-styleguide.
+         #mod-map is display:block (not flex) so the inner absolute
+         position:.view elements continue to fill it correctly.
+         ============================================================ -->
+    <div id="mod-map" class="module-view active">
 
     <!-- Section list view -->
     <section class="view view-list active" id="view-list">
@@ -4475,6 +4934,101 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
       </div>
     </section>
 
+    </div><!-- /#mod-map — end of Map module: all inner .view elements above belong here -->
+
+    <!-- ============================================================
+         MODULE: DASHBOARD  (Phase 5 — scaffold placeholder)
+         Will show: section progress bars, feature-type count table,
+         photo thumbnail gallery, and a quick-export button.
+         ============================================================ -->
+    <div id="mod-dashboard" class="module-view">
+      <div class="mod-scaffold">
+        <div class="mod-scaffold-icon">📊</div>
+        <div class="mod-scaffold-title">Dashboard</div>
+        <div class="mod-scaffold-sub">
+          Section progress, feature counts by type, and photo gallery.
+          Full build in Phase 5.
+        </div>
+        <span class="mod-scaffold-phase">Phase 5</span>
+      </div>
+    </div><!-- /#mod-dashboard -->
+
+    <!-- ============================================================
+         MODULE: DATA  (Phase 3 — scaffold placeholder)
+         Will show: sortable feature inventory table + per-type inspection
+         forms for guardrails, walls, culverts, signs, etc.
+         "Edit Data" from the map feature popup routes directly here.
+         ============================================================ -->
+    <div id="mod-data" class="module-view">
+      <div class="mod-scaffold">
+        <div class="mod-scaffold-icon">📋</div>
+        <div class="mod-scaffold-title">Data</div>
+        <div class="mod-scaffold-sub">
+          Feature inventory table and per-type field inspection forms.
+          Click "Edit Data" on any map pin to open the form here.
+          Full build in Phase 3.
+        </div>
+        <span class="mod-scaffold-phase">Phase 3</span>
+      </div>
+    </div><!-- /#mod-data -->
+
+    <!-- ============================================================
+         MODULE: SAFETY  (Phase 4 — scaffold placeholder)
+         Will contain: Emergency contacts, SH&E plan (collapsible),
+         Job Safety Briefing form, PPE checklist, THA list,
+         and incident log. Ported from geofield_v14 safety module.
+         ============================================================ -->
+    <div id="mod-safety" class="module-view">
+      <div class="mod-scaffold">
+        <div class="mod-scaffold-icon">⚠️</div>
+        <div class="mod-scaffold-title">Safety</div>
+        <div class="mod-scaffold-sub">
+          Emergency contacts, Job Safety Briefing, PPE checklist,
+          Tailboard Hazard Analysis, and incident log.
+          Full build in Phase 4.
+        </div>
+        <span class="mod-scaffold-phase">Phase 4</span>
+      </div>
+    </div><!-- /#mod-safety -->
+
+    <!-- ============================================================
+         MODULE: LOG  (Phase 4 — scaffold placeholder)
+         Will contain: daily field log form (weather, crew count,
+         planned/actual hours, JSB confirmation).
+         A startup reminder modal fires on page load when no log
+         exists for today in the 'daily_logs' IDB store.
+         ============================================================ -->
+    <div id="mod-log" class="module-view">
+      <div class="mod-scaffold">
+        <div class="mod-scaffold-icon">📅</div>
+        <div class="mod-scaffold-title">Daily Log</div>
+        <div class="mod-scaffold-sub">
+          Weather, crew size, hours worked, and JSB status for each field day.
+          Full build in Phase 4.
+        </div>
+        <span class="mod-scaffold-phase">Phase 4</span>
+      </div>
+    </div><!-- /#mod-log -->
+
+    <!-- ============================================================
+         MODULE: SETTINGS  (Phase 5 — scaffold placeholder)
+         Will contain: basemap preference, GPS accuracy settings,
+         unit system, IDB export/import (full backup), and
+         data-export shortcuts (XLSX, GeoJSON).
+         ============================================================ -->
+    <div id="mod-settings" class="module-view">
+      <div class="mod-scaffold">
+        <div class="mod-scaffold-icon">⚙️</div>
+        <div class="mod-scaffold-title">Settings</div>
+        <div class="mod-scaffold-sub">
+          Basemap, GPS precision, units, offline tile cache,
+          IDB backup/restore, and data export.
+          Full build in Phase 5.
+        </div>
+        <span class="mod-scaffold-phase">Phase 5</span>
+      </div>
+    </div><!-- /#mod-settings -->
+
   </main>
 
   <!-- Kickoff sticky footer (shown only when view-kickoff is active) -->
@@ -4584,6 +5138,56 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
     </div>
   </div>
 </div>
+
+<!-- ============================================================
+     DAILY LOG REMINDER MODAL (#daily-log-modal)
+     Bottom-sheet that appears on page load when no daily_log
+     record exists for today's date in the 'daily_logs' IDB store.
+     Captures quick-start data: weather, crew count, planned hours.
+     Full log form is in the Log module (Phase 4).
+     Wired up in the Phase 1 JS block below (initDailyLogModal).
+     ============================================================ -->
+<div id="daily-log-modal" hidden
+     role="dialog" aria-modal="true" aria-labelledby="dlm-title-text">
+  <div class="dlm-card">
+
+    <!-- Greeting — date is injected by initDailyLogModal() -->
+    <div class="dlm-title" id="dlm-title-text">Good morning ☀️</div>
+    <div class="dlm-sub" id="dlm-date-sub">Today's log hasn't been started yet.</div>
+
+    <!-- Quick-entry fields (full form in Log module, Phase 4) -->
+    <div class="dlm-fields">
+      <div class="dlm-row">
+        <label for="dlm-weather">Weather conditions</label>
+        <select id="dlm-weather">
+          <option value="">-- select --</option>
+          <option value="Clear">Clear / Sunny</option>
+          <option value="Partly Cloudy">Partly Cloudy</option>
+          <option value="Overcast">Overcast</option>
+          <option value="Light Rain">Light Rain</option>
+          <option value="Heavy Rain">Heavy Rain</option>
+          <option value="Fog / Mist">Fog / Mist</option>
+          <option value="Snow / Ice">Snow / Ice</option>
+        </select>
+      </div>
+      <div class="dlm-row">
+        <label for="dlm-crew">Crew size (incl. PM / inspector)</label>
+        <input id="dlm-crew" type="number" min="1" max="99" placeholder="e.g. 4">
+      </div>
+      <div class="dlm-row">
+        <label for="dlm-hours">Planned field hours today</label>
+        <input id="dlm-hours" type="number" min="0.5" max="24" step="0.5" placeholder="e.g. 8">
+      </div>
+    </div>
+
+    <!-- Action row: skip saves nothing; save writes to IDB daily_logs store -->
+    <div class="dlm-btns">
+      <button class="dlm-btn-skip" id="dlm-skip-btn">Skip for now</button>
+      <button class="dlm-btn-save" id="dlm-save-btn">Start day →</button>
+    </div>
+
+  </div>
+</div><!-- /#daily-log-modal -->
 
 <script>
 /* ============================================================
@@ -14542,6 +15146,617 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
   };
 
 })();
+</script>
+
+<!-- ================================================================
+     PHASE 1: Multi-module shell — IDB, auto-save, module routing
+     ================================================================
+     This block adds:
+       1. RoadWalkDB  — field data store (inspections, photos, daily_logs, safety)
+       2. RoadWalkTiles_v1 — tile cache IDB structure (OfflineTileLayer, Phase 2)
+       3. lsSave / lsLoad — lean localStorage ('rw_v1') for fast state restore
+       4. doAutoSave / doAutoBackup — timer-based persistence engine
+       5. showModule(name) — top-level module switch with map.invalidateSize()
+       6. Module tab click wiring
+       7. Map-module toolbar (layer toggle buttons)
+       8. Daily log reminder modal logic
+       9. Startup sequence: restore state → show daily-log modal if needed
+     ================================================================ -->
+<script>
+/* ================================================================
+   RoadWalk · Phase 1 · Multi-module shell
+   Author: AECOM / internal. Not for redistribution.
+   ================================================================ */
+
+(function () {
+  'use strict';
+
+  /* ---------------------------------------------------------------
+     1. ROADWALK FIELD DATA IDB  (RoadWalkDB v1)
+     ---------------------------------------------------------------
+     Stores field observations keyed by pin_id.
+
+     Object stores:
+       inspections  — key: pin_id (string)
+                      value: { pin_id, module_type, fields:{...},
+                               updated_at, status, section_id }
+                      Holds all field data entered via the Data module.
+
+       photos       — key: photo_id (auto-increment)
+                      value: { photo_id, pin_id, blob (Blob/File),
+                               caption, taken_at }
+                      Photo blobs stay in IDB; map pins reference photo_id.
+
+       daily_logs   — key: date string 'YYYY-MM-DD'
+                      value: { date, weather, crew, hours_planned,
+                               hours_actual, jsb_done, notes }
+                      One record per calendar day; used by the Log module
+                      and the startup reminder modal.
+
+       safety       — key: 'singleton' (single record for the project)
+                      value: { emergency_contacts:[...], she_plan:'...',
+                               tha_entries:[...], incidents:[...] }
+                      Safety module data; not date-keyed (project-level).
+     --------------------------------------------------------------- */
+  const RW_IDB_NAME    = 'RoadWalkDB';
+  const RW_IDB_VERSION = 1;
+
+  /** Promise-based open of the RoadWalk field data IDB. */
+  function openRWDB() {
+    return new Promise(function (resolve, reject) {
+      const req = indexedDB.open(RW_IDB_NAME, RW_IDB_VERSION);
+
+      req.onupgradeneeded = function (e) {
+        const db = e.target.result;
+        // inspections: field data keyed by pin_id
+        if (!db.objectStoreNames.contains('inspections')) {
+          db.createObjectStore('inspections', { keyPath: 'pin_id' });
+        }
+        // photos: blobs keyed by auto-increment id; secondary index on pin_id
+        if (!db.objectStoreNames.contains('photos')) {
+          const photoStore = db.createObjectStore('photos', {
+            keyPath: 'photo_id', autoIncrement: true,
+          });
+          photoStore.createIndex('by_pin', 'pin_id', { unique: false });
+        }
+        // daily_logs: one record per day, keyed 'YYYY-MM-DD'
+        if (!db.objectStoreNames.contains('daily_logs')) {
+          db.createObjectStore('daily_logs', { keyPath: 'date' });
+        }
+        // safety: single project-level record; key is always 'singleton'
+        if (!db.objectStoreNames.contains('safety')) {
+          db.createObjectStore('safety');
+        }
+      };
+
+      req.onsuccess = function (e) { resolve(e.target.result); };
+      req.onerror   = function (e) { reject(e.target.error);  };
+    });
+  }
+
+  /** Generic IDB get helper — resolves with value or null. */
+  function idbGet(storeName, key) {
+    return openRWDB().then(function (db) {
+      return new Promise(function (resolve, reject) {
+        const req = db.transaction(storeName, 'readonly')
+                      .objectStore(storeName).get(key);
+        req.onsuccess = function (e) { resolve(e.target.result ?? null); };
+        req.onerror   = function (e) { reject(e.target.error); };
+      });
+    });
+  }
+
+  /** Generic IDB put helper — resolves when write is complete. */
+  function idbPut(storeName, value, key) {
+    return openRWDB().then(function (db) {
+      return new Promise(function (resolve, reject) {
+        const store = db.transaction(storeName, 'readwrite').objectStore(storeName);
+        const req = key !== undefined ? store.put(value, key) : store.put(value);
+        req.onsuccess = function () { resolve(); };
+        req.onerror   = function (e) { reject(e.target.error); };
+      });
+    });
+  }
+
+  /** Get all records from a store — resolves with array. */
+  function idbGetAll(storeName) {
+    return openRWDB().then(function (db) {
+      return new Promise(function (resolve, reject) {
+        const req = db.transaction(storeName, 'readonly')
+                      .objectStore(storeName).getAll();
+        req.onsuccess = function (e) { resolve(e.target.result || []); };
+        req.onerror   = function (e) { reject(e.target.error); };
+      });
+    });
+  }
+
+  // Kick off IDB open eagerly so the schema is created before first use.
+  openRWDB().catch(function (err) {
+    console.warn('[RoadWalk] RoadWalkDB open failed:', err);
+  });
+
+
+  /* ---------------------------------------------------------------
+     2. OFFLINE TILE CACHE IDB  (RoadWalkTiles_v1)
+     ---------------------------------------------------------------
+     Separate IDB for map tile blobs — kept separate from field data
+     so backup/restore of inspections doesn't drag in map tiles.
+
+     Phase 2 will add the OfflineTileLayer L.TileLayer extension that
+     intercepts createTile(), checks this IDB first, and caches misses.
+     We open the IDB now so the schema exists before Phase 2 code runs.
+     --------------------------------------------------------------- */
+  const TILE_IDB_NAME    = 'RoadWalkTiles_v1';
+  const TILE_IDB_VERSION = 1;
+  const TILE_STORE       = 'tiles';        // key: 'layerName_z_x_y', value: dataURL string
+
+  /** Promise-based open of the tile cache IDB. */
+  function openTileDB() {
+    return new Promise(function (resolve, reject) {
+      const req = indexedDB.open(TILE_IDB_NAME, TILE_IDB_VERSION);
+
+      req.onupgradeneeded = function (e) {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains(TILE_STORE)) {
+          db.createObjectStore(TILE_STORE, { keyPath: 'k' });
+        }
+      };
+
+      req.onsuccess = function (e) { resolve(e.target.result); };
+      req.onerror   = function (e) { reject(e.target.error);  };
+    });
+  }
+
+  // Pre-open tile IDB eagerly (schema-only; OfflineTileLayer comes Phase 2).
+  openTileDB().catch(function (err) {
+    console.warn('[RoadWalk] RoadWalkTiles_v1 open failed:', err);
+  });
+
+
+  /* ---------------------------------------------------------------
+     3. LOCALSTORAGE LEAN STATE  (key: 'rw_v1')
+     ---------------------------------------------------------------
+     Stores lightweight project state that is safe to serialize to
+     a string — no blobs. Used for fast restore on page reload without
+     waiting for an IDB round-trip.
+
+     Schema (all fields optional — defaults applied on restore):
+     {
+       projectId      : string,
+       activeSection  : string | null,
+       activeModule   : 'map' | 'dashboard' | 'data' | 'safety' | 'log' | 'settings',
+       layersVis      : { guardrail:bool, wall:bool, culvert:bool, sign:bool,
+                          mile_marker:bool, bridge:bool, gate:bool, parking:bool },
+       settings       : { basemap:string, gpsAccuracy:'high'|'low', units:'imperial'|'metric' },
+       pinStatuses    : { [pin_id]: 'pending'|'confirmed'|'discarded'|'relocated' },
+       lastSavedAt    : ISO string,
+     }
+     --------------------------------------------------------------- */
+  const LS_KEY = 'rw_v1';
+
+  /** Read lean state from localStorage; returns {} if missing/corrupt. */
+  function lsLoad() {
+    try {
+      return JSON.parse(localStorage.getItem(LS_KEY) || '{}');
+    } catch (e) {
+      console.warn('[RoadWalk] lsLoad parse error:', e);
+      return {};
+    }
+  }
+
+  /**
+   * Merge an object of updates into the lean state and write back.
+   * Call with no arguments to just refresh `lastSavedAt`.
+   * @param {Object} [patch] — partial state object to merge
+   */
+  /* exported lsSave — used by Phase 3+ modules */
+  function lsSave(patch) {
+    try {
+      const current = lsLoad();
+      const next = Object.assign({}, current, patch || {}, {
+        lastSavedAt: new Date().toISOString(),
+      });
+      localStorage.setItem(LS_KEY, JSON.stringify(next));
+      return next;
+    } catch (e) {
+      console.warn('[RoadWalk] lsSave error:', e);
+      return {};
+    }
+  }
+
+
+  /* ---------------------------------------------------------------
+     4. AUTO-SAVE ENGINE
+     ---------------------------------------------------------------
+     Two-tier persistence:
+
+     Tier 1 — lsSave() to localStorage, every AUTO_SAVE_INTERVAL_MS.
+               Fast, synchronous. Updates the #autosave-nav-badge label.
+               Only serializes lean state (no blobs).
+
+     Tier 2 — doAutoBackup() to IDB, every AUTO_BACKUP_INTERVAL_MS.
+               Async. Snapshots all inspection records from IDB back to
+               IDB (effectively a self-verify + timestamp). In Phase 5
+               this will also generate a full JSON export blob.
+
+     Timers are restarted by restartAutoSave() / restartAutoBackup()
+     whenever the user navigates to a new section or module.
+     --------------------------------------------------------------- */
+  const AUTO_SAVE_INTERVAL_MS   =  2 * 60 * 1000;   // 2 minutes  — localStorage
+  const AUTO_BACKUP_INTERVAL_MS = 10 * 60 * 1000;   // 10 minutes — IDB snapshot
+
+  let _autoSaveTimer   = null;
+  let _autoBackupTimer = null;
+
+  /** Format a Date as HH:MM for the autosave badge. */
+  function _fmtTime(date) {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+
+  /**
+   * Tier 1 save — write lean state to localStorage, update the badge.
+   * @param {boolean} [manual=false] — true when triggered by the user pressing Save
+   */
+  function doAutoSave(manual) {
+    const saved = lsSave({ activeModule: _activeModule });
+    const badge = document.getElementById('autosave-nav-badge');
+    if (badge) {
+      badge.textContent = '💾 ' + _fmtTime(new Date());
+      badge.title = 'Last saved: ' + new Date(saved.lastSavedAt).toLocaleString();
+    }
+    if (manual) {
+      // Brief visual flash on manual save to confirm action
+      const btn = document.getElementById('nav-save-btn');
+      if (btn) {
+        btn.style.opacity = '0.4';
+        setTimeout(function () { btn.style.opacity = ''; }, 300);
+      }
+    }
+  }
+
+  /**
+   * Tier 2 backup — read all inspections from IDB and verify/timestamp them.
+   * In Phase 5 this will also generate a downloadable full-export blob.
+   */
+  async function doAutoBackup() {
+    try {
+      const all = await idbGetAll('inspections');
+      // Re-write a backup-marker record so IDB has a recent write timestamp.
+      await idbPut('inspections', {
+        pin_id: '__backup_marker__',
+        _backup_at: new Date().toISOString(),
+        _count: all.filter(function (r) { return r.pin_id !== '__backup_marker__'; }).length,
+      });
+      console.log('[RoadWalk] Auto-backup written. Inspection count:', all.length);
+    } catch (err) {
+      console.warn('[RoadWalk] Auto-backup failed:', err);
+    }
+  }
+
+  /** Restart the Tier-1 auto-save interval (call when entering a new context). */
+  function restartAutoSave() {
+    clearInterval(_autoSaveTimer);
+    _autoSaveTimer = setInterval(doAutoSave, AUTO_SAVE_INTERVAL_MS);
+  }
+
+  /** Restart the Tier-2 IDB backup interval. */
+  function restartAutoBackup() {
+    clearInterval(_autoBackupTimer);
+    _autoBackupTimer = setInterval(doAutoBackup, AUTO_BACKUP_INTERVAL_MS);
+  }
+
+  // Wire the manual Save button in #app-nav.
+  document.getElementById('nav-save-btn')?.addEventListener('click', function () {
+    doAutoSave(true);
+  });
+
+
+  /* ---------------------------------------------------------------
+     5. MODULE TOOLBAR CONTENT
+     ---------------------------------------------------------------
+     buildMapToolbar() injects layer-toggle buttons for the Map module.
+     Each button toggles the visibility of a feature kind on the map
+     by calling the existing _RW layer management (Phase 2 will wire
+     these to the real layer groups; for now they set a layersVis flag
+     in lean state so the setting persists across reloads).
+     --------------------------------------------------------------- */
+
+  /**
+   * Layer definition table for the Map module toolbar.
+   * label  — displayed on the button
+   * kind   — matches the 'kind' field in prewalk-bundle pins
+   * active — default visibility on first load
+   */
+  const MAP_LAYERS = [
+    { label: 'Guardrails',  kind: 'guardrail',   active: true  },
+    { label: 'Walls',       kind: 'wall',         active: true  },
+    { label: 'Culverts',    kind: 'culvert',      active: true  },
+    { label: 'Signs',       kind: 'sign',         active: true  },
+    { label: 'Mi Markers',  kind: 'mile_marker',  active: true  },
+    { label: 'Bridges',     kind: 'bridge',       active: true  },
+    { label: 'Gates',       kind: 'gate',         active: true  },
+    { label: 'Parking',     kind: 'parking',      active: true  },
+  ];
+
+  /**
+   * Build and inject the Map module's toolbar content.
+   * Called by showModule('map') and on first load.
+   */
+  function buildMapToolbar() {
+    const tb = document.getElementById('module-toolbar');
+    if (!tb) return;
+
+    // Read persisted layer visibility from lean state
+    const ls  = lsLoad();
+    const vis = ls.layersVis || {};
+
+    // Build HTML: "Layers:" label, separator, one button per layer kind
+    let html = '<span class="mtb-label">Layers:</span>';
+    html += '<div class="mtb-sep"></div>';
+
+    MAP_LAYERS.forEach(function (layer) {
+      // Default to active:true unless explicitly saved as false
+      const isOn = vis.hasOwnProperty(layer.kind) ? vis[layer.kind] : layer.active;
+      html += '<button class="mtb-btn' + (isOn ? ' active' : '') + '"'
+            + ' data-layer="' + layer.kind + '"'
+            + ' title="Toggle ' + layer.label + ' visibility"'
+            + '>' + layer.label + '</button>';
+    });
+
+    tb.innerHTML = html;
+    tb.removeAttribute('hidden');
+
+    // Wire toggle clicks — update lean state + call map layer toggle if available
+    tb.querySelectorAll('.mtb-btn[data-layer]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const kind = btn.dataset.layer;
+        const nowActive = !btn.classList.contains('active');
+        btn.classList.toggle('active', nowActive);
+
+        // Persist to lean state
+        const st = lsLoad();
+        if (!st.layersVis) st.layersVis = {};
+        st.layersVis[kind] = nowActive;
+        lsSave(st);
+
+        // Notify the existing map layer system if it exposes a toggle hook.
+        // Phase 2 will implement _RW.toggleLayer(kind, visible).
+        if (window._RW && typeof window._RW.toggleLayer === 'function') {
+          window._RW.toggleLayer(kind, nowActive);
+        }
+      });
+    });
+  }
+
+
+  /* ---------------------------------------------------------------
+     6. showModule(name)
+     ---------------------------------------------------------------
+     Top-level module switch. Hides all .module-view panels, shows
+     #mod-{name}, updates the active tab, rebuilds the toolbar,
+     and invalidates the Leaflet map when switching back to Map.
+
+     @param {string} name — module identifier, one of:
+       'map' | 'dashboard' | 'data' | 'safety' | 'log' | 'settings'
+     --------------------------------------------------------------- */
+  let _activeModule = 'map';   // track current module for lsSave()
+
+  function showModule(name) {
+    // Guard: ignore unknown module names
+    const VALID = ['map', 'dashboard', 'data', 'safety', 'log', 'settings'];
+    if (!VALID.includes(name)) {
+      console.warn('[RoadWalk] showModule: unknown module "' + name + '"');
+      return;
+    }
+
+    _activeModule = name;
+
+    // ── Hide all module panels ──────────────────────────────────
+    document.querySelectorAll('.module-view').forEach(function (el) {
+      el.classList.remove('active');
+    });
+
+    // ── Show the target module panel ───────────────────────────
+    const target = document.getElementById('mod-' + name);
+    if (target) target.classList.add('active');
+
+    // ── Update tab active states and ARIA ──────────────────────
+    document.querySelectorAll('#app-tabs .app-tab').forEach(function (tab) {
+      const isActive = tab.dataset.module === name;
+      tab.classList.toggle('active', isActive);
+      tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    });
+
+    // ── Toolbar: rebuild per module ─────────────────────────────
+    const tb = document.getElementById('module-toolbar');
+    if (tb) {
+      tb.innerHTML = '';      // clear previous content
+      if (name === 'map') {
+        buildMapToolbar();    // layer toggles — defined above
+      } else {
+        // Other modules have no sub-toolbar yet (Phase 3–5 will add them).
+        tb.setAttribute('hidden', '');
+      }
+    }
+
+    // ── Leaflet invalidateSize on map module switch ─────────────
+    // Without this, switching away from the Map module and back
+    // leaves Leaflet thinking the container has zero size.
+    if (name === 'map') {
+      // Use requestAnimationFrame so the CSS display change settles first.
+      requestAnimationFrame(function () {
+        // The main Leaflet instance is exposed as window._RW?.map or state.map.
+        const leafletMap = window._RW?.map || window.state?.map;
+        if (leafletMap && typeof leafletMap.invalidateSize === 'function') {
+          leafletMap.invalidateSize();
+        }
+      });
+    }
+
+    // ── Persist active module to lean state ────────────────────
+    lsSave({ activeModule: name });
+  }
+
+
+  /* ---------------------------------------------------------------
+     7. MODULE TAB CLICK WIRING
+     ---------------------------------------------------------------
+     Delegated listener on #app-tabs so newly rendered tabs also work.
+     --------------------------------------------------------------- */
+  document.getElementById('app-tabs')?.addEventListener('click', function (e) {
+    const tab = e.target.closest('.app-tab[data-module]');
+    if (!tab) return;
+    showModule(tab.dataset.module);
+  });
+
+  // Expose showModule globally so other script blocks (main IIFE, Phase 3
+  // form builders, the map feature-popup "Edit Data" handler, etc.) can
+  // navigate to a module without needing direct access to this IIFE scope.
+  window.showModule = showModule;
+
+  // Also expose doAutoSave so other modules can trigger a save after writes.
+  window.RWAutoSave = doAutoSave;
+
+  // Expose idbPut / idbGet / idbGetAll for Phase 3+ data entry forms.
+  window.RWIdb = { get: idbGet, put: idbPut, getAll: idbGetAll, openDB: openRWDB };
+
+
+  /* ---------------------------------------------------------------
+     8. DAILY LOG REMINDER MODAL
+     ---------------------------------------------------------------
+     On page load, check the 'daily_logs' IDB store for a record
+     with today's date key (YYYY-MM-DD). If none found, show the
+     #daily-log-modal bottom-sheet so the crew can start their log.
+
+     Save button: writes record to IDB + closes modal.
+     Skip button: closes modal without writing (modal re-appears
+                  on next load until a record exists for the day).
+     --------------------------------------------------------------- */
+
+  /** Return today's date as an IDB key string: 'YYYY-MM-DD'. */
+  function _todayKey() {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return y + '-' + m + '-' + day;
+  }
+
+  /** Show a friendly morning greeting based on local hour. */
+  function _greeting() {
+    const h = new Date().getHours();
+    if (h < 12) return 'Good morning ☀️';
+    if (h < 17) return 'Good afternoon 🌤';
+    return 'Good evening 🌙';
+  }
+
+  /** Initialise the daily-log modal: check IDB, wire buttons, show if needed. */
+  function initDailyLogModal() {
+    const modal    = document.getElementById('daily-log-modal');
+    const titleEl  = document.getElementById('dlm-title-text');
+    const subEl    = document.getElementById('dlm-date-sub');
+    const skipBtn  = document.getElementById('dlm-skip-btn');
+    const saveBtn  = document.getElementById('dlm-save-btn');
+    if (!modal) return;
+
+    const todayKey = _todayKey();
+
+    // Update greeting text to time-appropriate message
+    if (titleEl) titleEl.textContent = _greeting();
+    if (subEl) {
+      const opts = { weekday: 'long', month: 'long', day: 'numeric' };
+      subEl.textContent = "No log started for " + new Date().toLocaleDateString(undefined, opts) + ".";
+    }
+
+    // Check IDB for an existing log for today
+    idbGet('daily_logs', todayKey).then(function (existing) {
+      if (existing) {
+        // Log already exists for today — do not show modal
+        return;
+      }
+      // No log yet — show the reminder after a short delay (let map render first)
+      setTimeout(function () { modal.removeAttribute('hidden'); }, 1200);
+    }).catch(function (err) {
+      // IDB error — silently skip the modal rather than blocking the user
+      console.warn('[RoadWalk] daily-log IDB check failed:', err);
+    });
+
+    // Skip button: just close the modal
+    skipBtn?.addEventListener('click', function () {
+      modal.setAttribute('hidden', '');
+    });
+
+    // Save button: write a log record to IDB, then close
+    saveBtn?.addEventListener('click', function () {
+      const weather = document.getElementById('dlm-weather')?.value || '';
+      const crew    = parseInt(document.getElementById('dlm-crew')?.value, 10) || null;
+      const hours   = parseFloat(document.getElementById('dlm-hours')?.value) || null;
+
+      const record = {
+        date:           todayKey,
+        weather:        weather,
+        crew:           crew,
+        hours_planned:  hours,
+        hours_actual:   null,     // filled in at end of day (Phase 4 Log module)
+        jsb_done:       false,    // updated by Safety module JSB form (Phase 4)
+        notes:          '',
+        created_at:     new Date().toISOString(),
+      };
+
+      idbPut('daily_logs', record).then(function () {
+        modal.setAttribute('hidden', '');
+        console.log('[RoadWalk] Daily log started for', todayKey);
+      }).catch(function (err) {
+        console.warn('[RoadWalk] Failed to save daily log:', err);
+        // Still close the modal so the user isn't blocked
+        modal.setAttribute('hidden', '');
+      });
+    });
+  }
+
+
+  /* ---------------------------------------------------------------
+     9. STARTUP SEQUENCE
+     ---------------------------------------------------------------
+     Run after DOM is ready. Order matters:
+       a) Restore lean state from localStorage (sync, fast)
+       b) Init auto-save + backup timers
+       c) Build Map module toolbar (default active module)
+       d) Check for today's daily log → show modal if missing
+     --------------------------------------------------------------- */
+  function _startup() {
+    // a) Restore saved module (default to 'map' if not set or if Map is the
+    //    only usable module at this prototype stage)
+    const saved = lsLoad();
+    const restoredModule = saved.activeModule || 'map';
+    // For Phase 1, always start on 'map' since other modules are scaffolds.
+    // Remove the override below in Phase 3+ when modules have real content.
+    const startModule = 'map';   // override: always open map until other modules built
+    showModule(startModule);
+
+    // b) Auto-save + backup timers
+    restartAutoSave();
+    restartAutoBackup();
+    // Write initial badge with last-saved time from LS (or blank)
+    const badge = document.getElementById('autosave-nav-badge');
+    if (badge && saved.lastSavedAt) {
+      badge.textContent = '💾 ' + _fmtTime(new Date(saved.lastSavedAt));
+    }
+
+    // c) Map toolbar already built by showModule('map') above.
+
+    // d) Daily log reminder (check IDB asynchronously — doesn't block UI)
+    initDailyLogModal();
+  }
+
+  // Run startup after DOM is fully parsed (this script is deferred to end of body).
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', _startup);
+  } else {
+    _startup();
+  }
+
+})(); // end Phase 1 IIFE
 </script>
 
 </body>
