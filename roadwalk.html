@@ -18414,14 +18414,18 @@ body.mobile-mode #app {
         '<div id="ds-sign-search-wrap" style="display:none"></div>' +
       '</span></div>';
 
+    // Wrap all panel-specific fields in [data-panel-scope] so the generic
+    // select/input/textarea handlers route writes to panels[idx] not pin.attrs.
     return _sectionHdr('PANEL ' + (panelIdx + 1)) +
       signCodeHtml +
-      _selectRow('Facing',        'panel_facing',     String(panel.facing_degrees || ''), facingOpts) +
-      _condRow  ('Panel cond',    'panel_condition',  panel.panel_condition,   conditions2, 'data-panel-field') +
-      _condRow  ('Sheeting cond', 'sheeting_condition',panel.sheeting_condition,conditions2, 'data-panel-field') +
-      _selectRow('Sheeting type', 'sheeting_type',    panel.sheeting_type,     sheetOpts) +
-      _flagRow  ('Damage',        'panel_damage_flags',panel.damage_flags,      damage) +
-      _textareaRow('Notes',       'panel_notes',       panel.notes) +
+      '<div data-panel-scope="' + panelIdx + '">' +
+        _selectRow('Facing',        'facing_degrees',    String(panel.facing_degrees || ''), facingOpts) +
+        _condRow  ('Panel cond',    'panel_condition',   panel.panel_condition,    conditions2, 'data-panel-field') +
+        _condRow  ('Sheeting cond', 'sheeting_condition',panel.sheeting_condition, conditions2, 'data-panel-field') +
+        _selectRow('Sheeting type', 'sheeting_type',     panel.sheeting_type,      sheetOpts) +
+        _flagRow  ('Damage',        'panel_damage_flags',panel.damage_flags,        damage) +
+        _textareaRow('Notes',       'notes',              panel.notes) +
+      '</div>' +
       '<div class="df-row">' +
         '<button class="data-discard-btn" id="ds-remove-panel-btn" style="color:#b91c1c;border-color:#fca5a5;">' +
           'Remove this panel' +
@@ -18551,29 +18555,42 @@ body.mobile-mode #app {
     if (!scroll) return;
     var a = pin.attrs;
 
-    // Generic select → update attrs
+    // Helper: resolve the target object for a field element.
+    // Elements inside [data-panel-scope] write to the active panel; others to pin.attrs.
+    function _targetObj(el) {
+      var scopeEl = el.closest('[data-panel-scope]');
+      if (scopeEl != null) {
+        var idx = parseInt(scopeEl.dataset.panelScope, 10);
+        var panels = a.panels || [];
+        if (!panels[idx]) panels[idx] = {};
+        return panels[idx];
+      }
+      return a;
+    }
+
+    // Generic select → update attrs or panel
     scroll.querySelectorAll('select.df-select[data-field]').forEach(function (sel) {
       sel.addEventListener('change', function () {
-        a[sel.dataset.field] = sel.value;
+        _targetObj(sel)[sel.dataset.field] = sel.value;
         _dataState.dirty = true;
       });
     });
-    // Generic input → update attrs
+    // Generic input → update attrs or panel
     scroll.querySelectorAll('input.df-input[data-field]').forEach(function (inp) {
       inp.addEventListener('input', function () {
-        a[inp.dataset.field] = inp.value;
+        _targetObj(inp)[inp.dataset.field] = inp.value;
         _dataState.dirty = true;
       });
     });
-    // Generic textarea → update attrs
+    // Generic textarea → update attrs or panel
     scroll.querySelectorAll('textarea.df-textarea[data-field]').forEach(function (ta) {
       ta.addEventListener('input', function () {
-        a[ta.dataset.field] = ta.value;
+        _targetObj(ta)[ta.dataset.field] = ta.value;
         _dataState.dirty = true;
       });
     });
 
-    // Condition buttons (overall / culvert / guardrail / wall)
+    // Condition buttons (overall / culvert / guardrail / wall — uses data-cond)
     scroll.querySelectorAll('.df-cond-btn[data-cond][data-field]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         a[btn.dataset.field] = btn.dataset.cond;
@@ -18582,24 +18599,27 @@ body.mobile-mode #app {
       });
     });
 
-    // Sign-specific: post condition buttons
+    // Sign-specific: post condition buttons (data-post-field = value, data-field = key)
     scroll.querySelectorAll('.df-cond-btn[data-post-field]').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        a[btn.dataset.postField] = btn.dataset.field;
+        // data-field = attr key (e.g. 'post_condition'), data-post-field = value (e.g. 'G')
+        a[btn.dataset.field] = btn.dataset.postField;
         _dataState.dirty = true;
         _renderFormBody();
       });
     });
-    // Sign-specific: panel condition buttons
+    // Sign-specific: panel condition buttons (data-panel-field = value, data-field = key)
     scroll.querySelectorAll('.df-cond-btn[data-panel-field]').forEach(function (btn) {
       btn.addEventListener('click', function () {
+        var scopeEl = btn.closest('[data-panel-scope]');
+        var idx = scopeEl ? parseInt(scopeEl.dataset.panelScope, 10)
+                          : (typeof _dataState.signSubTab === 'number' ? _dataState.signSubTab : 0);
         var panels = a.panels || [];
-        var idx    = typeof _dataState.signSubTab === 'number' ? _dataState.signSubTab : 0;
-        if (panels[idx]) {
-          panels[idx][btn.dataset.panelField] = btn.dataset.field;
-          _dataState.dirty = true;
-          _renderFormBody();
-        }
+        if (!panels[idx]) panels[idx] = {};
+        // data-field = attr key, data-panel-field = value
+        panels[idx][btn.dataset.field] = btn.dataset.panelField;
+        _dataState.dirty = true;
+        _renderFormBody();
       });
     });
 
