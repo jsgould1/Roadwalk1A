@@ -4637,6 +4637,142 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
   transition: width 0.2s ease;
 }
 
+/* --- Photo-export modal (#photo-export-modal) --------------------------------------
+   Reuses most .exp-* styles from the full-export modal above.
+   Additional styles specific to the photo-export flow:
+     quality radio group · empty state · two-button download footer
+   --------------------------------------------------------------------------- */
+#photo-export-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.52);
+  z-index: 870;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+#photo-export-modal[hidden] { display: none; }
+/* Photo count banner */
+.pexp-count-banner {
+  padding: 16px 16px 12px;
+  text-align: center;
+  border-bottom: 1px solid var(--rule-soft);
+}
+.pexp-count-num {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--blue);
+  line-height: 1;
+  display: block;
+}
+.pexp-count-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-top: 4px;
+  display: block;
+}
+/* Empty state */
+.pexp-empty {
+  padding: 32px 20px;
+  text-align: center;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--ink-3);
+  line-height: 1.7;
+}
+.pexp-empty-icon {
+  font-size: 36px;
+  display: block;
+  margin-bottom: 10px;
+  opacity: 0.5;
+}
+/* Quality selector */
+.pexp-quality-section {
+  padding: 10px 16px 6px;
+  border-bottom: 1px solid var(--rule-soft);
+}
+.pexp-quality-heading {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-bottom: 6px;
+}
+.pexp-quality-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 7px 0;
+  cursor: pointer;
+  border-bottom: 1px solid var(--rule-soft);
+}
+.pexp-quality-option:last-child { border-bottom: none; }
+.pexp-quality-option input[type="radio"] { margin-top: 2px; flex-shrink: 0; accent-color: var(--blue); }
+.pexp-quality-name {
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.2;
+}
+.pexp-quality-desc {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--ink-3);
+  margin-top: 1px;
+  line-height: 1.4;
+}
+.pexp-quality-badge {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 6px;
+  background: var(--paper-2);
+  border: 1px solid var(--rule);
+  color: var(--ink-3);
+  align-self: flex-start;
+  margin-top: 1px;
+}
+/* Format description */
+.pexp-format-note {
+  padding: 10px 16px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--ink-3);
+  line-height: 1.5;
+  border-bottom: 1px solid var(--rule);
+}
+/* Footer: two download format buttons */
+.pexp-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--rule);
+  background: var(--paper-2);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+.pexp-footer .exp-btn { flex: 1; text-align: center; }
+/* Progress overlay (shown while building gallery) */
+.pexp-building {
+  padding: 20px 16px 12px;
+  text-align: center;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--ink-3);
+  display: none;
+}
+
 /* --- Mobile / phone preview mode --------------------------------------------------
    Activated by #view-toggle-btn. Constrains #app to 390px centred on desktop,
    mimicking iPhone viewport. Matches existing view-toggle-btn behaviour.
@@ -5330,6 +5466,21 @@ body.mobile-mode #app {
           Export
         </button>
 
+        <!-- Photos: dedicated modal for exporting field photos with quality options -->
+        <button class="dash-action-btn" id="dash-photo-export-btn"
+                title="Export condition photos captured during the walk">
+          <svg viewBox="0 0 20 20" width="15" height="15" aria-hidden="true">
+            <rect x="1" y="5" width="18" height="13" rx="2" ry="2"
+                  fill="none" stroke="currentColor" stroke-width="1.7"/>
+            <circle cx="10" cy="11.5" r="3"
+                    fill="none" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M7 5 L8.2 2.5 L11.8 2.5 L13 5"
+                  fill="none" stroke="currentColor" stroke-width="1.5"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Photos
+        </button>
+
         <!-- New Section: opens the section-type picker (ko-picker) in the Map module -->
         <button class="dash-action-btn dash-action-btn--primary" id="dash-new-section-btn"
                 title="Add a new section to this project">
@@ -5671,6 +5822,114 @@ body.mobile-mode #app {
 
   </div>
 </div><!-- /#export-modal -->
+
+<!-- ============================================================
+     PHOTO EXPORT MODAL (#photo-export-modal)
+     Opened by the Dashboard "Photos" button.
+     Reads the IDB 'photos' store, shows a count, lets the user
+     choose a quality/size preset, then downloads either:
+       • A self-contained HTML gallery (base64 imgs, open in browser)
+       • A JSON file with data URLs for all processed photos
+
+     Quality presets:
+       Original  — no resize, original file blob
+       Standard  — max 1600px on longest side, JPEG 85%  (~200–500 KB/photo)
+       Web       — max 800px, JPEG 80%                   (~50–150 KB/photo)
+       Thumbnail — max 400px, JPEG 75%                   (~15–40 KB/photo)
+
+     JS entry point: openPhotoExportModal()  (Phase 1 script block)
+     ============================================================ -->
+<div id="photo-export-modal" hidden role="dialog" aria-modal="true"
+     aria-labelledby="pexp-modal-title">
+  <div class="exp-card">
+
+    <!-- Header -->
+    <div class="exp-header">
+      <span class="exp-title" id="pexp-modal-title">Export Photos</span>
+      <button class="exp-close" id="pexp-close-btn" aria-label="Close photo export">✕</button>
+    </div>
+
+    <!-- Progress bar (visible while processing) -->
+    <div class="exp-progress"><div class="exp-progress-bar" id="pexp-progress-bar"></div></div>
+
+    <!-- Photo count banner (hidden until scan completes) -->
+    <div class="pexp-count-banner" id="pexp-count-banner" hidden>
+      <span class="pexp-count-num" id="pexp-count-num">0</span>
+      <span class="pexp-count-label">photos stored</span>
+    </div>
+
+    <!-- Empty state (shown when no photos in IDB) -->
+    <div class="pexp-empty" id="pexp-empty" hidden>
+      <span class="pexp-empty-icon">📷</span>
+      No condition photos have been captured yet.<br>
+      Photos taken during the walk appear here.
+    </div>
+
+    <!-- Scanning state -->
+    <div class="exp-scanning" id="pexp-scanning">Checking photo store…</div>
+
+    <!-- Quality selector (shown when photos > 0) -->
+    <div class="pexp-quality-section" id="pexp-quality-section" hidden>
+      <div class="pexp-quality-heading">Export quality</div>
+
+      <label class="pexp-quality-option">
+        <input type="radio" name="pexp-quality" value="original" checked>
+        <div>
+          <div class="pexp-quality-name">Original</div>
+          <div class="pexp-quality-desc">Full resolution, original file format. No re-encoding.</div>
+        </div>
+        <span class="pexp-quality-badge">FULL</span>
+      </label>
+
+      <label class="pexp-quality-option">
+        <input type="radio" name="pexp-quality" value="standard">
+        <div>
+          <div class="pexp-quality-name">Standard</div>
+          <div class="pexp-quality-desc">Max 1600 px, JPEG 85%. Good for reports.</div>
+        </div>
+        <span class="pexp-quality-badge">≤1600px</span>
+      </label>
+
+      <label class="pexp-quality-option">
+        <input type="radio" name="pexp-quality" value="web">
+        <div>
+          <div class="pexp-quality-name">Web</div>
+          <div class="pexp-quality-desc">Max 800 px, JPEG 80%. Fast upload, email-ready.</div>
+        </div>
+        <span class="pexp-quality-badge">≤800px</span>
+      </label>
+
+      <label class="pexp-quality-option">
+        <input type="radio" name="pexp-quality" value="thumb">
+        <div>
+          <div class="pexp-quality-name">Thumbnail</div>
+          <div class="pexp-quality-desc">Max 400 px, JPEG 75%. Preview / reference strip.</div>
+        </div>
+        <span class="pexp-quality-badge">≤400px</span>
+      </label>
+    </div>
+
+    <!-- Size estimate (updates when quality changes) -->
+    <div class="pexp-format-note" id="pexp-size-note" hidden>
+      Estimated export size: <strong id="pexp-size-est">—</strong>
+    </div>
+
+    <!-- Building progress message -->
+    <div class="pexp-building" id="pexp-building">Building gallery…</div>
+
+    <!-- Footer buttons (shown when photos > 0) -->
+    <div class="pexp-footer" id="pexp-footer" hidden>
+      <button class="exp-btn" id="pexp-cancel-btn">Cancel</button>
+      <button class="exp-btn exp-btn--primary" id="pexp-gallery-btn">
+        ⬇ HTML Gallery
+      </button>
+      <button class="exp-btn" id="pexp-json-btn">
+        ⬇ JSON
+      </button>
+    </div>
+
+  </div>
+</div><!-- /#photo-export-modal -->
 
 <!-- ============================================================
      DAILY LOG REMINDER MODAL (#daily-log-modal)
@@ -16459,6 +16718,13 @@ body.mobile-mode #app {
       openExportModal();
     });
 
+    // ── Photos Export ────────────────────────────────────────────
+    // Opens the photo export modal, which reads IDB photos and lets
+    // the user choose quality/size before downloading as gallery or JSON.
+    document.getElementById('dash-photo-export-btn')?.addEventListener('click', function () {
+      openPhotoExportModal();
+    });
+
     // ── New Section ──────────────────────────────────────────────
     // Switches to the Map module then opens the section-type picker
     // (ko-picker view), which is the existing "what kind of section?" step.
@@ -16848,6 +17114,336 @@ body.mobile-mode #app {
 
   // Expose so other modules can trigger the export modal directly
   window.openExportModal = openExportModal;
+
+
+  /* ---------------------------------------------------------------
+     10b. PHOTO EXPORT ENGINE
+     ---------------------------------------------------------------
+     openPhotoExportModal()  — scans IDB photos, shows modal
+     _resizePhotoBlob()      — canvas-based quality/size reduction
+     _buildPhotoGalleryHTML()— self-contained HTML gallery string
+     --------------------------------------------------------------- */
+
+  /**
+   * Quality presets.
+   * @type {{ maxPx: number|null, quality: number|null }}
+   */
+  var PHOTO_QUALITY_PRESETS = {
+    original: { maxPx: null,  quality: null },
+    standard: { maxPx: 1600, quality: 0.85 },
+    web:      { maxPx: 800,  quality: 0.80 },
+    thumb:    { maxPx: 400,  quality: 0.75 },
+  };
+
+  /**
+   * Resize a photo Blob using an off-screen canvas.
+   * Returns a data URL (image/jpeg) capped to maxPx on the longest side.
+   * If preset.maxPx is null, returns the original blob as a data URL.
+   *
+   * @param {Blob} blob       Source image blob
+   * @param {string} preset   Key in PHOTO_QUALITY_PRESETS
+   * @returns {Promise<string>}  data URL
+   */
+  function _resizePhotoBlob(blob, preset) {
+    var cfg = PHOTO_QUALITY_PRESETS[preset] || PHOTO_QUALITY_PRESETS.original;
+
+    return new Promise(function (resolve, reject) {
+      // If original quality or blob isn't an image — just return a data URL
+      if (!cfg.maxPx) {
+        var reader = new FileReader();
+        reader.onload = function (e) { resolve(e.target.result); };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+        return;
+      }
+
+      var url = URL.createObjectURL(blob);
+      var img = new Image();
+      img.onload = function () {
+        URL.revokeObjectURL(url);
+        var w = img.naturalWidth;
+        var h = img.naturalHeight;
+        // Scale down if either dimension exceeds maxPx
+        if (w > cfg.maxPx || h > cfg.maxPx) {
+          if (w >= h) {
+            h = Math.round(h * cfg.maxPx / w);
+            w = cfg.maxPx;
+          } else {
+            w = Math.round(w * cfg.maxPx / h);
+            h = cfg.maxPx;
+          }
+        }
+        var canvas = document.createElement('canvas');
+        canvas.width  = w;
+        canvas.height = h;
+        var ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', cfg.quality));
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); reject(new Error('Image load failed')); };
+      img.src = url;
+    });
+  }
+
+  /**
+   * Build a self-contained single-file HTML photo gallery.
+   * All images are embedded as base64 data URLs — the file is
+   * openable offline in any browser via right-click → Save As.
+   *
+   * @param {Array} processedPhotos  [{pinId, caption, takenAt, dataUrl}, ...]
+   * @param {string} preset           Quality label for the gallery title
+   * @returns {string}  Full HTML document as a string
+   */
+  function _buildPhotoGalleryHTML(processedPhotos, preset) {
+    var projectName = (window.PROJECT && window.PROJECT.name) || 'RoadWalk';
+    var today       = new Date().toISOString().slice(0, 10);
+    var qualityLbl  = { original:'Full resolution', standard:'Standard (≤1600px)', web:'Web (≤800px)', thumb:'Thumbnail (≤400px)' }[preset] || preset;
+
+    var cards = processedPhotos.map(function (ph, i) {
+      var caption  = ph.caption  ? _esc(ph.caption)  : '';
+      var pinLabel = ph.pinId    ? _esc(ph.pinId)    : 'Photo ' + (i + 1);
+      var dateStr  = ph.takenAt  ? _esc(ph.takenAt.slice(0, 10)) : '';
+      return [
+        '<figure class="card">',
+        '  <img src="' + ph.dataUrl + '" alt="' + (caption || pinLabel) + '" loading="lazy">',
+        '  <figcaption>',
+        '    <span class="pin-id">' + pinLabel + '</span>',
+        caption ? '    <span class="caption">' + caption + '</span>' : '',
+        dateStr ? '    <span class="date">' + dateStr + '</span>' : '',
+        '  </figcaption>',
+        '</figure>',
+      ].filter(Boolean).join('\n');
+    }).join('\n');
+
+    return [
+      '<!DOCTYPE html>',
+      '<html lang="en">',
+      '<head>',
+      '<meta charset="UTF-8">',
+      '<meta name="viewport" content="width=device-width,initial-scale=1">',
+      '<title>' + _esc(projectName) + ' — Photo Gallery</title>',
+      '<style>',
+      '  *{box-sizing:border-box;margin:0;padding:0}',
+      '  body{font-family:system-ui,sans-serif;background:#111;color:#e8e8e8;padding:20px}',
+      '  h1{font-size:16px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#fff;margin-bottom:4px}',
+      '  .meta{font-size:11px;color:#888;margin-bottom:20px}',
+      '  .gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}',
+      '  .card{background:#1e1e1e;border:1px solid #333;overflow:hidden;display:flex;flex-direction:column}',
+      '  .card img{width:100%;display:block;object-fit:cover;max-height:280px}',
+      '  figcaption{padding:8px 12px;display:flex;flex-direction:column;gap:2px}',
+      '  .pin-id{font-family:monospace;font-size:10px;font-weight:700;color:#7eb6ff;text-transform:uppercase;letter-spacing:.5px}',
+      '  .caption{font-size:12px;color:#ccc;margin-top:2px;line-height:1.4}',
+      '  .date{font-family:monospace;font-size:10px;color:#666;margin-top:4px}',
+      '</style>',
+      '</head>',
+      '<body>',
+      '<h1>' + _esc(projectName) + ' — Condition Photos</h1>',
+      '<div class="meta">Generated ' + today + ' · ' + processedPhotos.length + ' photos · Quality: ' + _esc(qualityLbl) + '</div>',
+      '<div class="gallery">',
+      cards,
+      '</div>',
+      '</body>',
+      '</html>',
+    ].join('\n');
+
+    function _esc(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+  }
+
+  /**
+   * Estimate output file size based on photo count and quality preset.
+   * Rough heuristics — good enough for the size hint in the modal.
+   */
+  function _estimatePhotoSize(count, preset) {
+    var bytesPerPhoto = { original: 3 * 1024 * 1024, standard: 350 * 1024, web: 100 * 1024, thumb: 25 * 1024 };
+    var est = count * (bytesPerPhoto[preset] || 350 * 1024);
+    return _fmtBytes(est);
+  }
+
+  /**
+   * Open the photo export modal. Scans IDB for photos, shows count,
+   * lets the user pick quality, then downloads HTML gallery or JSON.
+   */
+  function openPhotoExportModal() {
+    var modal        = document.getElementById('photo-export-modal');
+    var scanEl       = document.getElementById('pexp-scanning');
+    var countBanner  = document.getElementById('pexp-count-banner');
+    var countNum     = document.getElementById('pexp-count-num');
+    var emptyEl      = document.getElementById('pexp-empty');
+    var qualSection  = document.getElementById('pexp-quality-section');
+    var sizeNote     = document.getElementById('pexp-size-note');
+    var sizeEst      = document.getElementById('pexp-size-est');
+    var footerEl     = document.getElementById('pexp-footer');
+    var progressEl   = document.getElementById('pexp-progress-bar');
+    var buildingEl   = document.getElementById('pexp-building');
+    var galleryBtn   = document.getElementById('pexp-gallery-btn');
+    var jsonBtn      = document.getElementById('pexp-json-btn');
+    var cancelBtn    = document.getElementById('pexp-cancel-btn');
+    var closeBtn     = document.getElementById('pexp-close-btn');
+    if (!modal) return;
+
+    // ── Reset state ──────────────────────────────────────────────
+    scanEl.style.display     = '';
+    countBanner.hidden       = true;
+    emptyEl.hidden           = true;
+    qualSection.hidden       = true;
+    sizeNote.hidden          = true;
+    footerEl.hidden          = true;
+    buildingEl.style.display = 'none';
+    progressEl.style.width   = '0%';
+    galleryBtn.disabled      = false;
+    jsonBtn.disabled         = false;
+
+    modal.removeAttribute('hidden');
+
+    // ── Scan IDB photos store ────────────────────────────────────
+    var _allPhotos = [];  // raw IDB records
+
+    (function scanPhotos() {
+      window.RWIdb.then(function (db) {
+        var tx    = db.transaction('photos', 'readonly');
+        var store = tx.objectStore('photos');
+        var req   = store.getAll();
+        req.onsuccess = function () {
+          _allPhotos = (req.result || []);
+          scanEl.style.display = 'none';
+          progressEl.style.width = '100%';
+
+          if (_allPhotos.length === 0) {
+            emptyEl.hidden = false;
+          } else {
+            countNum.textContent = _allPhotos.length;
+            countBanner.hidden   = false;
+            qualSection.hidden   = false;
+            sizeNote.hidden      = false;
+            footerEl.hidden      = false;
+            _updateSizeEst();
+          }
+          setTimeout(function () { progressEl.style.width = '0%'; }, 400);
+        };
+        req.onerror = function () {
+          scanEl.textContent = 'Error reading photos store.';
+        };
+      }).catch(function () {
+        scanEl.textContent = 'IndexedDB unavailable.';
+      });
+    }());
+
+    // ── Quality change → update size estimate ────────────────────
+    function _getPreset() {
+      var radios = document.querySelectorAll('input[name="pexp-quality"]');
+      for (var i = 0; i < radios.length; i++) {
+        if (radios[i].checked) return radios[i].value;
+      }
+      return 'original';
+    }
+    function _updateSizeEst() {
+      if (sizeEst) sizeEst.textContent = _estimatePhotoSize(_allPhotos.length, _getPreset());
+    }
+    qualSection.addEventListener('change', _updateSizeEst);
+
+    // ── Process photos then download ─────────────────────────────
+    function _process(thenDownload) {
+      var preset = _getPreset();
+      var total  = _allPhotos.length;
+      buildingEl.style.display = '';
+      buildingEl.textContent   = 'Processing 0 / ' + total + '…';
+      progressEl.style.width   = '0%';
+      galleryBtn.disabled      = true;
+      jsonBtn.disabled         = true;
+
+      var processed = [];
+      var i = 0;
+
+      function _next() {
+        if (i >= total) {
+          thenDownload(processed, preset);
+          return;
+        }
+        var rec = _allPhotos[i];
+        var blob = rec.blob || rec.data || null;
+        i++;
+        var pct = Math.round((i / total) * 100);
+        buildingEl.textContent = 'Processing ' + i + ' / ' + total + '…';
+        progressEl.style.width = pct + '%';
+
+        if (!blob) {
+          // No blob — use existing data_url if present
+          processed.push({ pinId: rec.pin_id, caption: rec.caption, takenAt: rec.taken_at, dataUrl: rec.data_url || '' });
+          setTimeout(_next, 0);
+          return;
+        }
+
+        _resizePhotoBlob(blob, preset).then(function (dataUrl) {
+          processed.push({ pinId: rec.pin_id, caption: rec.caption, takenAt: rec.taken_at, dataUrl: dataUrl });
+          setTimeout(_next, 0);
+        }).catch(function () {
+          processed.push({ pinId: rec.pin_id, caption: rec.caption, takenAt: rec.taken_at, dataUrl: '' });
+          setTimeout(_next, 0);
+        });
+      }
+      _next();
+    }
+
+    // ── Gallery download ─────────────────────────────────────────
+    // Prevent handler stacking by cloning the buttons each open
+    var newGalleryBtn = galleryBtn.cloneNode(true);
+    galleryBtn.parentNode.replaceChild(newGalleryBtn, galleryBtn);
+    galleryBtn = newGalleryBtn;
+
+    var newJsonBtn = jsonBtn.cloneNode(true);
+    jsonBtn.parentNode.replaceChild(newJsonBtn, jsonBtn);
+    jsonBtn = newJsonBtn;
+
+    galleryBtn.addEventListener('click', function () {
+      _process(function (processed, preset) {
+        var html     = _buildPhotoGalleryHTML(processed, preset);
+        var projName = (window.PROJECT && window.PROJECT.name) || 'roadwalk';
+        var slug     = projName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        var today    = new Date().toISOString().slice(0, 10);
+        _triggerDownload(html, slug + '-photos-' + today + '.html', 'text/html');
+        buildingEl.style.display = 'none';
+        progressEl.style.width   = '0%';
+        galleryBtn.disabled      = false;
+        jsonBtn.disabled         = false;
+        _closePhotoModal();
+      });
+    });
+
+    jsonBtn.addEventListener('click', function () {
+      _process(function (processed, preset) {
+        var projName = (window.PROJECT && window.PROJECT.name) || 'roadwalk';
+        var slug     = projName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        var today    = new Date().toISOString().slice(0, 10);
+        var payload  = {
+          _export_meta: {
+            version: 'photos-v1',
+            exported_at: new Date().toISOString(),
+            quality: preset,
+            count: processed.length,
+          },
+          photos: processed,
+        };
+        _triggerDownload(JSON.stringify(payload), slug + '-photos-' + today + '.json', 'application/json');
+        buildingEl.style.display = 'none';
+        progressEl.style.width   = '0%';
+        galleryBtn.disabled      = false;
+        jsonBtn.disabled         = false;
+        _closePhotoModal();
+      });
+    });
+
+    // ── Close ────────────────────────────────────────────────────
+    function _closePhotoModal() { modal.setAttribute('hidden', ''); }
+    cancelBtn?.addEventListener('click', _closePhotoModal);
+    closeBtn?.addEventListener('click',  _closePhotoModal);
+    modal.addEventListener('click', function (e) {
+      if (e.target === modal) _closePhotoModal();
+    }, { once: true });
+  }
+
+  window.openPhotoExportModal = openPhotoExportModal;
 
 
   /* ---------------------------------------------------------------
