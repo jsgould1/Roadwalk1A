@@ -2171,6 +2171,95 @@ a { color: inherit; text-decoration: none; }
   cursor: default;
   border-bottom: 1px solid var(--rule);
 }
+/* --- Layers panel (floats right of the left stack) -------------------------
+   Triggered by #layers-toggle-btn. Positioned absolutely so it stays
+   anchored to the left stack regardless of map scroll / pan.           */
+.layers-panel {
+  position: absolute;
+  top: 0;
+  left: calc(34px + 10px);   /* button width (34px) + gap */
+  z-index: 600;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.18);
+  min-width: 170px;
+  max-height: calc(100vh - 160px);
+  overflow-y: auto;
+  pointer-events: auto;
+}
+.layers-panel[hidden] { display: none; }
+/* Header row */
+.layers-panel-title {
+  padding: 7px 12px 6px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  color: var(--paper);
+  background: var(--ink);
+  text-transform: uppercase;
+  user-select: none;
+}
+/* Container for rows */
+.layers-panel-list {
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  gap: 2px;
+}
+/* Each layer row: coloured dot + label + toggle pill */
+.layer-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 2px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.1s;
+}
+.layer-row:hover { background: var(--paper-2); }
+/* Coloured dot matching the map pin colour */
+.layer-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 1px solid rgba(0,0,0,0.15);
+}
+/* Layer name label */
+.layer-label {
+  flex: 1;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.layer-row.layer-off .layer-label { color: var(--ink-mute); }
+/* Toggle pill (on/off indicator) */
+.layer-toggle {
+  width: 26px; height: 14px;
+  border-radius: 7px;
+  background: var(--rule);
+  position: relative;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.layer-toggle::after {
+  content: '';
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.15s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+}
+.layer-row:not(.layer-off) .layer-toggle { background: var(--blue); }
+.layer-row:not(.layer-off) .layer-toggle::after { transform: translateX(12px); }
+/* Button active state while panel is open */
+#layers-toggle-btn.on { color: var(--blue); }
+
 .feature-picker { width: 230px; max-height: calc(100vh - 140px); overflow-y: auto; }
 .feature-picker .fp-list {
   display: flex;
@@ -4517,6 +4606,31 @@ body.mobile-mode #app {
           <button class="map-ctl-btn" id="tally-toggle-btn" title="Show / hide tally panels">
             <span style="font-size:14px;line-height:1;">⚅</span>
           </button>
+
+          <!-- Layers toggle button — opens the layer-visibility panel to the right -->
+          <button class="map-ctl-btn" id="layers-toggle-btn" title="Toggle layer visibility">
+            <!-- Stack-of-layers SVG icon -->
+            <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true">
+              <path d="M10 2 L18 6.5 L10 11 L2 6.5 Z"
+                    fill="none" stroke="currentColor" stroke-width="1.6"
+                    stroke-linejoin="round"/>
+              <path d="M2 10 L10 14.5 L18 10"
+                    fill="none" stroke="currentColor" stroke-width="1.6"
+                    stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M2 13.5 L10 18 L18 13.5"
+                    fill="none" stroke="currentColor" stroke-width="1.6"
+                    stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+
+          <!-- Layers panel — floats to the right of the left stack when open -->
+          <div class="layers-panel" id="layers-panel" hidden>
+            <div class="layers-panel-title">LAYERS</div>
+            <div class="layers-panel-list" id="layers-panel-list">
+              <!-- rows injected by buildLayersPanel() in Phase 1 JS -->
+            </div>
+          </div>
+
           <div class="tally-vis-menu" id="tally-vis-menu" hidden>
             <div class="tvm-title">TALLIES</div>
             <button class="tvm-row" data-target="tally-panel">Crack Seal</button>
@@ -15452,81 +15566,129 @@ body.mobile-mode #app {
 
 
   /* ---------------------------------------------------------------
-     5. MODULE TOOLBAR CONTENT
+     5. LAYERS PANEL
      ---------------------------------------------------------------
-     buildMapToolbar() injects layer-toggle buttons for the Map module.
-     Each button toggles the visibility of a feature kind on the map
-     by calling the existing _RW layer management (Phase 2 will wire
-     these to the real layer groups; for now they set a layersVis flag
-     in lean state so the setting persists across reloads).
+     The layers panel (#layers-panel) floats to the right of the
+     left map-control stack, anchored below the layers icon button
+     (#layers-toggle-btn). It lists all feature kinds with a coloured
+     dot and an on/off toggle pill.
+
+     buildLayersPanel() populates #layers-panel-list with one row per
+     layer kind, reads initial state from lean localStorage, and wires
+     click handlers that:
+       a) Toggle the row's visual state (.layer-off class + pill)
+       b) Persist the new visibility to lean state (layersVis map)
+       c) Call window._RW.toggleLayer(kind, visible) when available
+          (Phase 2 will implement the actual Leaflet layer show/hide)
+
+     initLayersButton() wires the toggle button to show/hide the panel
+     and closes it when the user clicks outside.
      --------------------------------------------------------------- */
 
   /**
-   * Layer definition table for the Map module toolbar.
-   * label  — displayed on the button
-   * kind   — matches the 'kind' field in prewalk-bundle pins
-   * active — default visibility on first load
+   * Layer definition table.
+   * label  — shown in the panel row
+   * kind   — matches 'kind' field in prewalk-bundle pins
+   * color  — dot colour (matches the map pin colours defined in the main IIFE)
+   * active — default visibility when no lean-state entry exists
    */
   const MAP_LAYERS = [
-    { label: 'Guardrails',  kind: 'guardrail',   active: true  },
-    { label: 'Walls',       kind: 'wall',         active: true  },
-    { label: 'Culverts',    kind: 'culvert',      active: true  },
-    { label: 'Signs',       kind: 'sign',         active: true  },
-    { label: 'Mi Markers',  kind: 'mile_marker',  active: true  },
-    { label: 'Bridges',     kind: 'bridge',       active: true  },
-    { label: 'Gates',       kind: 'gate',         active: true  },
-    { label: 'Parking',     kind: 'parking',      active: true  },
+    { label: 'Guardrails',   kind: 'guardrail',   color: '#E8A838', active: true  },
+    { label: 'Ret. Walls',   kind: 'wall',         color: '#7B3F9E', active: true  },
+    { label: 'Culverts',     kind: 'culvert',      color: '#3A7AC8', active: true  },
+    { label: 'Signs',        kind: 'sign',         color: '#27A04B', active: true  },
+    { label: 'Mile Markers', kind: 'mile_marker',  color: '#888888', active: true  },
+    { label: 'Bridges',      kind: 'bridge',       color: '#1A5589', active: true  },
+    { label: 'Gates',        kind: 'gate',         color: '#C85A2B', active: true  },
+    { label: 'Parking',      kind: 'parking',      color: '#4A6B4D', active: true  },
   ];
 
   /**
-   * Build and inject the Map module's toolbar content.
-   * Called by showModule('map') and on first load.
+   * Populate #layers-panel-list with one toggle row per layer kind.
+   * Safe to call multiple times — clears and rebuilds each time.
    */
-  function buildMapToolbar() {
-    const tb = document.getElementById('module-toolbar');
-    if (!tb) return;
+  function buildLayersPanel() {
+    const list = document.getElementById('layers-panel-list');
+    if (!list) return;
 
-    // Read persisted layer visibility from lean state
-    const ls  = lsLoad();
-    const vis = ls.layersVis || {};
+    // Read persisted visibility from lean state
+    const vis = (lsLoad().layersVis) || {};
 
-    // Build HTML: "Layers:" label, separator, one button per layer kind
-    let html = '<span class="mtb-label">Layers:</span>';
-    html += '<div class="mtb-sep"></div>';
+    list.innerHTML = '';   // clear any previous rows
 
     MAP_LAYERS.forEach(function (layer) {
-      // Default to active:true unless explicitly saved as false
+      // Default to layer.active if no saved preference
       const isOn = vis.hasOwnProperty(layer.kind) ? vis[layer.kind] : layer.active;
-      html += '<button class="mtb-btn' + (isOn ? ' active' : '') + '"'
-            + ' data-layer="' + layer.kind + '"'
-            + ' title="Toggle ' + layer.label + ' visibility"'
-            + '>' + layer.label + '</button>';
-    });
 
-    tb.innerHTML = html;
-    tb.removeAttribute('hidden');
+      const row = document.createElement('div');
+      row.className = 'layer-row' + (isOn ? '' : ' layer-off');
+      row.dataset.kind = layer.kind;
+      row.title = (isOn ? 'Hide' : 'Show') + ' ' + layer.label;
 
-    // Wire toggle clicks — update lean state + call map layer toggle if available
-    tb.querySelectorAll('.mtb-btn[data-layer]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        const kind = btn.dataset.layer;
-        const nowActive = !btn.classList.contains('active');
-        btn.classList.toggle('active', nowActive);
+      row.innerHTML =
+        '<span class="layer-dot" style="background:' + layer.color + '"></span>'
+        + '<span class="layer-label">' + layer.label + '</span>'
+        + '<span class="layer-toggle"></span>';
 
-        // Persist to lean state
+      row.addEventListener('click', function () {
+        const nowOn = row.classList.contains('layer-off');   // flipping: off→on
+        row.classList.toggle('layer-off', !nowOn);
+        row.title = (nowOn ? 'Hide' : 'Show') + ' ' + layer.label;
+
+        // Persist new state to lean localStorage
         const st = lsLoad();
         if (!st.layersVis) st.layersVis = {};
-        st.layersVis[kind] = nowActive;
+        st.layersVis[layer.kind] = nowOn;
         lsSave(st);
 
-        // Notify the existing map layer system if it exposes a toggle hook.
-        // Phase 2 will implement _RW.toggleLayer(kind, visible).
+        // Notify map layer system — Phase 2 implements _RW.toggleLayer()
         if (window._RW && typeof window._RW.toggleLayer === 'function') {
-          window._RW.toggleLayer(kind, nowActive);
+          window._RW.toggleLayer(layer.kind, nowOn);
         }
       });
+
+      list.appendChild(row);
     });
   }
+
+  /**
+   * Wire the #layers-toggle-btn to show/hide #layers-panel.
+   * Also closes the panel on outside click (same pattern as tally-vis-menu).
+   */
+  function initLayersButton() {
+    const btn   = document.getElementById('layers-toggle-btn');
+    const panel = document.getElementById('layers-panel');
+    if (!btn || !panel) return;
+
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();   // don't let the outside-click handler fire immediately
+      const isOpen = !panel.hidden;
+      if (isOpen) {
+        // Close
+        panel.hidden = true;
+        btn.classList.remove('on');
+      } else {
+        // Open: rebuild rows so toggle state is fresh from lean state
+        buildLayersPanel();
+        panel.hidden = false;
+        btn.classList.add('on');
+      }
+    });
+
+    // Close panel when clicking anywhere outside the left stack
+    document.addEventListener('click', function (e) {
+      if (panel.hidden) return;
+      const stack = document.getElementById('fp-left-stack');
+      if (stack && !stack.contains(e.target)) {
+        panel.hidden = true;
+        btn.classList.remove('on');
+      }
+    });
+  }
+
+  // buildMapToolbar kept for backward compat — now a no-op since layers
+  // moved to the floating panel. Module toolbar stays hidden for map module.
+  function buildMapToolbar() { /* layers moved to #layers-panel */ }
 
 
   /* ---------------------------------------------------------------
@@ -15568,15 +15730,14 @@ body.mobile-mode #app {
     });
 
     // ── Toolbar: rebuild per module ─────────────────────────────
+    // Layers have moved to the floating #layers-panel on the map; the
+    // module toolbar is reserved for Phase 3–5 modules (Data filters, etc.).
     const tb = document.getElementById('module-toolbar');
     if (tb) {
-      tb.innerHTML = '';      // clear previous content
-      if (name === 'map') {
-        buildMapToolbar();    // layer toggles — defined above
-      } else {
-        // Other modules have no sub-toolbar yet (Phase 3–5 will add them).
-        tb.setAttribute('hidden', '');
-      }
+      tb.innerHTML = '';
+      // No module currently uses the toolbar — always hide it.
+      // Phase 3 (Data module) will inject filter chips here.
+      tb.setAttribute('hidden', '');
     }
 
     // ── Leaflet invalidateSize on map module switch ─────────────
@@ -15743,7 +15904,8 @@ body.mobile-mode #app {
       badge.textContent = '💾 ' + _fmtTime(new Date(saved.lastSavedAt));
     }
 
-    // c) Map toolbar already built by showModule('map') above.
+    // c) Wire the layers icon button (floating panel on the map left stack)
+    initLayersButton();
 
     // d) Daily log reminder (check IDB asynchronously — doesn't block UI)
     initDailyLogModal();
