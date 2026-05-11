@@ -4410,6 +4410,57 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
 }
 .dlm-btn-save:hover { background: var(--blue-2); }
 
+/* --- Dashboard action bar ---------------------------------------------------
+   Three horizontally-arranged action buttons sitting between the masthead
+   and the section filter tabs. Import (outlined) · Export (outlined) ·
+   New Section (filled primary). Scrolls horizontally on very narrow screens.
+   --------------------------------------------------------------------------- */
+.dash-action-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px 12px;
+  border-bottom: 1px solid var(--rule-soft);
+  background: var(--paper);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+.dash-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.12s, color 0.12s, background 0.12s;
+  border-radius: 0;
+}
+.dash-action-btn:hover { border-color: var(--ink-2); color: var(--ink); }
+.dash-action-btn:active { background: var(--paper-2); }
+/* Primary variant — filled blue, used for New Section */
+.dash-action-btn--primary {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #fff;
+}
+.dash-action-btn--primary:hover { background: var(--blue-2); border-color: var(--blue-2); color: #fff; }
+.dash-action-btn--primary:active { background: var(--blue); }
+
+/* Make the section list inside the dashboard module scroll */
+#mod-dashboard .section-list {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 /* --- Mobile / phone preview mode --------------------------------------------------
    Activated by #view-toggle-btn. Constrains #app to 390px centred on desktop,
    mimicking iPhone viewport. Matches existing view-toggle-btn behaviour.
@@ -5062,6 +5113,7 @@ body.mobile-mode #app {
     <div id="mod-dashboard" class="module-view">
 
       <!-- Project masthead — same visual style as the existing view-list masthead -->
+      <!-- ── Project masthead ───────────────────────────────────────── -->
       <div class="list-masthead">
         <div class="label">Project</div>
         <h1 id="dash-project-name">Loading…</h1>
@@ -5070,21 +5122,63 @@ body.mobile-mode #app {
           <span><strong id="dash-feature-count">—</strong> features</span>
           <span id="dash-kickoff-date"></span>
         </div>
-        <!-- "Open Map" shortcut — goes to Map module without selecting a section -->
-        <button class="change-project-btn" id="dash-open-map-btn" title="Go to Map module">
-          🗺 Open Map
-        </button>
       </div>
 
-      <!-- Filter tabs — reuse existing .list-tab CSS -->
+      <!-- ── Action bar: Import · Export · New Section ─────────────────
+           Three primary actions for the project. Sits between the masthead
+           and the section filter tabs for quick access without scrolling.
+           JS wired by initDashboard() in the Phase 1 script block.        -->
+      <div class="dash-action-bar">
+
+        <!-- Import: loads a prewalk-bundle.json from disk (existing picker) -->
+        <button class="dash-action-btn" id="dash-import-btn" title="Load a project bundle JSON from disk">
+          <svg viewBox="0 0 20 20" width="15" height="15" aria-hidden="true">
+            <path d="M10 3 L10 13 M5 9 L10 14 L15 9"
+                  fill="none" stroke="currentColor" stroke-width="1.8"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M3 15 L17 15" stroke="currentColor" stroke-width="1.8"
+                  stroke-linecap="round"/>
+          </svg>
+          Import Project
+        </button>
+
+        <!-- Export: downloads the active bundle JSON + links to XLSX export -->
+        <button class="dash-action-btn" id="dash-export-btn" title="Download project bundle as JSON">
+          <svg viewBox="0 0 20 20" width="15" height="15" aria-hidden="true">
+            <path d="M10 14 L10 4 M5 8 L10 3 L15 8"
+                  fill="none" stroke="currentColor" stroke-width="1.8"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M3 15 L17 15" stroke="currentColor" stroke-width="1.8"
+                  stroke-linecap="round"/>
+          </svg>
+          Export
+        </button>
+
+        <!-- New Section: opens the section-type picker (ko-picker) in the Map module -->
+        <button class="dash-action-btn dash-action-btn--primary" id="dash-new-section-btn"
+                title="Add a new section to this project">
+          <svg viewBox="0 0 20 20" width="15" height="15" aria-hidden="true">
+            <line x1="10" y1="3" x2="10" y2="17" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round"/>
+            <line x1="3" y1="10" x2="17" y2="10" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round"/>
+          </svg>
+          New Section
+        </button>
+
+      </div><!-- /.dash-action-bar -->
+
+      <!-- ── Section filter tabs ─────────────────────────────────────── -->
       <div class="list-tabs" role="tablist" id="dash-tabs">
         <button class="list-tab active" data-dash-tab="all">All</button>
         <button class="list-tab" data-dash-tab="active">In progress</button>
         <button class="list-tab" data-dash-tab="closed">Closed</button>
       </div>
 
-      <!-- Section list — rows injected by renderDashboard(); reuses .section-row CSS -->
-      <ol class="section-list" id="dash-section-list" style="flex:1;overflow-y:auto;">
+      <!-- ── Section rows ──────────────────────────────────────────────
+           Populated by renderDashboard(). Clicking a row navigates to the
+           Map module and opens that section's field view directly.         -->
+      <ol class="section-list" id="dash-section-list">
         <!-- populated by renderDashboard() once bundle is loaded -->
       </ol>
 
@@ -6625,9 +6719,11 @@ body.mobile-mode #app {
     });
   });
 
-  // Expose showView globally so the Phase 1 Dashboard module can navigate
-  // into a section's map without needing access to this IIFE's scope.
-  window.showView = showView;
+  // Expose showView + showProjectPicker globally so the Phase 1 Dashboard
+  // module can navigate into sections and trigger the project picker without
+  // needing direct access to this IIFE's scope.
+  window.showView           = showView;
+  window.showProjectPicker  = showProjectPicker;
 
   // Expose to external scripts (Style Guide panel, future panels).
   // These are live references — mutations are reflected immediately.
@@ -16025,23 +16121,74 @@ body.mobile-mode #app {
   // Expose renderDashboard globally so the main IIFE can call it after bundle loads
   window.renderDashboard = renderDashboard;
 
-  /** Wire the Dashboard tab buttons and the "Open Map" shortcut. */
+  /** Wire Dashboard tab buttons and the three action-bar buttons. */
   function initDashboard() {
-    // Tab filter buttons
+
+    // ── Section filter tabs ──────────────────────────────────────
     document.getElementById('dash-tabs')?.addEventListener('click', function (e) {
       const btn = e.target.closest('[data-dash-tab]');
       if (!btn) return;
-      // Update active tab style
       document.querySelectorAll('#dash-tabs .list-tab').forEach(function (t) {
         t.classList.toggle('active', t === btn);
       });
       renderDashboard(btn.dataset.dashTab);
     });
 
-    // "Open Map" shortcut button — goes to Map without selecting a section
-    document.getElementById('dash-open-map-btn')?.addEventListener('click', function () {
-      showModule('map');
+    // ── Import Project ───────────────────────────────────────────
+    // Delegates to the existing showProjectPicker() in the main IIFE.
+    // cancellable=true so the user can back out if a project is already loaded.
+    document.getElementById('dash-import-btn')?.addEventListener('click', function () {
+      if (typeof window.showProjectPicker === 'function') {
+        window.showProjectPicker('', true);
+      } else {
+        // Fallback: trigger the existing change-project-btn click handler
+        document.getElementById('change-project-btn')?.click();
+      }
     });
+
+    // ── Export Project ───────────────────────────────────────────
+    // Downloads the current in-memory bundle as a JSON file.
+    // In Phase 5 this will also offer XLSX and GeoJSON formats.
+    document.getElementById('dash-export-btn')?.addEventListener('click', function () {
+      const bundle = window.BUNDLE;
+      if (!bundle) {
+        alert('No project loaded. Import a project first.');
+        return;
+      }
+      try {
+        const json    = JSON.stringify(bundle, null, 2);
+        const blob    = new Blob([json], { type: 'application/json' });
+        const url     = URL.createObjectURL(blob);
+        const a       = document.createElement('a');
+        const safeName = (bundle.short_name || 'roadwalk-project')
+                          .replace(/[^a-z0-9_\-]/gi, '-').toLowerCase();
+        a.href     = url;
+        a.download = safeName + '-bundle.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } catch (err) {
+        console.warn('[RoadWalk] Export failed:', err);
+        alert('Export failed — see console for details.');
+      }
+    });
+
+    // ── New Section ──────────────────────────────────────────────
+    // Switches to the Map module then opens the section-type picker
+    // (ko-picker view), which is the existing "what kind of section?" step.
+    document.getElementById('dash-new-section-btn')?.addEventListener('click', function () {
+      if (!window.BUNDLE) {
+        alert('Import a project before adding a section.');
+        return;
+      }
+      showModule('map');
+      // showView is exposed on window by the main IIFE
+      if (typeof window.showView === 'function') {
+        window.showView('ko-picker');
+      }
+    });
+
   }
 
 
