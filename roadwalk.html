@@ -4928,6 +4928,74 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
 }
 .data-empty-icon { font-size: 36px; display: block; margin-bottom: 12px; opacity: 0.45; }
 
+/* ── Overview cards (All tab) ───────────────────────────────────────────── */
+.data-overview-cards {
+  display: flex;
+  gap: 8px;
+  padding: 12px 12px 8px;
+  overflow-x: auto;
+  flex-shrink: 0;
+  scrollbar-width: none;
+}
+.data-overview-cards::-webkit-scrollbar { display: none; }
+.data-overview-card {
+  flex: 1 0 80px;
+  background: var(--paper-2);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  padding: 10px 10px 8px;
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 0.15s, background 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.data-overview-card:hover  { border-color: var(--blue); background: var(--paper); }
+.data-overview-card:active { background: var(--rule-soft); }
+.data-overview-card-name {
+  font: 700 8.5px/1.2 'IBM Plex Mono', monospace;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin-bottom: 5px;
+}
+.data-overview-card-count {
+  font: 700 22px/1 'IBM Plex Mono', monospace;
+  color: var(--ink-1);
+}
+.data-overview-card-sub {
+  font: 400 9px/1.3 'IBM Plex Sans', sans-serif;
+  color: var(--ink-3);
+  margin-top: 2px;
+}
+.data-overview-card-bar {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--rule);
+  margin-top: 7px;
+  overflow: hidden;
+}
+.data-overview-card-bar-fill {
+  height: 100%;
+  background: var(--blue);
+  border-radius: 2px;
+  transition: width 0.35s ease;
+}
+/* Type tag chip shown in "All" list rows */
+.data-type-tag {
+  font: 700 8px/1 'IBM Plex Mono', monospace;
+  padding: 2px 4px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  align-self: center;
+}
+.data-type-tag.sign      { background: #dbeafe; color: #1e40af; }
+.data-type-tag.culvert   { background: #d1fae5; color: #065f46; }
+.data-type-tag.guardrail { background: #fef3c7; color: #78350f; }
+.data-type-tag.wall      { background: #fce7f3; color: #9d174d; }
+.data-type-tag.other     { background: #f3f4f6; color: #4b5563; }
+
 /* ── Form pane ────────────────────────────────────────────────────────────── */
 #data-form-pane {
   position: absolute;
@@ -6010,8 +6078,12 @@ body.mobile-mode #app {
 
       <!-- Nav 3: feature-type tab strip -->
       <div id="data-type-nav" role="tablist" aria-label="Feature type">
-        <button class="data-type-tab active" data-dtype="sign"
+        <button class="data-type-tab active" data-dtype="all"
                 role="tab" aria-selected="true">
+          All <span class="data-type-badge" id="dtb-all">—</span>
+        </button>
+        <button class="data-type-tab" data-dtype="sign"
+                role="tab" aria-selected="false">
           Posts/Signs <span class="data-type-badge" id="dtb-sign">—</span>
         </button>
         <button class="data-type-tab" data-dtype="culvert"
@@ -18069,7 +18141,7 @@ body.mobile-mode #app {
 
   // ── State ──────────────────────────────────────────────────────────────────
   var _dataState = {
-    type:         'sign',   // active type tab
+    type:         'all',    // active type tab ('all' | 'sign' | 'culvert' | 'guardrail' | 'wall' | 'other')
     pin:          null,     // currently open pin (deep-merged with IDB data)
     sec:          null,     // section the pin belongs to
     dirty:        false,    // unsaved changes flag
@@ -18097,6 +18169,116 @@ body.mobile-mode #app {
     return merged;
   }
 
+  // ── _wireListClicks: attach tap handler to all .data-pin-row els ───────────
+  function _wireListClicks(scrollEl) {
+    scrollEl.querySelectorAll('.data-pin-row').forEach(function (row) {
+      row.addEventListener('click', function () {
+        var pinId = row.dataset.pinId;
+        var secId = row.dataset.secId;
+        var sec   = (window.SECTIONS || []).find(function (s) { return s.id === secId; });
+        var pin   = sec && (sec.pins || []).find(function (p) { return p.id === pinId; });
+        if (pin && sec) openDataForm(pin, sec);
+      });
+    });
+  }
+
+  // ── _pinRowHtml: build a single list-row string ─────────────────────────────
+  function _pinRowHtml(m, secId, showTypeTag) {
+    var tag = showTypeTag
+      ? '<span class="data-type-tag ' + _kindToType(m.kind) + '">' +
+          _kindToType(m.kind).slice(0, 3).toUpperCase() +
+        '</span>'
+      : '';
+    return '<li class="data-pin-row" data-pin-id="' + _esc(m.id) + '" data-sec-id="' + _esc(secId) + '">' +
+      '<span class="data-dot ' + (m.status || 'pending') + '"></span>' +
+      tag +
+      '<span class="data-pin-body">' +
+        '<span class="data-pin-id">' + _esc(m.id) + '</span>' +
+        '<span class="data-pin-desc">' + _esc(_pinListDesc(m)) + '</span>' +
+      '</span>' +
+      '<span class="data-pin-meta">' + _esc(_pinListMeta(m)) + '</span>' +
+      '<span class="data-pin-caret">›</span>' +
+    '</li>';
+  }
+
+  // ── _buildSectionList: group rows by section and return HTML string ──────────
+  function _buildSectionList(rows, showTypeTag) {
+    var bySection = {};
+    var order = [];
+    rows.forEach(function (r) {
+      var sid = r.sec.id;
+      if (!bySection[sid]) { bySection[sid] = { sec: r.sec, items: [] }; order.push(sid); }
+      bySection[sid].items.push(r);
+    });
+    var html = '';
+    order.forEach(function (sid) {
+      var grp = bySection[sid];
+      html += '<div class="data-sec-hdr">' + _esc(grp.sec.name || sid) + '</div>';
+      html += '<ul class="data-pin-list">';
+      grp.items.forEach(function (r) {
+        html += _pinRowHtml(r.merged, r.sec.id, showTypeTag);
+      });
+      html += '</ul>';
+    });
+    return html;
+  }
+
+  // ── _renderAllOverview: "All" tab — summary cards + full feature list ────────
+  function _renderAllOverview(sections, scrollEl) {
+    var TYPES     = ['sign', 'culvert', 'guardrail', 'wall', 'other'];
+    var TYPE_NAMES = { sign: 'Posts/Signs', culvert: 'Culverts', guardrail: 'Guard Rails', wall: 'Walls', other: 'Others' };
+    var counts    = { sign: 0, culvert: 0, guardrail: 0, wall: 0, other: 0 };
+    var confirmed = { sign: 0, culvert: 0, guardrail: 0, wall: 0, other: 0 };
+    var allRows   = [];
+
+    sections.forEach(function (sec) {
+      (sec.pins || []).forEach(function (pin) {
+        var t = _kindToType(pin.kind);
+        var m = _mergedPin(pin);
+        counts[t]++;
+        if (m.status === 'confirmed') confirmed[t]++;
+        allRows.push({ sec: sec, pin: pin, merged: m });
+      });
+    });
+
+    var total = TYPES.reduce(function (s, t) { return s + counts[t]; }, 0);
+
+    // Update "All" badge
+    var allBadge = document.getElementById('dtb-all');
+    if (allBadge) allBadge.textContent = total || '0';
+
+    // ── Summary cards ─────────────────────────────────────────────────────────
+    var cardsHtml = '<div class="data-overview-cards">';
+    TYPES.forEach(function (t) {
+      var pct = counts[t] ? Math.round(100 * confirmed[t] / counts[t]) : 0;
+      cardsHtml +=
+        '<div class="data-overview-card" data-goto-type="' + t + '">' +
+          '<div class="data-overview-card-name">' + TYPE_NAMES[t] + '</div>' +
+          '<div class="data-overview-card-count">' + counts[t] + '</div>' +
+          '<div class="data-overview-card-sub">' + confirmed[t] + ' done</div>' +
+          '<div class="data-overview-card-bar">' +
+            '<div class="data-overview-card-bar-fill" style="width:' + pct + '%"></div>' +
+          '</div>' +
+        '</div>';
+    });
+    cardsHtml += '</div>';
+
+    // ── Feature list ──────────────────────────────────────────────────────────
+    var listHtml = total === 0
+      ? '<div class="data-empty"><span class="data-empty-icon">🔍</span>' +
+        'No features in the loaded bundle.<br>Import a project to see features here.</div>'
+      : _buildSectionList(allRows, true /* showTypeTag */);
+
+    scrollEl.innerHTML = cardsHtml + listHtml;
+
+    // Wire card → type tab navigation
+    scrollEl.querySelectorAll('[data-goto-type]').forEach(function (card) {
+      card.addEventListener('click', function () { renderDataList(card.dataset.gotoType); });
+    });
+
+    _wireListClicks(scrollEl);
+  }
+
   // ── renderDataList ─────────────────────────────────────────────────────────
   function renderDataList(type) {
     _dataState.type = type || _dataState.type;
@@ -18110,9 +18292,16 @@ body.mobile-mode #app {
       tab.setAttribute('aria-selected', on ? 'true' : 'false');
     });
 
-    // Gather all pins of this type from all sections
     var sections = window.SECTIONS || [];
-    var rows = [];  // [{sec, pin, merged}]
+
+    // ── "All" tab → overview/dashboard view ──────────────────────────────────
+    if (_dataState.type === 'all') {
+      _renderAllOverview(sections, scrollEl);
+      return;
+    }
+
+    // ── Specific type → filtered list ─────────────────────────────────────────
+    var rows = [];
     sections.forEach(function (sec) {
       (sec.pins || []).forEach(function (pin) {
         if (_kindToType(pin.kind) === _dataState.type) {
@@ -18121,7 +18310,6 @@ body.mobile-mode #app {
       });
     });
 
-    // Update badge count
     var badge = document.getElementById('dtb-' + _dataState.type);
     if (badge) badge.textContent = rows.length || '0';
 
@@ -18135,46 +18323,8 @@ body.mobile-mode #app {
       return;
     }
 
-    // Group by section
-    var bySection = {};
-    rows.forEach(function (r) {
-      var sid = r.sec.id;
-      if (!bySection[sid]) bySection[sid] = { sec: r.sec, items: [] };
-      bySection[sid].items.push(r);
-    });
-
-    var html = '';
-    Object.keys(bySection).forEach(function (sid) {
-      var grp = bySection[sid];
-      html += '<div class="data-sec-hdr">' + _esc(grp.sec.name || sid) + '</div>';
-      html += '<ul class="data-pin-list">';
-      grp.items.forEach(function (r) {
-        var m = r.merged;
-        html += '<li class="data-pin-row" data-pin-id="' + _esc(m.id) + '" data-sec-id="' + _esc(r.sec.id) + '">' +
-          '<span class="data-dot ' + (m.status || 'pending') + '"></span>' +
-          '<span class="data-pin-body">' +
-            '<span class="data-pin-id">' + _esc(m.id) + '</span>' +
-            '<span class="data-pin-desc">' + _esc(_pinListDesc(m)) + '</span>' +
-          '</span>' +
-          '<span class="data-pin-meta">' + _esc(_pinListMeta(m)) + '</span>' +
-          '<span class="data-pin-caret">›</span>' +
-          '</li>';
-      });
-      html += '</ul>';
-    });
-
-    scrollEl.innerHTML = html;
-
-    // Wire row clicks
-    scrollEl.querySelectorAll('.data-pin-row').forEach(function (row) {
-      row.addEventListener('click', function () {
-        var pinId = row.dataset.pinId;
-        var secId = row.dataset.secId;
-        var sec   = (window.SECTIONS || []).find(function (s) { return s.id === secId; });
-        var pin   = sec && (sec.pins || []).find(function (p) { return p.id === pinId; });
-        if (pin && sec) openDataForm(pin, sec);
-      });
-    });
+    scrollEl.innerHTML = _buildSectionList(rows, false /* no type tag — tab makes it obvious */);
+    _wireListClicks(scrollEl);
   }
   window.renderDataList = renderDataList;
 
@@ -18739,7 +18889,7 @@ body.mobile-mode #app {
     });
   }
 
-  /** Refresh all Nav 3 type badge counts */
+  /** Refresh all Nav 3 type badge counts (including the "All" total) */
   function _updateTypeBadges() {
     var sections = window.SECTIONS || [];
     var counts   = { sign: 0, culvert: 0, guardrail: 0, wall: 0, other: 0 };
@@ -18749,10 +18899,14 @@ body.mobile-mode #app {
         counts[t] = (counts[t] || 0) + 1;
       });
     });
+    var total = 0;
     Object.keys(counts).forEach(function (t) {
+      total += counts[t];
       var badge = document.getElementById('dtb-' + t);
       if (badge) badge.textContent = counts[t] || '0';
     });
+    var allBadge = document.getElementById('dtb-all');
+    if (allBadge) allBadge.textContent = total || '0';
   }
 
   // ── Module init ────────────────────────────────────────────────────────────
