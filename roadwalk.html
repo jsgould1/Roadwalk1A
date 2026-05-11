@@ -4492,10 +4492,10 @@ body.mobile-mode #app {
        data-module attribute is consumed by showModule() and the tab-click handler.
        ============================================================ -->
   <div id="app-tabs" role="tablist" aria-label="Module navigation">
-    <button class="app-tab" data-module="dashboard"
-            role="tab" aria-selected="false" title="Summary Dashboard">📊 Dash</button>
-    <button class="app-tab active" data-module="map"
-            role="tab" aria-selected="true"  title="Map & Feature inventory">🗺 Map</button>
+    <button class="app-tab active" data-module="dashboard"
+            role="tab" aria-selected="true"  title="Project overview &amp; section list">📊 Dash</button>
+    <button class="app-tab" data-module="map"
+            role="tab" aria-selected="false" title="Map &amp; Feature inventory">🗺 Map</button>
     <button class="app-tab" data-module="data"
             role="tab" aria-selected="false" title="Data entry &amp; table">📋 Data</button>
     <button class="app-tab" data-module="safety"
@@ -5051,20 +5051,43 @@ body.mobile-mode #app {
     </div><!-- /#mod-map — end of Map module: all inner .view elements above belong here -->
 
     <!-- ============================================================
-         MODULE: DASHBOARD  (Phase 5 — scaffold placeholder)
-         Will show: section progress bars, feature-type count table,
-         photo thumbnail gallery, and a quick-export button.
+         MODULE: DASHBOARD
+         Default landing module. Shows project overview and the section
+         list. Clicking a section navigates to the Map module and opens
+         that section's field view directly.
+         renderDashboard() in the Phase 1 JS block populates:
+           #dash-project-name, #dash-section-count, #dash-feature-count,
+           #dash-section-list
          ============================================================ -->
     <div id="mod-dashboard" class="module-view">
-      <div class="mod-scaffold">
-        <div class="mod-scaffold-icon">📊</div>
-        <div class="mod-scaffold-title">Dashboard</div>
-        <div class="mod-scaffold-sub">
-          Section progress, feature counts by type, and photo gallery.
-          Full build in Phase 5.
+
+      <!-- Project masthead — same visual style as the existing view-list masthead -->
+      <div class="list-masthead">
+        <div class="label">Project</div>
+        <h1 id="dash-project-name">Loading…</h1>
+        <div class="meta">
+          <span><strong id="dash-section-count">—</strong> sections</span>
+          <span><strong id="dash-feature-count">—</strong> features</span>
+          <span id="dash-kickoff-date"></span>
         </div>
-        <span class="mod-scaffold-phase">Phase 5</span>
+        <!-- "Open Map" shortcut — goes to Map module without selecting a section -->
+        <button class="change-project-btn" id="dash-open-map-btn" title="Go to Map module">
+          🗺 Open Map
+        </button>
       </div>
+
+      <!-- Filter tabs — reuse existing .list-tab CSS -->
+      <div class="list-tabs" role="tablist" id="dash-tabs">
+        <button class="list-tab active" data-dash-tab="all">All</button>
+        <button class="list-tab" data-dash-tab="active">In progress</button>
+        <button class="list-tab" data-dash-tab="closed">Closed</button>
+      </div>
+
+      <!-- Section list — rows injected by renderDashboard(); reuses .section-row CSS -->
+      <ol class="section-list" id="dash-section-list" style="flex:1;overflow-y:auto;">
+        <!-- populated by renderDashboard() once bundle is loaded -->
+      </ol>
+
     </div><!-- /#mod-dashboard -->
 
     <!-- ============================================================
@@ -5420,10 +5443,25 @@ body.mobile-mode #app {
         pins:           s.pins || [],
       };
     });
-    // Update project header
+    // Update project header (existing view-list masthead + nav title)
     $('#project-name').textContent = PROJECT.name;
     const shortName = bundle.short_name || PROJECT.name.split('·')[0].trim().slice(0, 18);
     $('#header-name').textContent = shortName;
+
+    // Expose globals so Phase 1 Dashboard module can read them without
+    // needing direct access to this IIFE's scope.
+    window.BUNDLE   = BUNDLE;
+    window.SECTIONS = SECTIONS;
+    window.PROJECT  = PROJECT;
+
+    // Refresh Dashboard section list now that data is available.
+    if (typeof window.renderDashboard === 'function') {
+      window.renderDashboard('all');
+    }
+    // Reset Dashboard filter tabs to "All" whenever a new bundle loads.
+    document.querySelectorAll('#dash-tabs .list-tab').forEach(function (t) {
+      t.classList.toggle('active', t.dataset.dashTab === 'all');
+    });
   }
 
   // --- Project manifest + picker --------------------------------------------
@@ -6586,6 +6624,10 @@ body.mobile-mode #app {
       PIN_STYLE[item.value] = entry;
     });
   });
+
+  // Expose showView globally so the Phase 1 Dashboard module can navigate
+  // into a section's map without needing access to this IIFE's scope.
+  window.showView = showView;
 
   // Expose to external scripts (Style Guide panel, future panels).
   // These are live references — mutations are reflected immediately.
@@ -15740,6 +15782,17 @@ body.mobile-mode #app {
       tb.setAttribute('hidden', '');
     }
 
+    // ── Dashboard refresh on tab switch ────────────────────────
+    // Re-render the section list whenever the user opens the Dashboard
+    // so status badges and feature counts are always current.
+    if (name === 'dashboard' && typeof window.renderDashboard === 'function') {
+      window.renderDashboard('all');
+      // Reset filter tabs to "All"
+      document.querySelectorAll('#dash-tabs .list-tab').forEach(function (t) {
+        t.classList.toggle('active', t.dataset.dashTab === 'all');
+      });
+    }
+
     // ── Leaflet invalidateSize on map module switch ─────────────
     // Without this, switching away from the Map module and back
     // leaves Leaflet thinking the container has zero size.
@@ -15877,37 +15930,157 @@ body.mobile-mode #app {
 
 
   /* ---------------------------------------------------------------
-     9. STARTUP SEQUENCE
+     9. DASHBOARD MODULE — renderDashboard()
+     ---------------------------------------------------------------
+     Populates #mod-dashboard with the project masthead and section
+     list. Mirrors the existing renderSectionList() logic but:
+       • Targets #dash-project-name, #dash-section-count, etc.
+       • Section row clicks call showModule('map') then showView('field')
+         so the user lands directly on the map for that section.
+
+     Called once on startup (after the bundle loads) and again
+     whenever the user switches to the Dashboard tab.
+     --------------------------------------------------------------- */
+
+  /**
+   * Render or refresh the Dashboard section list.
+   * @param {string} [filter='all'] — 'all' | 'active' | 'closed'
+   */
+  function renderDashboard(filter) {
+    filter = filter || 'all';
+
+    // ── Project masthead fields ──────────────────────────────────
+    // BUNDLE and SECTIONS are defined in the main IIFE (window scope through
+    // the _RW object). We read them through the same global references the
+    // main code uses so we don't duplicate bundle-parsing logic.
+    const bundle   = window.BUNDLE   || null;
+    const sections = window.SECTIONS || [];
+
+    const nameEl   = document.getElementById('dash-project-name');
+    const secCntEl = document.getElementById('dash-section-count');
+    const ftCntEl  = document.getElementById('dash-feature-count');
+    const dateEl   = document.getElementById('dash-kickoff-date');
+
+    if (nameEl)   nameEl.textContent   = (bundle && bundle.short_name) || window.PROJECT?.name || 'Project';
+    if (secCntEl) secCntEl.textContent = sections.length;
+    if (ftCntEl)  ftCntEl.textContent  = sections.reduce(function (s, sec) { return s + (sec.featureCount || 0); }, 0);
+    if (dateEl)   dateEl.textContent   = window.PROJECT?.kickoffDate ? window.PROJECT.kickoffDate + ' kickoff' : '';
+
+    // ── Section rows ────────────────────────────────────────────
+    const list = document.getElementById('dash-section-list');
+    if (!list) return;
+    list.innerHTML = '';
+
+    const filtered = sections.filter(function (s) {
+      if (filter === 'all')    return true;
+      if (filter === 'active') return s.status === 'prog' || s.status === 'not';
+      if (filter === 'closed') return s.status === 'done';
+      return true;
+    });
+
+    if (filtered.length === 0) {
+      const empty = document.createElement('li');
+      empty.className = 'section-row empty';
+      empty.style.cssText = 'text-align:center;color:var(--ink-3);font-family:"IBM Plex Mono",monospace;font-size:11px;padding:28px 20px;';
+      empty.textContent = 'No sections match this filter.';
+      list.appendChild(empty);
+      return;
+    }
+
+    const statusLabel = { not: 'Not started', prog: 'In progress', done: 'Closed' };
+    const typeGlyph   = { linear: 'LIN', area: 'AREA' };
+
+    filtered.forEach(function (sec) {
+      const row = document.createElement('li');
+      row.className = 'section-row';
+      row.style.cursor = 'pointer';
+      row.innerHTML =
+        '<div class="top-line">'
+        + '<span class="type-glyph">' + (typeGlyph[sec.type] || sec.type) + '</span>'
+        + '<span class="name">' + sec.name + '</span>'
+        + '<span class="pill ' + (sec.status || 'prog') + '">' + (statusLabel[sec.status] || 'In progress') + '</span>'
+        + '</div>'
+        + '<div class="bottom-line">'
+        + '<span class="item"><strong>' + (sec.featureCount || 0) + '</strong> features</span>'
+        + '<span class="item">' + (sec.meta || '') + '</span>'
+        + (!sec.kickoff ? '<span class="item">— kickoff pending</span>' : '')
+        + '</div>'
+        + '<span class="arrow">›</span>';
+
+      row.addEventListener('click', function () {
+        // Switch to Map module, then open this section's field view
+        showModule('map');
+        // showView is defined in the main IIFE — call via the global reference
+        if (typeof window.showView === 'function') {
+          window.showView('field', sec.id);
+        } else if (window._RW && typeof window._RW.showView === 'function') {
+          window._RW.showView('field', sec.id);
+        }
+      });
+
+      list.appendChild(row);
+    });
+  }
+
+  // Expose renderDashboard globally so the main IIFE can call it after bundle loads
+  window.renderDashboard = renderDashboard;
+
+  /** Wire the Dashboard tab buttons and the "Open Map" shortcut. */
+  function initDashboard() {
+    // Tab filter buttons
+    document.getElementById('dash-tabs')?.addEventListener('click', function (e) {
+      const btn = e.target.closest('[data-dash-tab]');
+      if (!btn) return;
+      // Update active tab style
+      document.querySelectorAll('#dash-tabs .list-tab').forEach(function (t) {
+        t.classList.toggle('active', t === btn);
+      });
+      renderDashboard(btn.dataset.dashTab);
+    });
+
+    // "Open Map" shortcut button — goes to Map without selecting a section
+    document.getElementById('dash-open-map-btn')?.addEventListener('click', function () {
+      showModule('map');
+    });
+  }
+
+
+  /* ---------------------------------------------------------------
+     10. STARTUP SEQUENCE
      ---------------------------------------------------------------
      Run after DOM is ready. Order matters:
-       a) Restore lean state from localStorage (sync, fast)
+       a) Open on Dashboard (the project overview landing page)
        b) Init auto-save + backup timers
-       c) Build Map module toolbar (default active module)
-       d) Check for today's daily log → show modal if missing
+       c) Wire layers button (map left stack) + dashboard controls
+       d) Attempt initial dashboard render (may show blanks until
+          bundle loads; the main IIFE calls renderDashboard() again
+          after applyBundle() completes)
+       e) Check for today's daily log → show modal if missing
      --------------------------------------------------------------- */
   function _startup() {
-    // a) Restore saved module (default to 'map' if not set or if Map is the
-    //    only usable module at this prototype stage)
-    const saved = lsLoad();
-    const restoredModule = saved.activeModule || 'map';
-    // For Phase 1, always start on 'map' since other modules are scaffolds.
-    // Remove the override below in Phase 3+ when modules have real content.
-    const startModule = 'map';   // override: always open map until other modules built
-    showModule(startModule);
+    // a) Default to Dashboard — the project overview is the logical entry point.
+    //    The main IIFE's applyBundle() will call renderDashboard() once data loads.
+    showModule('dashboard');
 
     // b) Auto-save + backup timers
     restartAutoSave();
     restartAutoBackup();
-    // Write initial badge with last-saved time from LS (or blank)
+    // Restore last-saved badge from lean state
+    const saved = lsLoad();
     const badge = document.getElementById('autosave-nav-badge');
     if (badge && saved.lastSavedAt) {
       badge.textContent = '💾 ' + _fmtTime(new Date(saved.lastSavedAt));
     }
 
-    // c) Wire the layers icon button (floating panel on the map left stack)
+    // c) Wire the layers button and dashboard tab/shortcut controls
     initLayersButton();
+    initDashboard();
 
-    // d) Daily log reminder (check IDB asynchronously — doesn't block UI)
+    // d) Initial dashboard render — will show real data if IDB bundle is already
+    //    cached (returning user); shows loading state for first-time load.
+    renderDashboard('all');
+
+    // e) Daily log reminder (async IDB check — doesn't block UI)
     initDailyLogModal();
   }
 
