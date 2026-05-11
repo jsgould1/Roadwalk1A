@@ -4887,17 +4887,186 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
   cursor: pointer;
   flex-shrink: 0;
 }
-/* Section tag on flat-list rows */
-.data-sec-tag {
-  font: 700 8px/1 'IBM Plex Mono', monospace;
-  padding: 2px 5px;
-  border-radius: 3px;
-  background: var(--paper-2);
+/* Columns button */
+.dfc-col-btn {
+  font: 600 9px/1 'IBM Plex Mono', monospace;
+  padding: 4px 8px;
+  border-radius: 4px;
   border: 1px solid var(--rule);
+  background: var(--paper);
   color: var(--ink-3);
+  cursor: pointer;
   flex-shrink: 0;
-  align-self: center;
+  white-space: nowrap;
+  transition: border-color 0.12s, color 0.12s;
 }
+.dfc-col-btn.active,
+.dfc-col-btn:hover { border-color: var(--blue); color: var(--blue); }
+
+/* Column picker flyout */
+#dt-col-picker-panel {
+  position: absolute;    /* inside #data-list-pane */
+  top: 38px;            /* below filter bar */
+  right: 8px;
+  z-index: 50;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.20);
+  padding: 10px 12px 12px;
+  display: none;
+  min-width: 190px;
+  max-height: calc(100% - 50px);
+  overflow-y: auto;
+}
+#dt-col-picker-panel.open { display: block; }
+.dcp-title {
+  font: 700 8.5px/1 'IBM Plex Mono', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--ink-3);
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--rule-soft);
+  margin-bottom: 6px;
+}
+.dcp-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 2px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.dcp-row:hover { background: var(--paper-2); }
+.dcp-row input[type=checkbox] { flex-shrink: 0; margin: 0; cursor: pointer; }
+.dcp-row label {
+  font: 400 11px/1.2 'IBM Plex Sans', sans-serif;
+  color: var(--ink-2);
+  cursor: pointer;
+  flex: 1;
+}
+
+/* ── Data feature table ──────────────────────────────────────────────────── */
+.data-table-wrap {
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+  /* inner scroll on the .data-list-scroll parent */
+}
+.data-table {
+  border-collapse: collapse;
+  width: max-content;
+  min-width: 100%;
+}
+/* Header row */
+.data-table thead tr th {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  background: var(--paper-2);
+  border-bottom: 2px solid var(--rule);
+  padding: 6px 10px;
+  font: 700 8.5px/1 'IBM Plex Mono', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--ink-3);
+  white-space: nowrap;
+  text-align: left;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.data-table thead tr th:hover { color: var(--blue); }
+/* Sticky dot + ID columns */
+.dt-th-dot, .dt-cell-dot {
+  position: sticky;
+  left: 0;
+  background: var(--paper-2);
+  z-index: 5;
+  width: 32px;
+  padding: 0 4px 0 12px !important;
+  border-right: none;
+}
+.dt-th-id, .dt-cell-id {
+  position: sticky;
+  left: 32px;
+  background: var(--paper-2);
+  z-index: 5;
+  border-right: 2px solid var(--rule);
+  min-width: 105px;
+  padding-right: 12px !important;
+}
+.dt-th-caret, .dt-cell-caret {
+  position: sticky;
+  right: 0;
+  background: var(--paper-2);
+  z-index: 5;
+  width: 24px;
+  padding: 0 8px !important;
+  border-left: 1px solid var(--rule-soft);
+  color: var(--rule);
+  font-size: 11px;
+}
+/* Body rows */
+.data-table tbody tr.data-pin-row {
+  cursor: pointer;
+  transition: background 0.08s;
+  -webkit-tap-highlight-color: transparent;
+}
+.data-table tbody tr.data-pin-row:hover { background: var(--paper-2); }
+.data-table tbody tr.data-pin-row:hover .dt-cell-dot,
+.data-table tbody tr.data-pin-row:hover .dt-cell-id,
+.data-table tbody tr.data-pin-row:hover .dt-cell-caret { background: var(--paper-2); }
+.data-table tbody tr.data-pin-row:active { background: var(--rule-soft); }
+.data-table tbody td {
+  padding: 8px 10px;
+  font: 400 11px/1.3 'IBM Plex Sans', sans-serif;
+  color: var(--ink-2);
+  white-space: nowrap;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--rule-soft);
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dt-cell-dot { background: var(--paper); }
+.dt-cell-id {
+  background: var(--paper);
+  font: 700 10px/1 'IBM Plex Mono', monospace;
+  color: var(--blue);
+  letter-spacing: 0.02em;
+}
+.dt-cell-caret { background: var(--paper); }
+/* Section group header rows inside tbody */
+.dt-sec-hdr td {
+  padding: 4px 12px;
+  font: 700 8.5px/1 'IBM Plex Mono', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+  background: var(--paper-2);
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule-soft);
+  position: sticky;
+  top: 26px;
+  z-index: 3;
+}
+/* Status chip inside table cell */
+.dt-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font: 600 9px/1 'IBM Plex Mono', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-3);
+}
+.dt-status .data-dot { flex-shrink: 0; }
+/* Sort indicator arrow */
+.dt-sort-asc::after  { content: ' ↑'; opacity: 0.7; }
+.dt-sort-desc::after { content: ' ↓'; opacity: 0.7; }
+
 .data-list-scroll {
   flex: 1;
   overflow-y: auto;
@@ -6190,6 +6359,13 @@ body.mobile-mode #app {
               <option value="status">Status</option>
               <option value="type">Type</option>
             </select>
+            <div class="dfc-sep"></div>
+            <button class="dfc-col-btn" id="dt-col-picker-btn" aria-label="Choose columns">⊞ Cols</button>
+          </div>
+
+          <!-- Column picker flyout (shown/hidden by JS) -->
+          <div id="dt-col-picker-panel" role="dialog" aria-label="Column picker">
+            <!-- populated by _openColPicker() -->
           </div>
 
           <div class="data-list-scroll" id="data-list-scroll">
@@ -18348,69 +18524,140 @@ body.mobile-mode #app {
     });
   }
 
-  // ── _pinRowHtml: build a single list-row string ─────────────────────────────
-  // showTypeTag: show colored type chip (SGN/CUL/etc.)
-  // showSecTag:  show section ID chip (A/B/C/D) — used in flat-list modes
-  function _pinRowHtml(m, secId, showTypeTag, showSecTag) {
-    var tag = showTypeTag
-      ? '<span class="data-type-tag ' + _kindToType(m.kind) + '">' +
-          _kindToType(m.kind).slice(0, 3).toUpperCase() +
-        '</span>'
-      : '';
-    var secTag = showSecTag
-      ? '<span class="data-sec-tag">' + _esc(secId) + '</span>'
-      : '';
-    var desc = _pinListDesc(m);
-    var ref  = _pinListRef(m);
-    return '<li class="data-pin-row" data-pin-id="' + _esc(m.id) + '" data-sec-id="' + _esc(secId) + '">' +
-      '<span class="data-dot ' + (m.status || 'pending') + '"></span>' +
-      secTag +
-      tag +
-      '<span class="data-pin-body">' +
-        '<span class="data-pin-id">' + _esc(m.id) + '</span>' +
-        (desc ? '<span class="data-pin-desc">' + _esc(desc) + '</span>' : '') +
-        (ref  ? '<span class="data-pin-ref">'  + _esc(ref)  + '</span>' : '') +
-      '</span>' +
-      '<span class="data-pin-caret">›</span>' +
-    '</li>';
+  // ── Column definitions ────────────────────────────────────────────────────
+  // id: localStorage key fragment; label: header text; w: min-width px;
+  // def: shown by default; get(row): returns cell text value
+  var DATA_COLUMNS = [
+    { id:'seg',    label:'Seg',          w:40,  def:true,
+      get:function(r){ return r.sec.id; } },
+    { id:'kind',   label:'Kind',         w:68,  def:false,
+      get:function(r){ return r.merged.kind || '—'; } },
+    { id:'type',   label:'Type / Description', w:175, def:true,
+      get:function(r){ return _pinListDesc(r.merged); } },
+    { id:'sta',    label:'STA',          w:80,  def:true,
+      get:function(r){ return r.merged.sta || '—'; } },
+    { id:'side',   label:'Side',         w:44,  def:true,
+      get:function(r){ return (r.merged.attrs||{}).side || '—'; } },
+    { id:'length', label:'Length ft',    w:72,  def:true,
+      get:function(r){ var a=r.merged.attrs||{}; return a.length_ft ? Math.round(a.length_ft)+'' : '—'; } },
+    { id:'rating', label:'Rating',       w:58,  def:false,
+      get:function(r){ var a=r.merged.attrs||{}; return a.rating!=null ? String(a.rating) : '—'; } },
+    { id:'cost',   label:'Repair Cost',  w:95,  def:false,
+      get:function(r){ return (r.merged.attrs||{}).repair_cost || '—'; } },
+    { id:'asset',  label:'Report ID',    w:130, def:false,
+      get:function(r){ return r.merged.asset_id || '—'; } },
+    { id:'fmss',   label:'FMSS',         w:88,  def:false,
+      get:function(r){ var a=r.merged.attrs||{}; return a.fmss_asset || a.fmss_loc || '—'; } },
+    { id:'source', label:'Source',       w:72,  def:false,
+      get:function(r){ return (r.merged.reported_in||[]).join('/') || '—'; } },
+    { id:'date',   label:'Insp Date',    w:90,  def:false,
+      get:function(r){ return (r.merged.attrs||{}).inspection_date || '—'; } },
+    { id:'status', label:'Status',       w:80,  def:true,
+      get:function(r){ return (r.merged.status || 'pending'); } },
+    { id:'notes',  label:'Notes',        w:160, def:false,
+      get:function(r){ return (r.merged.attrs||{}).notes || '—'; } },
+  ];
+  var _LS_COLS = 'rw_data_cols_v1';
+
+  function _getActiveCols() {
+    var saved = null;
+    try { saved = JSON.parse(localStorage.getItem(_LS_COLS)); } catch(e) {}
+    var ids = Array.isArray(saved) ? saved
+            : DATA_COLUMNS.filter(function(c){ return c.def; }).map(function(c){ return c.id; });
+    return DATA_COLUMNS.filter(function(c){ return ids.indexOf(c.id) !== -1; });
+  }
+  function _saveActiveCols(ids) {
+    try { localStorage.setItem(_LS_COLS, JSON.stringify(ids)); } catch(e) {}
   }
 
-  // ── _buildSectionList: group or flat list depending on sort mode ─────────────
-  // showTypeTag: show type chip on each row
-  // In grouped mode (sort=sec-sta, no section filter): sticky section headers,
-  //   no per-row section tag (redundant with header).
-  // In flat mode (any other sort, or single-section filter): no headers,
-  //   per-row section tag so context is never lost.
-  function _buildSectionList(rows, showTypeTag) {
+  // ── _tableRowHtml: one <tr> per feature ────────────────────────────────────
+  function _tableRowHtml(r, cols) {
+    var m   = r.merged;
+    var st  = m.status || 'pending';
+    var html = '<tr class="data-pin-row" data-pin-id="' + _esc(m.id) + '" data-sec-id="' + _esc(r.sec.id) + '">';
+    html += '<td class="dt-cell-dot"><span class="data-dot ' + st + '"></span></td>';
+    html += '<td class="dt-cell-id">' + _esc(m.id) + '</td>';
+    cols.forEach(function(col) {
+      var val = col.get(r);
+      html += '<td title="' + _esc(val) + '">' + _esc(val) + '</td>';
+    });
+    html += '<td class="dt-cell-caret">›</td>';
+    html += '</tr>';
+    return html;
+  }
+
+  // ── _buildTable: complete table HTML from a filtered/sorted row array ───────
+  function _buildTable(rows) {
+    var cols    = _getActiveCols();
     var grouped = (_filterState.sort === 'sec-sta') && (_filterState.section === 'all');
+    var span    = cols.length + 3;  // dot + id + configurable + caret
+
+    // thead
+    var thead = '<thead><tr>';
+    thead += '<th class="dt-th-dot"></th>';
+    thead += '<th class="dt-th-id">ID</th>';
+    cols.forEach(function(col) {
+      thead += '<th style="min-width:' + col.w + 'px" data-sort-col="' + col.id + '">' + _esc(col.label) + '</th>';
+    });
+    thead += '<th class="dt-th-caret"></th></tr></thead>';
+
+    // tbody (grouped or flat)
+    var tbody = '';
     if (grouped) {
-      var bySection = {};
-      var order = [];
-      rows.forEach(function (r) {
+      var bySection = {}, order = [];
+      rows.forEach(function(r) {
         var sid = r.sec.id;
         if (!bySection[sid]) { bySection[sid] = { sec: r.sec, items: [] }; order.push(sid); }
         bySection[sid].items.push(r);
       });
-      var html = '';
-      order.forEach(function (sid) {
+      order.forEach(function(sid) {
         var grp = bySection[sid];
-        html += '<div class="data-sec-hdr">' + _esc(grp.sec.name || sid) + '</div>';
-        html += '<ul class="data-pin-list">';
-        grp.items.forEach(function (r) {
-          html += _pinRowHtml(r.merged, r.sec.id, showTypeTag, false);
-        });
-        html += '</ul>';
+        tbody += '<tbody>';
+        tbody += '<tr class="dt-sec-hdr"><td colspan="' + span + '">' + _esc(grp.sec.name || sid) + '</td></tr>';
+        grp.items.forEach(function(r) { tbody += _tableRowHtml(r, cols); });
+        tbody += '</tbody>';
       });
-      return html;
     } else {
-      // Flat list — show section tag on every row for context
-      var html = '<ul class="data-pin-list">';
-      rows.forEach(function (r) {
-        html += _pinRowHtml(r.merged, r.sec.id, showTypeTag, true);
-      });
-      html += '</ul>';
-      return html;
+      tbody = '<tbody>';
+      rows.forEach(function(r) { tbody += _tableRowHtml(r, cols); });
+      tbody += '</tbody>';
     }
+
+    return '<div class="data-table-wrap"><table class="data-table">' + thead + tbody + '</table></div>';
+  }
+
+  // ── Column picker open / close ─────────────────────────────────────────────
+  function _openColPicker() {
+    var panel = document.getElementById('dt-col-picker-panel');
+    var btn   = document.getElementById('dt-col-picker-btn');
+    if (!panel) return;
+    var saved = null;
+    try { saved = JSON.parse(localStorage.getItem(_LS_COLS)); } catch(e) {}
+    var active = Array.isArray(saved) ? saved
+               : DATA_COLUMNS.filter(function(c){ return c.def; }).map(function(c){ return c.id; });
+    var html = '<div class="dcp-title">Visible Columns</div>';
+    DATA_COLUMNS.forEach(function(col) {
+      var chk = active.indexOf(col.id) !== -1 ? ' checked' : '';
+      html += '<div class="dcp-row"><input type="checkbox" id="dcp-' + col.id + '" value="' + col.id + '"' + chk + '>' +
+              '<label for="dcp-' + col.id + '">' + _esc(col.label) + '</label></div>';
+    });
+    panel.innerHTML = html;
+    panel.classList.add('open');
+    if (btn) btn.classList.add('active');
+    panel.querySelectorAll('input[type=checkbox]').forEach(function(cb) {
+      cb.addEventListener('change', function() {
+        var ids = [];
+        panel.querySelectorAll('input[type=checkbox]:checked').forEach(function(c){ ids.push(c.value); });
+        _saveActiveCols(ids);
+        renderDataList(_dataState.type);
+      });
+    });
+  }
+  function _closeColPicker() {
+    var panel = document.getElementById('dt-col-picker-panel');
+    var btn   = document.getElementById('dt-col-picker-btn');
+    if (panel) panel.classList.remove('open');
+    if (btn)   btn.classList.remove('active');
   }
 
   // ── _renderAllOverview: "All" tab — summary cards + full feature list ────────
@@ -18463,7 +18710,7 @@ body.mobile-mode #app {
       listHtml = '<div class="data-empty"><span class="data-empty-icon">🔍</span>' +
         'No features match the current filters.</div>';
     } else {
-      listHtml = _buildSectionList(filteredRows, true /* showTypeTag */);
+      listHtml = _buildTable(filteredRows);
     }
 
     scrollEl.innerHTML = cardsHtml + listHtml;
@@ -18526,9 +18773,7 @@ body.mobile-mode #app {
       return;
     }
 
-    // In type tabs, the tab itself conveys type — no type tag needed.
-    // Section tag is shown in flat-list mode (handled inside _buildSectionList).
-    scrollEl.innerHTML = _buildSectionList(rows, false);
+    scrollEl.innerHTML = _buildTable(rows);
     _wireListClicks(scrollEl);
   }
   window.renderDataList = renderDataList;
@@ -19176,6 +19421,45 @@ body.mobile-mode #app {
     if (sortSel) {
       sortSel.addEventListener('change', function () {
         _filterState.sort = sortSel.value;
+        renderDataList(_dataState.type);
+      });
+    }
+
+    // ── Column picker button ───────────────────────────────────────────────────
+    var colBtn = document.getElementById('dt-col-picker-btn');
+    if (colBtn) {
+      colBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var panel = document.getElementById('dt-col-picker-panel');
+        if (panel && panel.classList.contains('open')) {
+          _closeColPicker();
+        } else {
+          _openColPicker();
+        }
+      });
+    }
+    // Close picker on click outside
+    document.addEventListener('click', function (e) {
+      var panel = document.getElementById('dt-col-picker-panel');
+      if (!panel || !panel.classList.contains('open')) return;
+      if (!panel.contains(e.target) && e.target.id !== 'dt-col-picker-btn') {
+        _closeColPicker();
+      }
+    });
+
+    // Column-header sort (click <th data-sort-col="...">)
+    var scrollEl = document.getElementById('data-list-scroll');
+    if (scrollEl) {
+      scrollEl.addEventListener('click', function (e) {
+        var th = e.target.closest('th[data-sort-col]');
+        if (!th) return;
+        var col = th.dataset.sortCol;
+        // Map column id to sort key; fall back to sec-sta
+        var MAP = { seg:'sec-sta', sta:'sta', status:'status', type:'type', kind:'type' };
+        _filterState.sort = MAP[col] || 'sec-sta';
+        // Sync the sort select so it reflects the current sort
+        var sel = document.getElementById('dfc-sort-select');
+        if (sel) sel.value = _filterState.sort;
         renderDataList(_dataState.type);
       });
     }
