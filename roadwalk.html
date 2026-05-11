@@ -4872,14 +4872,16 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
 .data-pin-list { list-style: none; margin: 0; padding: 0; }
 .data-pin-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
-  padding: 10px 16px;
+  padding: 11px 16px;
   border-bottom: 1px solid var(--rule-soft);
   cursor: pointer;
   transition: background 0.1s;
   -webkit-tap-highlight-color: transparent;
 }
+.data-pin-row .data-dot { margin-top: 3px; }
+.data-pin-row .data-type-tag { margin-top: 1px; }
 .data-pin-row:hover { background: var(--paper-2); }
 .data-pin-row:active { background: var(--rule-soft); }
 /* Status dot */
@@ -4893,30 +4895,39 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
 .data-dot.confirmed { background: #22c55e; }
 .data-dot.discarded { background: #ef4444; opacity: 0.4; }
 .data-dot.relocated { background: #f59e0b; }
-.data-pin-body { flex: 1; min-width: 0; }
+.data-pin-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
 .data-pin-id {
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   color: var(--blue);
+  line-height: 1.2;
 }
 .data-pin-desc {
   font-family: 'IBM Plex Sans', sans-serif;
   font-size: 12px;
   color: var(--ink-2);
-  margin-top: 1px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  line-height: 1.3;
 }
-.data-pin-meta {
+.data-pin-ref {
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 10px;
+  font-size: 9.5px;
   color: var(--ink-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
-  flex-shrink: 0;
+  line-height: 1.3;
 }
-.data-pin-caret { color: var(--rule); font-size: 11px; flex-shrink: 0; }
+.data-pin-caret { color: var(--rule); font-size: 11px; flex-shrink: 0; align-self: center; }
 /* Empty / loading state */
 .data-empty {
   padding: 48px 24px;
@@ -18109,34 +18120,65 @@ body.mobile-mode #app {
   }
 
   /** Human label for a pin in the list */
+  /**
+   * Primary description line shown in the list row and form header.
+   * Tries to surface the most meaningful one-liner per feature type.
+   */
   function _pinListDesc(pin) {
     var a = pin.attrs || {};
     switch (pin.kind) {
-      case 'sign':
+      case 'sign': {
         var panels = Array.isArray(a.panels) ? a.panels : [];
         if (panels.length) return panels.map(function (p) { return p.sign_code || '(?)'; }).join(' + ');
-        return a.display_name || a.loc_name || 'Sign installation';
+        // Fall back to notes (e.g. "NB Spur, > Chevron") then road name
+        return a.notes || a.loc_name || (a.road ? a.road.split(',')[0].trim() : '') || 'Sign';
+      }
       case 'culvert':
-        var mat = a.material || a.CULVERTMATERIAL || '';
-        var dia = a.diameter_in ? a.diameter_in + '"' : '';
-        return [mat, dia].filter(Boolean).join(' ') || 'Culvert';
-      case 'guardrail':
-        return [a.rpt_type || a.barrier_type || 'Guardrail', a.side ? 'Side ' + a.side : ''].filter(Boolean).join(' · ');
-      case 'wall':
-        return [a.wall_material || a.rpt_type || 'Retaining wall', a.side ? 'Side ' + a.side : ''].filter(Boolean).join(' · ');
+        return a.rpt_type || a.material || a.CULVERTMATERIAL || 'Culvert';
+      case 'guardrail': {
+        var gParts = [];
+        if (a.rpt_type || a.barrier_type) gParts.push(a.rpt_type || a.barrier_type);
+        if (a.side) gParts.push('Side ' + a.side);
+        if (a.length_ft) gParts.push(Math.round(a.length_ft) + ' ft');
+        return gParts.join(' · ') || 'Guardrail';
+      }
+      case 'wall': {
+        var wParts = [];
+        if (a.rpt_type || a.wall_material) wParts.push(a.rpt_type || a.wall_material);
+        if (a.wall_function) wParts.push(a.wall_function);
+        if (a.side) wParts.push('Side ' + a.side);
+        if (a.length_ft) wParts.push(Math.round(a.length_ft) + ' ft');
+        return wParts.join(' · ') || 'Wall';
+      }
+      case 'bridge':
+      case 'bridge_line':
+        return a.name || a.short_name || 'Bridge';
+      case 'gate':
+        return a.road ? 'Gate — ' + a.road.split(',')[0].trim() : 'Gate';
+      case 'parking':
+        return [a.type || 'Parking', a.loc_name || ''].filter(Boolean).join(' · ');
+      case 'mile_marker':
+        return 'MP ' + (a.mile_label || '?') + (a.road ? ' — ' + a.road.split(',')[0].trim() : '');
       default:
-        return a.name || a.loc_name || a.asset_id || pin.kind || '—';
+        return a.name || a.loc_name || pin.kind || '—';
     }
   }
 
-  /** Quick meta string for the list row (STA + length) */
-  function _pinListMeta(pin) {
-    var parts = [];
-    if (pin.sta) parts.push(pin.sta);
-    var a = pin.attrs || {};
-    if (a.length_ft)  parts.push(Math.round(a.length_ft) + ' ft');
-    if (a.side && pin.kind !== 'sign') parts.push('Side ' + a.side);
-    return parts.join(' · ');
+  /**
+   * Reference / metadata line (3rd line in list rows):
+   * stationing · asset/FMSS ID · rating · source report
+   */
+  function _pinListRef(pin) {
+    var a   = pin.attrs || {};
+    var ref = [];
+    if (pin.sta)                          ref.push(pin.sta);
+    if (pin.asset_id)                     ref.push('#' + pin.asset_id);
+    else if (a.fmss_asset)                ref.push('FMSS ' + a.fmss_asset);
+    else if (a.fmss_loc)                  ref.push('FMSS ' + a.fmss_loc);
+    if (a.rating != null && a.rating !== '') ref.push('Rating ' + a.rating);
+    if (a.inspection_date)                ref.push(a.inspection_date);
+    if (pin.reported_in && pin.reported_in.length) ref.push(pin.reported_in.join('/'));
+    return ref.join(' · ');
   }
 
   // ── State ──────────────────────────────────────────────────────────────────
@@ -18189,14 +18231,16 @@ body.mobile-mode #app {
           _kindToType(m.kind).slice(0, 3).toUpperCase() +
         '</span>'
       : '';
+    var desc = _pinListDesc(m);
+    var ref  = _pinListRef(m);
     return '<li class="data-pin-row" data-pin-id="' + _esc(m.id) + '" data-sec-id="' + _esc(secId) + '">' +
       '<span class="data-dot ' + (m.status || 'pending') + '"></span>' +
       tag +
       '<span class="data-pin-body">' +
         '<span class="data-pin-id">' + _esc(m.id) + '</span>' +
-        '<span class="data-pin-desc">' + _esc(_pinListDesc(m)) + '</span>' +
+        (desc ? '<span class="data-pin-desc">' + _esc(desc) + '</span>' : '') +
+        (ref  ? '<span class="data-pin-ref">'  + _esc(ref)  + '</span>' : '') +
       '</span>' +
-      '<span class="data-pin-meta">' + _esc(_pinListMeta(m)) + '</span>' +
       '<span class="data-pin-caret">›</span>' +
     '</li>';
   }
