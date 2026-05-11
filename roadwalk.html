@@ -4773,6 +4773,485 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
   display: none;
 }
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   DATA MODULE  (#mod-data)
+   Three tiers inside the module:
+     Nav 3  — type tabs  (Posts/Signs · Culverts · Guard Rails · Walls · Others)
+     List   — scrollable pin roster grouped by section, with quick stats
+     Form   — inline edit form, slides over the list when a pin is selected
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/* Nav 3: type tab strip */
+#data-type-nav {
+  flex: 0 0 36px;
+  height: 36px;
+  background: var(--paper-2);
+  border-bottom: 1px solid var(--rule);
+  display: flex;
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex-shrink: 0;
+}
+#data-type-nav::-webkit-scrollbar { display: none; }
+.data-type-tab {
+  flex: 1;
+  min-width: 64px;
+  padding: 0 8px;
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-3);
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  margin-bottom: -1px;
+  transition: color 0.1s;
+}
+.data-type-tab:hover { color: var(--ink-2); }
+.data-type-tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+.data-type-badge {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 8px;
+  background: var(--rule);
+  color: var(--ink-3);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+}
+.data-type-tab.active .data-type-badge { background: var(--blue); color: #fff; }
+
+/* Content wrapper: holds list-pane and form-pane in a relative container */
+#data-content {
+  flex: 1 1 0;
+  position: relative;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* ── List pane ────────────────────────────────────────────────────────────── */
+#data-list-pane {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--paper);
+}
+.data-list-scroll {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+/* Section group header */
+.data-sec-hdr {
+  padding: 5px 16px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  background: var(--paper-2);
+  border-bottom: 1px solid var(--rule-soft);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+/* Pin rows */
+.data-pin-list { list-style: none; margin: 0; padding: 0; }
+.data-pin-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--rule-soft);
+  cursor: pointer;
+  transition: background 0.1s;
+  -webkit-tap-highlight-color: transparent;
+}
+.data-pin-row:hover { background: var(--paper-2); }
+.data-pin-row:active { background: var(--rule-soft); }
+/* Status dot */
+.data-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--rule);
+}
+.data-dot.pending   { background: var(--ink-3); }
+.data-dot.confirmed { background: #22c55e; }
+.data-dot.discarded { background: #ef4444; opacity: 0.4; }
+.data-dot.relocated { background: #f59e0b; }
+.data-pin-body { flex: 1; min-width: 0; }
+.data-pin-id {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--blue);
+}
+.data-pin-desc {
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 12px;
+  color: var(--ink-2);
+  margin-top: 1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.data-pin-meta {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--ink-3);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.data-pin-caret { color: var(--rule); font-size: 11px; flex-shrink: 0; }
+/* Empty / loading state */
+.data-empty {
+  padding: 48px 24px;
+  text-align: center;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--ink-3);
+  line-height: 1.8;
+}
+.data-empty-icon { font-size: 36px; display: block; margin-bottom: 12px; opacity: 0.45; }
+
+/* ── Form pane ────────────────────────────────────────────────────────────── */
+#data-form-pane {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--paper);
+  overflow: hidden;
+  /* Slides in from right (toggled via JS) */
+  transform: translateX(100%);
+  transition: transform 0.2s ease;
+}
+#data-form-pane.visible { transform: translateX(0); }
+/* Back bar */
+.data-form-bar {
+  flex: 0 0 44px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--rule);
+  background: var(--paper-2);
+  flex-shrink: 0;
+}
+.data-back-btn {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--blue);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 0;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+}
+.data-form-label {
+  flex: 1;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ink-2);
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.data-stat-chip {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 2px;
+  background: var(--rule-soft);
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+.data-stat-chip.confirmed { background: #dcfce7; color: #15803d; }
+.data-stat-chip.discarded { background: #fee2e2; color: #b91c1c; }
+/* Sub-tab bar (inside form pane — used for Signs) */
+.data-sub-nav {
+  flex: 0 0 36px;
+  display: flex;
+  background: var(--paper);
+  border-bottom: 1px solid var(--rule);
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex-shrink: 0;
+}
+.data-sub-nav::-webkit-scrollbar { display: none; }
+.data-sub-tab {
+  padding: 0 14px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: var(--ink-3);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  height: 36px;
+  display: flex;
+  align-items: center;
+}
+.data-sub-tab:hover { color: var(--ink-2); }
+.data-sub-tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+.data-sub-tab.has-data { color: var(--ink); }
+.data-sub-tab-add {
+  padding: 0 12px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--ink-3);
+  background: none;
+  border: none;
+  border-left: 1px dashed var(--rule);
+  cursor: pointer;
+  height: 36px;
+  margin-left: auto;
+}
+.data-sub-tab-add:hover { color: var(--blue); }
+/* Scrollable form body */
+.data-form-scroll {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 72px;
+}
+/* Form sections */
+.df-sec { }
+.df-sec-hdr {
+  padding: 8px 16px 5px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  background: var(--paper-2);
+  border-top: 1px solid var(--rule-soft);
+  border-bottom: 1px solid var(--rule-soft);
+}
+/* Field rows */
+.df-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--rule-soft);
+  min-height: 42px;
+}
+.df-row:last-child { border-bottom: none; }
+.df-lbl {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--ink-3);
+  min-width: 88px;
+  flex-shrink: 0;
+  padding-top: 8px;
+  line-height: 1.3;
+}
+.df-ctrl { flex: 1; min-width: 0; }
+/* Inputs */
+.df-input, .df-select {
+  width: 100%;
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  padding: 7px 8px;
+  border-radius: 2px;
+  -webkit-appearance: none;
+}
+.df-input:focus, .df-select:focus { outline: none; border-color: var(--blue); }
+.df-textarea {
+  width: 100%;
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  padding: 7px 8px;
+  border-radius: 2px;
+  resize: vertical;
+  min-height: 60px;
+}
+.df-textarea:focus { outline: none; border-color: var(--blue); }
+.df-readonly {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--ink-2);
+  padding-top: 8px;
+}
+/* Condition button strip — G / F / P / NA */
+.df-cond {
+  display: flex;
+  gap: 4px;
+  padding-top: 4px;
+  flex-wrap: wrap;
+}
+.df-cond-btn {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 5px 12px;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  color: var(--ink-2);
+  cursor: pointer;
+  border-radius: 2px;
+}
+/* Damage / flag toggle pills */
+.df-flags { display: flex; flex-wrap: wrap; gap: 4px; padding-top: 4px; }
+.df-flag {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  padding: 4px 8px;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  color: var(--ink-3);
+  cursor: pointer;
+  border-radius: 2px;
+}
+.df-flag.on { background: var(--blue); color: #fff; border-color: var(--blue); }
+/* Sign code display button */
+.df-sign-code {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 7px 10px;
+  border: 1px solid var(--rule);
+  background: var(--paper-2);
+  color: var(--ink);
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  border-radius: 2px;
+}
+.df-sign-code:hover { border-color: var(--blue); }
+/* Inline sign search */
+.df-sign-search-wrap {
+  border: 1px solid var(--blue);
+  background: var(--paper);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.df-sign-search {
+  width: 100%;
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 13px;
+  padding: 7px 10px;
+  border: none;
+  background: var(--paper);
+  color: var(--ink);
+}
+.df-sign-search:focus { outline: none; }
+.df-sign-results {
+  max-height: 140px;
+  overflow-y: auto;
+  border-top: 1px solid var(--rule-soft);
+}
+.df-sign-result {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--rule-soft);
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 12px;
+}
+.df-sign-result:hover { background: var(--paper-2); }
+.df-sign-code-tag {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--blue);
+  flex-shrink: 0;
+  min-width: 48px;
+}
+/* Spacer for empty culvert endpoint */
+.df-ep-card {
+  background: var(--paper-2);
+  border: 1px solid var(--rule-soft);
+  border-radius: 2px;
+  padding: 8px 10px;
+  margin: 4px 0;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--ink-3);
+}
+/* Pinned save bar */
+.data-save-bar {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: var(--paper);
+  border-top: 1px solid var(--rule);
+  z-index: 10;
+}
+.data-save-btn {
+  flex: 1;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 9px 0;
+  border: none;
+  background: var(--blue);
+  color: #fff;
+  cursor: pointer;
+  letter-spacing: 0.4px;
+  transition: background 0.1s;
+}
+.data-save-btn:hover { background: var(--blue-2); }
+.data-save-btn:disabled { opacity: 0.4; pointer-events: none; }
+.data-discard-btn {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 9px 14px;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  color: var(--ink-3);
+  cursor: pointer;
+}
+.data-save-flash {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: #15803d;
+  white-space: nowrap;
+  min-width: 48px;
+}
+
 /* --- Mobile / phone preview mode --------------------------------------------------
    Activated by #view-toggle-btn. Constrains #app to 390px centred on desktop,
    mimicking iPhone viewport. Matches existing view-toggle-btn behaviour.
@@ -5517,17 +5996,82 @@ body.mobile-mode #app {
          forms for guardrails, walls, culverts, signs, etc.
          "Edit Data" from the map feature popup routes directly here.
          ============================================================ -->
+    <!-- ============================================================
+         MODULE: DATA  (#mod-data)
+         Three-tier layout:
+           Nav 3  — type tabs: Posts/Signs · Culverts · Guard Rails · Walls · Others
+           List   — scrollable pin roster grouped by section
+           Form   — inline edit pane (slides in), with sub-tabs for Signs
+         All reads: window.SECTIONS (bundle) merged with IDB 'inspections'.
+         All writes: IDB 'inspections' keyed by pin_id.
+         JS wired by initDataModule() in Phase 1 IIFE.
+         ============================================================ -->
     <div id="mod-data" class="module-view">
-      <div class="mod-scaffold">
-        <div class="mod-scaffold-icon">📋</div>
-        <div class="mod-scaffold-title">Data</div>
-        <div class="mod-scaffold-sub">
-          Feature inventory table and per-type field inspection forms.
-          Click "Edit Data" on any map pin to open the form here.
-          Full build in Phase 3.
-        </div>
-        <span class="mod-scaffold-phase">Phase 3</span>
+
+      <!-- Nav 3: feature-type tab strip -->
+      <div id="data-type-nav" role="tablist" aria-label="Feature type">
+        <button class="data-type-tab active" data-dtype="sign"
+                role="tab" aria-selected="true">
+          Posts/Signs <span class="data-type-badge" id="dtb-sign">—</span>
+        </button>
+        <button class="data-type-tab" data-dtype="culvert"
+                role="tab" aria-selected="false">
+          Culverts <span class="data-type-badge" id="dtb-culvert">—</span>
+        </button>
+        <button class="data-type-tab" data-dtype="guardrail"
+                role="tab" aria-selected="false">
+          Guard Rails <span class="data-type-badge" id="dtb-guardrail">—</span>
+        </button>
+        <button class="data-type-tab" data-dtype="wall"
+                role="tab" aria-selected="false">
+          Walls <span class="data-type-badge" id="dtb-wall">—</span>
+        </button>
+        <button class="data-type-tab" data-dtype="other"
+                role="tab" aria-selected="false">
+          Others <span class="data-type-badge" id="dtb-other">—</span>
+        </button>
       </div>
+
+      <!-- Content: list + form layered (absolute inside #data-content) -->
+      <div id="data-content">
+
+        <!-- ── List pane ───────────────────────────────────────────── -->
+        <div id="data-list-pane">
+          <div class="data-list-scroll" id="data-list-scroll">
+            <div class="data-empty">
+              <span class="data-empty-icon">⏳</span>
+              Loading features…
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Form pane: slides in over list ─────────────────────── -->
+        <div id="data-form-pane">
+
+          <!-- Back / ID / status bar -->
+          <div class="data-form-bar">
+            <button class="data-back-btn" id="data-back-btn">◀ Back</button>
+            <span class="data-form-label" id="data-form-label">—</span>
+            <span class="data-stat-chip"  id="data-stat-chip">Pending</span>
+          </div>
+
+          <!-- Sub-tabs (Signs only: Post | Panel 1 | … | + Panel) -->
+          <div class="data-sub-nav" id="data-sub-nav" hidden></div>
+
+          <!-- Form fields injected by openDataForm() -->
+          <div class="data-form-scroll" id="data-form-scroll"></div>
+
+          <!-- Save / discard -->
+          <div class="data-save-bar">
+            <button class="data-discard-btn" id="data-discard-btn">Discard</button>
+            <button class="data-save-btn"    id="data-save-btn">Save</button>
+            <span   class="data-save-flash"  id="data-save-flash"></span>
+          </div>
+
+        </div><!-- /#data-form-pane -->
+
+      </div><!-- /#data-content -->
+
     </div><!-- /#mod-data -->
 
     <!-- ============================================================
@@ -7296,6 +7840,18 @@ body.mobile-mode #app {
     // for hatch/dash/double/thick properties. See LINE_STYLES array near bottom of file.
     get state()            { return state; },
     get SECTIONS()         { return typeof SECTIONS !== 'undefined' ? SECTIONS : []; },
+    // Sign / post / barrier lookup tables — consumed by Data module (Phase 1 script)
+    get MUTCD_SIGNS()      { return typeof MUTCD_SIGNS !== 'undefined' ? MUTCD_SIGNS : []; },
+    get SIGN_POST_TYPES()  { return SIGN_POST_TYPES; },
+    get SIGN_SHEETING()    { return SIGN_SHEETING; },
+    get SIGN_CONDITIONS()  { return SIGN_CONDITIONS; },
+    get SIGN_DAMAGE()      { return SIGN_DAMAGE; },
+    get SIGN_POST_DMG()    { return SIGN_POST_DMG; },
+    get SIGN_FACING()      { return SIGN_FACING; },
+    get GR_TYPES()         { return _GR_TYPES; },
+    get RW_TYPES()         { return _RW_TYPES; },
+    get GR_TREATMENTS()    { return _GR_TREATMENTS; },
+    get RW_TREATMENTS()    { return _RW_TREATMENTS; },
     rerender() {
       // Prefer stripCurrentSec (set when an SLD strip is open and persists when
       // the user navigates to the Style Guide — showView resets state.sectionId).
@@ -16450,6 +17006,14 @@ body.mobile-mode #app {
       });
     }
 
+    // ── Data module: refresh list + badges on tab switch ───────
+    if (name === 'data') {
+      _loadIdbCache().then(function () {
+        _updateTypeBadges();
+        renderDataList(_dataState.type);
+      });
+    }
+
     // ── Leaflet invalidateSize on map module switch ─────────────
     // Without this, switching away from the Map module and back
     // leaves Leaflet thinking the container has zero size.
@@ -17447,6 +18011,778 @@ body.mobile-mode #app {
 
 
   /* ---------------------------------------------------------------
+     10b. DATA MODULE ENGINE
+     ---------------------------------------------------------------
+     initDataModule()     — wire type tabs + back btn + save btn
+     renderDataList(type) — build pin list for the active type tab
+     openDataForm(pin,sec)— slide in form pane for a selected pin
+     _renderSignForm      — Post sub-tab + Panel 1…N sub-tabs
+     _renderCulvertForm   — full culvert entry card
+     _renderGuardrailForm — guardrail quick form
+     _renderWallForm      — retaining wall quick form
+     _renderOtherForm     — generic fields for bridge/gate/etc.
+     _saveDataForm        — persist attrs to IDB 'inspections'
+     --------------------------------------------------------------- */
+
+  // ── helpers ────────────────────────────────────────────────────────────────
+
+  /** Map bundle pin.kind → type-tab key */
+  function _kindToType(kind) {
+    if (!kind) return 'other';
+    if (kind === 'sign')      return 'sign';
+    if (kind === 'culvert')   return 'culvert';
+    if (kind === 'guardrail') return 'guardrail';
+    if (kind === 'wall')      return 'wall';
+    return 'other';
+  }
+
+  /** Human label for a pin in the list */
+  function _pinListDesc(pin) {
+    var a = pin.attrs || {};
+    switch (pin.kind) {
+      case 'sign':
+        var panels = Array.isArray(a.panels) ? a.panels : [];
+        if (panels.length) return panels.map(function (p) { return p.sign_code || '(?)'; }).join(' + ');
+        return a.display_name || a.loc_name || 'Sign installation';
+      case 'culvert':
+        var mat = a.material || a.CULVERTMATERIAL || '';
+        var dia = a.diameter_in ? a.diameter_in + '"' : '';
+        return [mat, dia].filter(Boolean).join(' ') || 'Culvert';
+      case 'guardrail':
+        return [a.rpt_type || a.barrier_type || 'Guardrail', a.side ? 'Side ' + a.side : ''].filter(Boolean).join(' · ');
+      case 'wall':
+        return [a.wall_material || a.rpt_type || 'Retaining wall', a.side ? 'Side ' + a.side : ''].filter(Boolean).join(' · ');
+      default:
+        return a.name || a.loc_name || a.asset_id || pin.kind || '—';
+    }
+  }
+
+  /** Quick meta string for the list row (STA + length) */
+  function _pinListMeta(pin) {
+    var parts = [];
+    if (pin.sta) parts.push(pin.sta);
+    var a = pin.attrs || {};
+    if (a.length_ft)  parts.push(Math.round(a.length_ft) + ' ft');
+    if (a.side && pin.kind !== 'sign') parts.push('Side ' + a.side);
+    return parts.join(' · ');
+  }
+
+  // ── State ──────────────────────────────────────────────────────────────────
+  var _dataState = {
+    type:         'sign',   // active type tab
+    pin:          null,     // currently open pin (deep-merged with IDB data)
+    sec:          null,     // section the pin belongs to
+    dirty:        false,    // unsaved changes flag
+    signSubTab:   'post',   // 'post' | 0 | 1 | 2 | ... (panel index)
+    idbCache:     {},       // { pin_id: inspectionRecord } — lazy-loaded
+  };
+
+  /** Load all IDB inspection records once, cache them */
+  function _loadIdbCache() {
+    return window.RWIdb.then(function (db) {
+      var tx    = db.transaction('inspections', 'readonly');
+      var store = tx.objectStore('inspections');
+      var req   = store.getAll();
+      return new Promise(function (resolve, reject) {
+        req.onsuccess = function () {
+          _dataState.idbCache = {};
+          (req.result || []).forEach(function (rec) {
+            if (rec && rec.pin_id) _dataState.idbCache[rec.pin_id] = rec;
+          });
+          resolve(_dataState.idbCache);
+        };
+        req.onerror = reject;
+      });
+    });
+  }
+
+  /** Get a merged pin: bundle attrs + any saved IDB attrs */
+  function _mergedPin(bundlePin) {
+    var idb = _dataState.idbCache[bundlePin.id] || {};
+    var merged = Object.assign({}, bundlePin);
+    merged.attrs  = Object.assign({}, bundlePin.attrs, idb.attrs || {});
+    merged.status = idb.status || bundlePin.status || 'pending';
+    return merged;
+  }
+
+  // ── renderDataList ─────────────────────────────────────────────────────────
+  function renderDataList(type) {
+    _dataState.type = type || _dataState.type;
+    var scrollEl = document.getElementById('data-list-scroll');
+    if (!scrollEl) return;
+
+    // Update tab active states + ARIA
+    document.querySelectorAll('.data-type-tab').forEach(function (tab) {
+      var on = tab.dataset.dtype === _dataState.type;
+      tab.classList.toggle('active', on);
+      tab.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+
+    // Gather all pins of this type from all sections
+    var sections = window.SECTIONS || [];
+    var rows = [];  // [{sec, pin, merged}]
+    sections.forEach(function (sec) {
+      (sec.pins || []).forEach(function (pin) {
+        if (_kindToType(pin.kind) === _dataState.type) {
+          rows.push({ sec: sec, pin: pin, merged: _mergedPin(pin) });
+        }
+      });
+    });
+
+    // Update badge count
+    var badge = document.getElementById('dtb-' + _dataState.type);
+    if (badge) badge.textContent = rows.length || '0';
+
+    if (rows.length === 0) {
+      scrollEl.innerHTML =
+        '<div class="data-empty">' +
+        '<span class="data-empty-icon">🔍</span>' +
+        'No ' + _dataState.type + ' features in the loaded bundle.<br>' +
+        'Import a project to see features here.' +
+        '</div>';
+      return;
+    }
+
+    // Group by section
+    var bySection = {};
+    rows.forEach(function (r) {
+      var sid = r.sec.id;
+      if (!bySection[sid]) bySection[sid] = { sec: r.sec, items: [] };
+      bySection[sid].items.push(r);
+    });
+
+    var html = '';
+    Object.keys(bySection).forEach(function (sid) {
+      var grp = bySection[sid];
+      html += '<div class="data-sec-hdr">' + _esc(grp.sec.name || sid) + '</div>';
+      html += '<ul class="data-pin-list">';
+      grp.items.forEach(function (r) {
+        var m = r.merged;
+        html += '<li class="data-pin-row" data-pin-id="' + _esc(m.id) + '" data-sec-id="' + _esc(r.sec.id) + '">' +
+          '<span class="data-dot ' + (m.status || 'pending') + '"></span>' +
+          '<span class="data-pin-body">' +
+            '<span class="data-pin-id">' + _esc(m.id) + '</span>' +
+            '<span class="data-pin-desc">' + _esc(_pinListDesc(m)) + '</span>' +
+          '</span>' +
+          '<span class="data-pin-meta">' + _esc(_pinListMeta(m)) + '</span>' +
+          '<span class="data-pin-caret">›</span>' +
+          '</li>';
+      });
+      html += '</ul>';
+    });
+
+    scrollEl.innerHTML = html;
+
+    // Wire row clicks
+    scrollEl.querySelectorAll('.data-pin-row').forEach(function (row) {
+      row.addEventListener('click', function () {
+        var pinId = row.dataset.pinId;
+        var secId = row.dataset.secId;
+        var sec   = (window.SECTIONS || []).find(function (s) { return s.id === secId; });
+        var pin   = sec && (sec.pins || []).find(function (p) { return p.id === pinId; });
+        if (pin && sec) openDataForm(pin, sec);
+      });
+    });
+  }
+  window.renderDataList = renderDataList;
+
+  // ── openDataForm ───────────────────────────────────────────────────────────
+  function openDataForm(pin, sec) {
+    var merged = _mergedPin(pin);
+    _dataState.pin     = merged;
+    _dataState.sec     = sec;
+    _dataState.dirty   = false;
+    _dataState.signSubTab = 'post';
+
+    // Ensure sign attrs defaults
+    if (merged.kind === 'sign') {
+      if (!merged.attrs)                        merged.attrs = {};
+      if (!Array.isArray(merged.attrs.panels))  merged.attrs.panels = [];
+      if (!merged.attrs.post_type)              merged.attrs.post_type = '';
+      if (!merged.attrs.post_condition)         merged.attrs.post_condition = 'NA';
+      if (!Array.isArray(merged.attrs.post_damage)) merged.attrs.post_damage = [];
+    }
+
+    // Populate header
+    var labelEl = document.getElementById('data-form-label');
+    var chipEl  = document.getElementById('data-stat-chip');
+    if (labelEl) labelEl.textContent = merged.id || '—';
+    if (chipEl) {
+      chipEl.textContent = (merged.status || 'pending').toUpperCase();
+      chipEl.className   = 'data-stat-chip ' + (merged.status || 'pending');
+    }
+
+    // Show / hide sub-nav
+    var subNav = document.getElementById('data-sub-nav');
+    if (subNav) {
+      if (merged.kind === 'sign') {
+        subNav.removeAttribute('hidden');
+        _buildSignSubTabs();
+      } else {
+        subNav.setAttribute('hidden', '');
+      }
+    }
+
+    // Render form body
+    _renderFormBody();
+
+    // Slide in the form pane
+    var formPane = document.getElementById('data-form-pane');
+    if (formPane) {
+      requestAnimationFrame(function () { formPane.classList.add('visible'); });
+    }
+  }
+  window.openDataForm = openDataForm;
+
+  /** Close form pane and return to list */
+  function _closeDataForm() {
+    var formPane = document.getElementById('data-form-pane');
+    if (formPane) formPane.classList.remove('visible');
+    _dataState.dirty = false;
+  }
+
+  // ── Sub-tab builder (Signs) ────────────────────────────────────────────────
+  function _buildSignSubTabs() {
+    var subNav = document.getElementById('data-sub-nav');
+    if (!subNav) return;
+    var panels  = (_dataState.pin.attrs || {}).panels || [];
+    var active  = _dataState.signSubTab;
+
+    var html = '<button class="data-sub-tab' + (active === 'post' ? ' active' : '') +
+               '" data-stab="post">Post</button>';
+    panels.forEach(function (p, i) {
+      var lbl = p.sign_code ? (i + 1) + ' ' + p.sign_code : 'Panel ' + (i + 1);
+      html += '<button class="data-sub-tab' + (active === i ? ' active has-data' : '') +
+              '" data-stab="' + i + '">' + _esc(lbl) + '</button>';
+    });
+    if (panels.length < 6) {
+      html += '<button class="data-sub-tab-add" id="data-add-panel-btn">+ Panel</button>';
+    }
+    subNav.innerHTML = html;
+
+    // Tab clicks
+    subNav.querySelectorAll('.data-sub-tab').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var v = btn.dataset.stab;
+        _dataState.signSubTab = isNaN(Number(v)) ? v : Number(v);
+        _buildSignSubTabs();
+        _renderFormBody();
+      });
+    });
+    // Add panel
+    var addBtn = document.getElementById('data-add-panel-btn');
+    if (addBtn) {
+      addBtn.addEventListener('click', function () {
+        _dataState.pin.attrs.panels.push({});
+        _dataState.signSubTab = _dataState.pin.attrs.panels.length - 1;
+        _dataState.dirty = true;
+        _buildSignSubTabs();
+        _renderFormBody();
+      });
+    }
+  }
+
+  // ── Form body renderer (dispatches by kind) ────────────────────────────────
+  function _renderFormBody() {
+    var scrollEl = document.getElementById('data-form-scroll');
+    if (!scrollEl) return;
+    var pin = _dataState.pin;
+    var sec = _dataState.sec;
+
+    switch (pin.kind) {
+      case 'sign':     scrollEl.innerHTML = _renderSignForm(pin, sec);    break;
+      case 'culvert':  scrollEl.innerHTML = _renderCulvertForm(pin, sec); break;
+      case 'guardrail':scrollEl.innerHTML = _renderGuardrailForm(pin, sec);break;
+      case 'wall':     scrollEl.innerHTML = _renderWallForm(pin, sec);    break;
+      default:         scrollEl.innerHTML = _renderOtherForm(pin, sec);   break;
+    }
+
+    // Wire interactive elements inside the form
+    _wireFormInteractions(pin);
+  }
+
+  // ── HTML helpers ──────────────────────────────────────────────────────────
+  function _esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function _condRow(label, field, val, conditions, dataAttr) {
+    conditions = conditions || window._RW.SIGN_CONDITIONS || [];
+    var btns = conditions.map(function (c) {
+      var on = val === c.v;
+      return '<button class="df-cond-btn" ' + dataAttr + '="' + _esc(c.v) + '"' +
+        ' data-field="' + _esc(field) + '"' +
+        (on ? ' style="background:' + c.col + ';color:#fff;border-color:' + c.col + '"' : '') +
+        '>' + _esc(c.v) + '</button>';
+    }).join('');
+    return '<div class="df-row"><span class="df-lbl">' + _esc(label) + '</span>' +
+           '<span class="df-ctrl"><div class="df-cond">' + btns + '</div></span></div>';
+  }
+
+  function _selectRow(label, field, val, options) {
+    var opts = options.map(function (o) {
+      var v = typeof o === 'object' ? o.v : o;
+      var l = typeof o === 'object' ? o.l : o;
+      return '<option value="' + _esc(v) + '"' + (val === v ? ' selected' : '') + '>' + _esc(l) + '</option>';
+    }).join('');
+    return '<div class="df-row"><span class="df-lbl">' + _esc(label) + '</span>' +
+           '<span class="df-ctrl"><select class="df-select" data-field="' + _esc(field) + '">' + opts + '</select></span></div>';
+  }
+
+  function _inputRow(label, field, val, type) {
+    type = type || 'text';
+    return '<div class="df-row"><span class="df-lbl">' + _esc(label) + '</span>' +
+           '<span class="df-ctrl"><input class="df-input" type="' + type + '" data-field="' + _esc(field) + '" value="' + _esc(val == null ? '' : val) + '"></span></div>';
+  }
+
+  function _readonlyRow(label, val) {
+    return '<div class="df-row"><span class="df-lbl">' + _esc(label) + '</span>' +
+           '<span class="df-ctrl"><span class="df-readonly">' + _esc(val == null ? '—' : val) + '</span></span></div>';
+  }
+
+  function _textareaRow(label, field, val) {
+    return '<div class="df-row" style="flex-direction:column;gap:4px;align-items:stretch;">' +
+           '<span class="df-lbl" style="padding-top:0">' + _esc(label) + '</span>' +
+           '<textarea class="df-textarea" data-field="' + _esc(field) + '" rows="3">' +
+           _esc(val == null ? '') + '</textarea></div>';
+  }
+
+  function _flagRow(label, field, flags, options) {
+    var btns = options.map(function (d) {
+      var v = typeof d === 'object' ? d.v : d;
+      var l = typeof d === 'object' ? d.l : d;
+      var on = Array.isArray(flags) && flags.includes(v);
+      return '<button class="df-flag' + (on ? ' on' : '') + '" data-flag-field="' + _esc(field) + '" data-flag-val="' + _esc(v) + '">' + _esc(l) + '</button>';
+    }).join('');
+    return '<div class="df-row"><span class="df-lbl">' + _esc(label) + '</span>' +
+           '<span class="df-ctrl"><div class="df-flags">' + btns + '</div></span></div>';
+  }
+
+  function _sectionHdr(title) {
+    return '<div class="df-sec-hdr">' + _esc(title) + '</div>';
+  }
+
+  // ── Sign form ──────────────────────────────────────────────────────────────
+  function _renderSignForm(pin, sec) {
+    var a   = pin.attrs || {};
+    var sub = _dataState.signSubTab;
+
+    if (sub === 'post') {
+      // ── Post sub-tab ─────────────────────────────────────────────
+      var postTypes   = window._RW.SIGN_POST_TYPES || [];
+      var conditions  = window._RW.SIGN_CONDITIONS || [];
+      var postDmg     = window._RW.SIGN_POST_DMG   || [];
+      var postTypeOpts = [{v:'',l:'— type —'}].concat(postTypes);
+
+      return _sectionHdr('POST DETAILS') +
+        _selectRow('Post type',  'post_type',      a.post_type,      postTypeOpts) +
+        _inputRow ('Post count', 'post_count',      a.post_count,     'number') +
+        _inputRow ('Height (ft)','post_height_ft',  a.post_height_ft, 'number') +
+        _condRow  ('Condition',  'post_condition',  a.post_condition, conditions, 'data-post-field') +
+        _flagRow  ('Damage',     'post_damage',     a.post_damage,    postDmg) +
+        _sectionHdr('LOCATION') +
+        _readonlyRow('Pin ID',   pin.id) +
+        _readonlyRow('Section',  sec ? sec.name : '—') +
+        _readonlyRow('STA',      pin.sta || '—') +
+        _textareaRow('Notes',    'notes',           a.notes);
+    }
+
+    // ── Panel sub-tab ─────────────────────────────────────────────
+    var panelIdx = Number(sub);
+    var panels   = Array.isArray(a.panels) ? a.panels : [];
+    var panel    = panels[panelIdx] || {};
+    var facing   = window._RW.SIGN_FACING    || [];
+    var conditions2 = window._RW.SIGN_CONDITIONS || [];
+    var sheeting = window._RW.SIGN_SHEETING  || [];
+    var damage   = window._RW.SIGN_DAMAGE    || [];
+
+    var facingOpts = [{v:'',l:'— direction —'}].concat(facing.map(function (f) {
+      return {v: String(f.v), l: f.l};
+    }));
+    var sheetOpts  = [{v:'',l:'— type —'}].concat(sheeting);
+
+    // Sign code selector: show current + a search input below it
+    var sigCode = panel.sign_code || '';
+    var sigMeta = sigCode && (window._RW.MUTCD_SIGNS || []).find(function (s) { return s.c === sigCode; });
+    var sigLbl  = sigMeta ? sigCode + ' — ' + sigMeta.n : (sigCode || '(none — tap to search)');
+
+    var signCodeHtml =
+      '<div class="df-row"><span class="df-lbl">Sign code</span>' +
+      '<span class="df-ctrl">' +
+        '<button class="df-sign-code" id="ds-sign-code-btn" data-panel-idx="' + panelIdx + '">' + _esc(sigLbl) + '</button>' +
+        '<div id="ds-sign-search-wrap" style="display:none"></div>' +
+      '</span></div>';
+
+    return _sectionHdr('PANEL ' + (panelIdx + 1)) +
+      signCodeHtml +
+      _selectRow('Facing',        'panel_facing',     String(panel.facing_degrees || ''), facingOpts) +
+      _condRow  ('Panel cond',    'panel_condition',  panel.panel_condition,   conditions2, 'data-panel-field') +
+      _condRow  ('Sheeting cond', 'sheeting_condition',panel.sheeting_condition,conditions2, 'data-panel-field') +
+      _selectRow('Sheeting type', 'sheeting_type',    panel.sheeting_type,     sheetOpts) +
+      _flagRow  ('Damage',        'panel_damage_flags',panel.damage_flags,      damage) +
+      _textareaRow('Notes',       'panel_notes',       panel.notes) +
+      '<div class="df-row">' +
+        '<button class="data-discard-btn" id="ds-remove-panel-btn" style="color:#b91c1c;border-color:#fca5a5;">' +
+          'Remove this panel' +
+        '</button>' +
+      '</div>';
+  }
+
+  // ── Culvert form ───────────────────────────────────────────────────────────
+  function _renderCulvertForm(pin, sec) {
+    var a = pin.attrs || {};
+    var conditions = window._RW.SIGN_CONDITIONS || [];
+
+    var materials = ['—','RCP','CMP','HDPE','Box Culvert','Stone Masonry','Concrete Box','Arch Pipe','Other'];
+    var shapes    = ['—','Round','Elliptical','Arch','Box/Rectangular','Other'];
+    var epTypes   = ['—','Headwall — concrete','Headwall — stone','Flange/mitered','Open / none','Other'];
+    var drainage  = ['—','None noted','Partial blockage','Full blockage','Sediment build-up','Debris jam'];
+
+    return _sectionHdr('IDENTITY') +
+      _readonlyRow('Pin ID',   pin.id) +
+      _readonlyRow('Section',  sec ? sec.name : '—') +
+      _readonlyRow('STA',      pin.sta || '—') +
+      _readonlyRow('Asset ID', (a.asset_id || a.fmss_asset || '—')) +
+      _readonlyRow('Side',     a.side || '—') +
+      _sectionHdr('PIPE / BARREL') +
+      _selectRow('Material',   'material',   a.material || '', materials.map(function(m){return {v:m,l:m};})) +
+      _selectRow('Shape',      'shape',      a.shape    || '', shapes.map(function(s){return {v:s,l:s};})) +
+      _inputRow ('Width / Dia (in)', 'diameter_in', a.diameter_in, 'number') +
+      _inputRow ('Height (in)',       'height_in',   a.height_in,  'number') +
+      _readonlyRow('Length (ft)',     a.length_ft != null ? Math.round(a.length_ft) + ' ft (' + (a.length_source||'—') + ')' : '—') +
+      _inputRow ('Skew angle (°)',    'skew_deg',    a.skew_deg,   'number') +
+      _sectionHdr('ENDPOINTS') +
+      _selectRow('Inlet type',  'ep_inlet_type',  a.ep_inlet_type  || '', epTypes.map(function(e){return {v:e,l:e};})) +
+      _condRow  ('Inlet cond',  'ep_inlet_cond',  a.ep_inlet_cond,  conditions, 'data-cond') +
+      _selectRow('Outlet type', 'ep_outlet_type', a.ep_outlet_type || '', epTypes.map(function(e){return {v:e,l:e};})) +
+      _condRow  ('Outlet cond', 'ep_outlet_cond', a.ep_outlet_cond, conditions, 'data-cond') +
+      _sectionHdr('CONDITION') +
+      _condRow  ('Overall',     'condition',       a.condition,       conditions, 'data-cond') +
+      _selectRow('Drainage',    'drainage_issue',  a.drainage_issue || '', drainage.map(function(d){return {v:d,l:d};})) +
+      _inputRow ('Rating (0–100)', 'rating',       a.rating, 'number') +
+      _textareaRow('Repair action', 'repair_action', a.repair_action) +
+      _textareaRow('Notes',         'notes',          a.notes);
+  }
+
+  // ── Guard rail form ────────────────────────────────────────────────────────
+  function _renderGuardrailForm(pin, sec) {
+    var a = pin.attrs || {};
+    var conditions = window._RW.SIGN_CONDITIONS || [];
+    var grTypes    = window._RW.GR_TYPES       || [];
+    var treatments = window._RW.GR_TREATMENTS  || [];
+
+    var termTypes  = ['—','MASH TL-2 (ET-Plus / SRT-350)','MASH TL-3','NCHRP 350 TL-2','NCHRP 350 TL-3','Blunt end','None','Unknown'];
+    var testLevels = ['—','MASH TL-2','MASH TL-3','NCHRP 350 TL-2','NCHRP 350 TL-3','Not crashworthy','Unknown'];
+    var crashOpts  = ['—','Yes — crashworthy','No — not crashworthy','Unknown'];
+
+    return _sectionHdr('IDENTITY') +
+      _readonlyRow('Pin ID',   pin.id) +
+      _readonlyRow('Section',  sec ? sec.name : '—') +
+      _readonlyRow('STA',      pin.sta || '—') +
+      _readonlyRow('Length',   a.length_ft != null ? Math.round(a.length_ft) + ' ft' : '—') +
+      _readonlyRow('Side',     a.side || '—') +
+      _sectionHdr('SYSTEM') +
+      _selectRow('Rail type',        'rpt_type',          a.rpt_type || '',      [{v:'',l:'— type —'}].concat(grTypes.map(function(t){return {v:t,l:t};}))) +
+      _selectRow('Start terminal',   'terminal_start',    a.terminal_start || '',termTypes.map(function(t){return {v:t,l:t};})) +
+      _selectRow('End terminal',     'terminal_end',      a.terminal_end   || '',termTypes.map(function(t){return {v:t,l:t};})) +
+      _selectRow('Test level',       'test_level',        a.test_level     || '',testLevels.map(function(t){return {v:t,l:t};})) +
+      _selectRow('Crashworthy?',     'crashworthy',       a.crashworthy    || '',crashOpts.map(function(t){return {v:t,l:t};})) +
+      _inputRow ('Repair length (ft)','repair_length_ft', a.repair_length_ft, 'number') +
+      _sectionHdr('CONDITION') +
+      _condRow  ('Overall',          'condition',         a.condition,        conditions, 'data-cond') +
+      _selectRow('Recommended action','rec_treatment',    a.rec_treatment  || '',[{v:'',l:'— select —'}].concat(treatments.map(function(t){return {v:t,l:t};}))) +
+      _textareaRow('Notes',          'notes',             a.notes);
+  }
+
+  // ── Retaining wall form ────────────────────────────────────────────────────
+  function _renderWallForm(pin, sec) {
+    var a = pin.attrs || {};
+    var conditions = window._RW.SIGN_CONDITIONS || [];
+    var rwTypes    = window._RW.RW_TYPES        || [];
+    var treatments = window._RW.RW_TREATMENTS   || [];
+    var functions_ = ['—','Cut slope retention','Fill slope retention','Roadway widening','Drainage channel','Other'];
+
+    return _sectionHdr('IDENTITY') +
+      _readonlyRow('Pin ID',   pin.id) +
+      _readonlyRow('Section',  sec ? sec.name : '—') +
+      _readonlyRow('STA',      pin.sta || '—') +
+      _readonlyRow('Length',   a.length_ft != null ? Math.round(a.length_ft) + ' ft' : '—') +
+      _readonlyRow('Side',     a.side || '—') +
+      _sectionHdr('WALL') +
+      _selectRow('Wall type',      'wall_material',  a.wall_material || a.rpt_type || '',
+                 [{v:'',l:'— type —'}].concat(rwTypes.map(function(t){return {v:t,l:t};}))) +
+      _selectRow('Function',       'wall_function',  a.wall_function || '',
+                 functions_.map(function(f){return {v:f,l:f};})) +
+      _inputRow ('Height (ft)',     'wall_height_ft', a.wall_height_ft, 'number') +
+      _inputRow ('Drain holes present?', 'drain_holes', a.drain_holes, 'text') +
+      _sectionHdr('CONDITION') +
+      _condRow  ('Overall',         'condition',      a.condition,      conditions, 'data-cond') +
+      _condRow  ('Drainage',        'drain_condition',a.drain_condition,conditions, 'data-cond') +
+      _condRow  ('Structural',      'struct_condition',a.struct_condition,conditions,'data-cond') +
+      _selectRow('Recommended action','rec_treatment',a.rec_treatment || '',
+                 [{v:'',l:'— select —'}].concat(treatments.map(function(t){return {v:t,l:t};}))) +
+      _textareaRow('Notes', 'notes', a.notes);
+  }
+
+  // ── Other / generic form ───────────────────────────────────────────────────
+  function _renderOtherForm(pin, sec) {
+    var a = pin.attrs || {};
+    var conditions = window._RW.SIGN_CONDITIONS || [];
+    var kindLabel  = (pin.kind || '').replace(/_/g,' ').replace(/\b\w/g, function(c){return c.toUpperCase();});
+
+    return _sectionHdr(kindLabel.toUpperCase() + ' — IDENTITY') +
+      _readonlyRow('Pin ID',  pin.id) +
+      _readonlyRow('Section', sec ? sec.name : '—') +
+      _readonlyRow('STA',     pin.sta || '—') +
+      (a.name       ? _readonlyRow('Name',     a.name)       : '') +
+      (a.asset_id   ? _readonlyRow('Asset ID', a.asset_id)   : '') +
+      (a.road       ? _readonlyRow('Road',     a.road)       : '') +
+      (a.length_ft  ? _readonlyRow('Length',   Math.round(a.length_ft) + ' ft') : '') +
+      _sectionHdr('CONDITION') +
+      _condRow('Overall', 'condition', a.condition, conditions, 'data-cond') +
+      _textareaRow('Repair action', 'repair_action', a.repair_action) +
+      _textareaRow('Notes', 'notes', a.notes);
+  }
+
+  // ── Wire form interactions (change events + sign picker) ───────────────────
+  function _wireFormInteractions(pin) {
+    var scroll = document.getElementById('data-form-scroll');
+    if (!scroll) return;
+    var a = pin.attrs;
+
+    // Generic select → update attrs
+    scroll.querySelectorAll('select.df-select[data-field]').forEach(function (sel) {
+      sel.addEventListener('change', function () {
+        a[sel.dataset.field] = sel.value;
+        _dataState.dirty = true;
+      });
+    });
+    // Generic input → update attrs
+    scroll.querySelectorAll('input.df-input[data-field]').forEach(function (inp) {
+      inp.addEventListener('input', function () {
+        a[inp.dataset.field] = inp.value;
+        _dataState.dirty = true;
+      });
+    });
+    // Generic textarea → update attrs
+    scroll.querySelectorAll('textarea.df-textarea[data-field]').forEach(function (ta) {
+      ta.addEventListener('input', function () {
+        a[ta.dataset.field] = ta.value;
+        _dataState.dirty = true;
+      });
+    });
+
+    // Condition buttons (overall / culvert / guardrail / wall)
+    scroll.querySelectorAll('.df-cond-btn[data-cond][data-field]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        a[btn.dataset.field] = btn.dataset.cond;
+        _dataState.dirty = true;
+        _renderFormBody();
+      });
+    });
+
+    // Sign-specific: post condition buttons
+    scroll.querySelectorAll('.df-cond-btn[data-post-field]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        a[btn.dataset.postField] = btn.dataset.field;
+        _dataState.dirty = true;
+        _renderFormBody();
+      });
+    });
+    // Sign-specific: panel condition buttons
+    scroll.querySelectorAll('.df-cond-btn[data-panel-field]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var panels = a.panels || [];
+        var idx    = typeof _dataState.signSubTab === 'number' ? _dataState.signSubTab : 0;
+        if (panels[idx]) {
+          panels[idx][btn.dataset.panelField] = btn.dataset.field;
+          _dataState.dirty = true;
+          _renderFormBody();
+        }
+      });
+    });
+
+    // Damage / flag toggles
+    scroll.querySelectorAll('.df-flag[data-flag-field]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var field = btn.dataset.flagField;
+        var val   = btn.dataset.flagVal;
+        var isPanelField = field.startsWith('panel_');
+        var arr;
+        if (isPanelField) {
+          var panels = a.panels || [];
+          var idx    = typeof _dataState.signSubTab === 'number' ? _dataState.signSubTab : 0;
+          if (!panels[idx]) return;
+          var key = field === 'panel_damage_flags' ? 'damage_flags' : field;
+          if (!Array.isArray(panels[idx][key])) panels[idx][key] = [];
+          arr = panels[idx][key];
+        } else {
+          if (!Array.isArray(a[field])) a[field] = [];
+          arr = a[field];
+        }
+        var idx2 = arr.indexOf(val);
+        if (idx2 >= 0) arr.splice(idx2, 1); else arr.push(val);
+        _dataState.dirty = true;
+        _renderFormBody();
+      });
+    });
+
+    // Sign code search button → toggle inline search
+    var codeBtn = document.getElementById('ds-sign-code-btn');
+    if (codeBtn) {
+      codeBtn.addEventListener('click', function () {
+        var wrap = document.getElementById('ds-sign-search-wrap');
+        if (!wrap) return;
+        var visible = wrap.style.display !== 'none';
+        wrap.style.display = visible ? 'none' : 'block';
+        if (!visible) {
+          var panelIdx = Number(codeBtn.dataset.panelIdx);
+          wrap.innerHTML =
+            '<div class="df-sign-search-wrap">' +
+              '<input class="df-sign-search" id="ds-sign-search-inp" type="text" placeholder="Search MUTCD code or name…" autocomplete="off">' +
+              '<div class="df-sign-results" id="ds-sign-results"></div>' +
+            '</div>';
+          var inp = document.getElementById('ds-sign-search-inp');
+          var res = document.getElementById('ds-sign-results');
+          if (inp) {
+            inp.focus();
+            inp.addEventListener('input', function () {
+              var q   = inp.value.trim().toLowerCase();
+              var all = window._RW.MUTCD_SIGNS || [];
+              var hits = q.length < 2 ? all.slice(0, 30) : all.filter(function (s) {
+                return s.c.toLowerCase().includes(q) || (s.n && s.n.toLowerCase().includes(q));
+              }).slice(0, 40);
+              res.innerHTML = hits.map(function (s) {
+                return '<div class="df-sign-result" data-code="' + _esc(s.c) + '">' +
+                  '<span class="df-sign-code-tag">' + _esc(s.c) + '</span>' +
+                  '<span>' + _esc(s.n || '') + '</span></div>';
+              }).join('');
+              // Wire result clicks
+              res.querySelectorAll('.df-sign-result').forEach(function (r) {
+                r.addEventListener('click', function () {
+                  var code = r.dataset.code;
+                  var panels = _dataState.pin.attrs.panels;
+                  if (!panels[panelIdx]) panels[panelIdx] = {};
+                  panels[panelIdx].sign_code = code;
+                  _dataState.dirty = true;
+                  _buildSignSubTabs();
+                  _renderFormBody();
+                });
+              });
+            });
+            // Trigger initial empty search
+            inp.dispatchEvent(new Event('input'));
+          }
+        }
+      });
+    }
+
+    // Remove panel button (inside sign panel sub-tab)
+    var rmBtn = document.getElementById('ds-remove-panel-btn');
+    if (rmBtn) {
+      rmBtn.addEventListener('click', function () {
+        var panels = _dataState.pin.attrs.panels || [];
+        var idx    = typeof _dataState.signSubTab === 'number' ? _dataState.signSubTab : 0;
+        panels.splice(idx, 1);
+        _dataState.signSubTab = 'post';
+        _dataState.dirty = true;
+        _buildSignSubTabs();
+        _renderFormBody();
+      });
+    }
+  }
+
+  // ── Save to IDB ────────────────────────────────────────────────────────────
+  function _saveDataForm() {
+    var pin = _dataState.pin;
+    if (!pin) return;
+    var flash  = document.getElementById('data-save-flash');
+    var saveBtn = document.getElementById('data-save-btn');
+    if (saveBtn) saveBtn.disabled = true;
+
+    var record = {
+      pin_id:   pin.id,
+      kind:     pin.kind,
+      sec_id:   _dataState.sec ? _dataState.sec.id : null,
+      status:   pin.status || 'pending',
+      attrs:    pin.attrs || {},
+      saved_at: new Date().toISOString(),
+    };
+
+    window.RWIdb.then(function (db) {
+      var tx    = db.transaction('inspections', 'readwrite');
+      var store = tx.objectStore('inspections');
+      store.put(record, pin.id).onsuccess = function () {
+        // Update cache
+        _dataState.idbCache[pin.id] = record;
+        _dataState.dirty = false;
+        if (flash) {
+          flash.textContent = '✓ Saved';
+          setTimeout(function () { if (flash) flash.textContent = ''; }, 2000);
+        }
+        if (saveBtn) saveBtn.disabled = false;
+        // Re-render the list badge counts
+        _updateTypeBadges();
+      };
+      tx.onerror = function () {
+        if (flash) flash.textContent = '⚠ Error';
+        if (saveBtn) saveBtn.disabled = false;
+      };
+    });
+  }
+
+  /** Refresh all Nav 3 type badge counts */
+  function _updateTypeBadges() {
+    var sections = window.SECTIONS || [];
+    var counts   = { sign: 0, culvert: 0, guardrail: 0, wall: 0, other: 0 };
+    sections.forEach(function (sec) {
+      (sec.pins || []).forEach(function (pin) {
+        var t = _kindToType(pin.kind);
+        counts[t] = (counts[t] || 0) + 1;
+      });
+    });
+    Object.keys(counts).forEach(function (t) {
+      var badge = document.getElementById('dtb-' + t);
+      if (badge) badge.textContent = counts[t] || '0';
+    });
+  }
+
+  // ── Module init ────────────────────────────────────────────────────────────
+  function initDataModule() {
+    // Type tab clicks
+    var typeNav = document.getElementById('data-type-nav');
+    if (typeNav) {
+      typeNav.addEventListener('click', function (e) {
+        var btn = e.target.closest('.data-type-tab[data-dtype]');
+        if (!btn) return;
+        var type = btn.dataset.dtype;
+        // Load IDB cache then render list
+        _loadIdbCache().then(function () { renderDataList(type); });
+      });
+    }
+
+    // Back button
+    document.getElementById('data-back-btn')?.addEventListener('click', function () {
+      if (_dataState.dirty) {
+        if (!confirm('You have unsaved changes. Discard and go back?')) return;
+      }
+      _closeDataForm();
+    });
+
+    // Discard button
+    document.getElementById('data-discard-btn')?.addEventListener('click', function () {
+      if (_dataState.dirty && !confirm('Discard changes?')) return;
+      _dataState.dirty = false;
+      _closeDataForm();
+    });
+
+    // Save button
+    document.getElementById('data-save-btn')?.addEventListener('click', _saveDataForm);
+  }
+  window.initDataModule = initDataModule;
+
+  /* ---------------------------------------------------------------
      10. STARTUP SEQUENCE
      ---------------------------------------------------------------
      Run after DOM is ready. Order matters:
@@ -17473,9 +18809,10 @@ body.mobile-mode #app {
       badge.textContent = '💾 ' + _fmtTime(new Date(saved.lastSavedAt));
     }
 
-    // c) Wire the layers button and dashboard tab/shortcut controls
+    // c) Wire the layers button, dashboard controls, and data module
     initLayersButton();
     initDashboard();
+    initDataModule();
 
     // d) Initial dashboard render — will show real data if IDB bundle is already
     //    cached (returning user); shows loading state for first-time load.
