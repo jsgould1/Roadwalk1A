@@ -4848,6 +4848,56 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
   overflow: hidden;
   background: var(--paper);
 }
+/* Filter / sort toolbar */
+#data-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--rule);
+  background: var(--paper-2);
+  overflow-x: auto;
+  flex-shrink: 0;
+  scrollbar-width: none;
+}
+#data-filter-bar::-webkit-scrollbar { display: none; }
+.dfc-group { display: flex; gap: 3px; flex-shrink: 0; }
+.dfc-chip {
+  font: 600 9px/1 'IBM Plex Mono', monospace;
+  padding: 4px 8px;
+  border-radius: 10px;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  color: var(--ink-3);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+  -webkit-tap-highlight-color: transparent;
+}
+.dfc-chip.active { background: var(--blue); border-color: var(--blue); color: #fff; }
+.dfc-chip:not(.active):hover { border-color: var(--blue); color: var(--blue); }
+.dfc-sep { width: 1px; height: 16px; background: var(--rule); flex-shrink: 0; align-self: center; }
+.dfc-sort-sel {
+  font: 600 9px/1 'IBM Plex Mono', monospace;
+  padding: 4px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  color: var(--ink-2);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+/* Section tag on flat-list rows */
+.data-sec-tag {
+  font: 700 8px/1 'IBM Plex Mono', monospace;
+  padding: 2px 5px;
+  border-radius: 3px;
+  background: var(--paper-2);
+  border: 1px solid var(--rule);
+  color: var(--ink-3);
+  flex-shrink: 0;
+  align-self: center;
+}
 .data-list-scroll {
   flex: 1;
   overflow-y: auto;
@@ -6120,6 +6170,28 @@ body.mobile-mode #app {
 
         <!-- ── List pane ───────────────────────────────────────────── -->
         <div id="data-list-pane">
+
+          <!-- Filter / sort toolbar -->
+          <div id="data-filter-bar">
+            <div class="dfc-group" id="dfc-sections">
+              <!-- Section chips injected by _updateFilterBar() once bundle loads -->
+              <button class="dfc-chip active" data-sec-filter="all">All Segs</button>
+            </div>
+            <div class="dfc-sep"></div>
+            <div class="dfc-group" id="dfc-statuses">
+              <button class="dfc-chip active" data-status-filter="all">All</button>
+              <button class="dfc-chip" data-status-filter="pending">Pending</button>
+              <button class="dfc-chip" data-status-filter="confirmed">Done</button>
+            </div>
+            <div class="dfc-sep"></div>
+            <select class="dfc-sort-sel" id="dfc-sort-select" aria-label="Sort order">
+              <option value="sec-sta">Seg · STA</option>
+              <option value="sta">STA ↑</option>
+              <option value="status">Status</option>
+              <option value="type">Type</option>
+            </select>
+          </div>
+
           <div class="data-list-scroll" id="data-list-scroll">
             <div class="data-empty">
               <span class="data-empty-icon">⏳</span>
@@ -17093,6 +17165,7 @@ body.mobile-mode #app {
     if (name === 'data') {
       _loadIdbCache().then(function () {
         _updateTypeBadges();
+        _updateFilterBar();   // populates Section chips from loaded bundle
         renderDataList(_dataState.type);
       });
     }
@@ -18182,6 +18255,57 @@ body.mobile-mode #app {
   }
 
   // ── State ──────────────────────────────────────────────────────────────────
+  /** Filter / sort state — persists across tab switches */
+  var _filterState = {
+    section: 'all',      // 'all' | section id (e.g. 'A')
+    status:  'all',      // 'all' | 'pending' | 'confirmed' | 'discarded'
+    sort:    'sec-sta',  // 'sec-sta' | 'sta' | 'status' | 'type'
+  };
+
+  /**
+   * Apply active filters + sort to an array of {sec, pin, merged} rows.
+   * Returns a NEW filtered+sorted array (does not mutate the input).
+   */
+  function _applyFiltersAndSort(rows) {
+    var out = rows.slice();
+    if (_filterState.section !== 'all') {
+      out = out.filter(function (r) { return r.sec.id === _filterState.section; });
+    }
+    if (_filterState.status !== 'all') {
+      out = out.filter(function (r) {
+        return (r.merged.status || 'pending') === _filterState.status;
+      });
+    }
+    var STATUS_ORDER = { pending: 0, confirmed: 1, relocated: 2, discarded: 3 };
+    var TYPE_ORDER   = { sign: 0, culvert: 1, guardrail: 2, wall: 3, other: 4 };
+    switch (_filterState.sort) {
+      case 'sta':
+        out.sort(function (a, b) { return (a.pin.sta_ft || 0) - (b.pin.sta_ft || 0); });
+        break;
+      case 'status':
+        out.sort(function (a, b) {
+          var sa = STATUS_ORDER[a.merged.status || 'pending'] || 0;
+          var sb = STATUS_ORDER[b.merged.status || 'pending'] || 0;
+          return sa !== sb ? sa - sb : (a.pin.sta_ft || 0) - (b.pin.sta_ft || 0);
+        });
+        break;
+      case 'type':
+        out.sort(function (a, b) {
+          var ta = TYPE_ORDER[_kindToType(a.pin.kind)] || 0;
+          var tb = TYPE_ORDER[_kindToType(b.pin.kind)] || 0;
+          return ta !== tb ? ta - tb : (a.pin.sta_ft || 0) - (b.pin.sta_ft || 0);
+        });
+        break;
+      default: // 'sec-sta' — section first, then stationing within each section
+        out.sort(function (a, b) {
+          if (a.sec.id < b.sec.id) return -1;
+          if (a.sec.id > b.sec.id) return  1;
+          return (a.pin.sta_ft || 0) - (b.pin.sta_ft || 0);
+        });
+    }
+    return out;
+  }
+
   var _dataState = {
     type:         'all',    // active type tab ('all' | 'sign' | 'culvert' | 'guardrail' | 'wall' | 'other')
     pin:          null,     // currently open pin (deep-merged with IDB data)
@@ -18225,16 +18349,22 @@ body.mobile-mode #app {
   }
 
   // ── _pinRowHtml: build a single list-row string ─────────────────────────────
-  function _pinRowHtml(m, secId, showTypeTag) {
+  // showTypeTag: show colored type chip (SGN/CUL/etc.)
+  // showSecTag:  show section ID chip (A/B/C/D) — used in flat-list modes
+  function _pinRowHtml(m, secId, showTypeTag, showSecTag) {
     var tag = showTypeTag
       ? '<span class="data-type-tag ' + _kindToType(m.kind) + '">' +
           _kindToType(m.kind).slice(0, 3).toUpperCase() +
         '</span>'
       : '';
+    var secTag = showSecTag
+      ? '<span class="data-sec-tag">' + _esc(secId) + '</span>'
+      : '';
     var desc = _pinListDesc(m);
     var ref  = _pinListRef(m);
     return '<li class="data-pin-row" data-pin-id="' + _esc(m.id) + '" data-sec-id="' + _esc(secId) + '">' +
       '<span class="data-dot ' + (m.status || 'pending') + '"></span>' +
+      secTag +
       tag +
       '<span class="data-pin-body">' +
         '<span class="data-pin-id">' + _esc(m.id) + '</span>' +
@@ -18245,26 +18375,42 @@ body.mobile-mode #app {
     '</li>';
   }
 
-  // ── _buildSectionList: group rows by section and return HTML string ──────────
+  // ── _buildSectionList: group or flat list depending on sort mode ─────────────
+  // showTypeTag: show type chip on each row
+  // In grouped mode (sort=sec-sta, no section filter): sticky section headers,
+  //   no per-row section tag (redundant with header).
+  // In flat mode (any other sort, or single-section filter): no headers,
+  //   per-row section tag so context is never lost.
   function _buildSectionList(rows, showTypeTag) {
-    var bySection = {};
-    var order = [];
-    rows.forEach(function (r) {
-      var sid = r.sec.id;
-      if (!bySection[sid]) { bySection[sid] = { sec: r.sec, items: [] }; order.push(sid); }
-      bySection[sid].items.push(r);
-    });
-    var html = '';
-    order.forEach(function (sid) {
-      var grp = bySection[sid];
-      html += '<div class="data-sec-hdr">' + _esc(grp.sec.name || sid) + '</div>';
-      html += '<ul class="data-pin-list">';
-      grp.items.forEach(function (r) {
-        html += _pinRowHtml(r.merged, r.sec.id, showTypeTag);
+    var grouped = (_filterState.sort === 'sec-sta') && (_filterState.section === 'all');
+    if (grouped) {
+      var bySection = {};
+      var order = [];
+      rows.forEach(function (r) {
+        var sid = r.sec.id;
+        if (!bySection[sid]) { bySection[sid] = { sec: r.sec, items: [] }; order.push(sid); }
+        bySection[sid].items.push(r);
+      });
+      var html = '';
+      order.forEach(function (sid) {
+        var grp = bySection[sid];
+        html += '<div class="data-sec-hdr">' + _esc(grp.sec.name || sid) + '</div>';
+        html += '<ul class="data-pin-list">';
+        grp.items.forEach(function (r) {
+          html += _pinRowHtml(r.merged, r.sec.id, showTypeTag, false);
+        });
+        html += '</ul>';
+      });
+      return html;
+    } else {
+      // Flat list — show section tag on every row for context
+      var html = '<ul class="data-pin-list">';
+      rows.forEach(function (r) {
+        html += _pinRowHtml(r.merged, r.sec.id, showTypeTag, true);
       });
       html += '</ul>';
-    });
-    return html;
+      return html;
+    }
   }
 
   // ── _renderAllOverview: "All" tab — summary cards + full feature list ────────
@@ -18307,11 +18453,18 @@ body.mobile-mode #app {
     });
     cardsHtml += '</div>';
 
-    // ── Feature list ──────────────────────────────────────────────────────────
-    var listHtml = total === 0
-      ? '<div class="data-empty"><span class="data-empty-icon">🔍</span>' +
-        'No features in the loaded bundle.<br>Import a project to see features here.</div>'
-      : _buildSectionList(allRows, true /* showTypeTag */);
+    // ── Feature list — apply active filters/sort ──────────────────────────────
+    var filteredRows = _applyFiltersAndSort(allRows);
+    var listHtml;
+    if (total === 0) {
+      listHtml = '<div class="data-empty"><span class="data-empty-icon">🔍</span>' +
+        'No features in the loaded bundle.<br>Import a project to see features here.</div>';
+    } else if (filteredRows.length === 0) {
+      listHtml = '<div class="data-empty"><span class="data-empty-icon">🔍</span>' +
+        'No features match the current filters.</div>';
+    } else {
+      listHtml = _buildSectionList(filteredRows, true /* showTypeTag */);
+    }
 
     scrollEl.innerHTML = cardsHtml + listHtml;
 
@@ -18344,30 +18497,38 @@ body.mobile-mode #app {
       return;
     }
 
-    // ── Specific type → filtered list ─────────────────────────────────────────
-    var rows = [];
+    // ── Specific type → filtered + sorted list ───────────────────────────────
+    var allOfType = [];
     sections.forEach(function (sec) {
       (sec.pins || []).forEach(function (pin) {
         if (_kindToType(pin.kind) === _dataState.type) {
-          rows.push({ sec: sec, pin: pin, merged: _mergedPin(pin) });
+          allOfType.push({ sec: sec, pin: pin, merged: _mergedPin(pin) });
         }
       });
     });
 
     var badge = document.getElementById('dtb-' + _dataState.type);
-    if (badge) badge.textContent = rows.length || '0';
+    if (badge) badge.textContent = allOfType.length || '0';
 
+    var rows = _applyFiltersAndSort(allOfType);
+
+    if (allOfType.length === 0) {
+      scrollEl.innerHTML =
+        '<div class="data-empty"><span class="data-empty-icon">🔍</span>' +
+        'No ' + _dataState.type + ' features in the loaded bundle.<br>' +
+        'Import a project to see features here.</div>';
+      return;
+    }
     if (rows.length === 0) {
       scrollEl.innerHTML =
-        '<div class="data-empty">' +
-        '<span class="data-empty-icon">🔍</span>' +
-        'No ' + _dataState.type + ' features in the loaded bundle.<br>' +
-        'Import a project to see features here.' +
-        '</div>';
+        '<div class="data-empty"><span class="data-empty-icon">🔍</span>' +
+        'No ' + _dataState.type + ' features match the current filters.</div>';
       return;
     }
 
-    scrollEl.innerHTML = _buildSectionList(rows, false /* no type tag — tab makes it obvious */);
+    // In type tabs, the tab itself conveys type — no type tag needed.
+    // Section tag is shown in flat-list mode (handled inside _buildSectionList).
+    scrollEl.innerHTML = _buildSectionList(rows, false);
     _wireListClicks(scrollEl);
   }
   window.renderDataList = renderDataList;
@@ -18933,6 +19094,37 @@ body.mobile-mode #app {
     });
   }
 
+  /**
+   * Rebuild the Section filter chips from the currently loaded bundle sections.
+   * Called once after bundle data is available. Re-wires click handlers each time.
+   */
+  function _updateFilterBar() {
+    var sections = window.SECTIONS || [];
+    var secContainer = document.getElementById('dfc-sections');
+    if (!secContainer) return;
+
+    // Build chip HTML: "All Segs" + one chip per section
+    var chips = '<button class="dfc-chip' + (_filterState.section === 'all' ? ' active' : '') +
+      '" data-sec-filter="all">All Segs</button>';
+    sections.forEach(function (sec) {
+      chips += '<button class="dfc-chip' + (_filterState.section === sec.id ? ' active' : '') +
+        '" data-sec-filter="' + _esc(sec.id) + '" title="' + _esc(sec.name || sec.id) + '">' +
+        _esc(sec.id) + '</button>';
+    });
+    secContainer.innerHTML = chips;
+
+    // Re-wire click handlers (innerHTML replacement clears old ones)
+    secContainer.addEventListener('click', function (e) {
+      var btn = e.target.closest('[data-sec-filter]');
+      if (!btn) return;
+      _filterState.section = btn.dataset.secFilter;
+      secContainer.querySelectorAll('[data-sec-filter]').forEach(function (b) {
+        b.classList.toggle('active', b.dataset.secFilter === _filterState.section);
+      });
+      renderDataList(_dataState.type);
+    });
+  }
+
   /** Refresh all Nav 3 type badge counts (including the "All" total) */
   function _updateTypeBadges() {
     var sections = window.SECTIONS || [];
@@ -18961,9 +19153,30 @@ body.mobile-mode #app {
       typeNav.addEventListener('click', function (e) {
         var btn = e.target.closest('.data-type-tab[data-dtype]');
         if (!btn) return;
-        var type = btn.dataset.dtype;
-        // Load IDB cache then render list
-        _loadIdbCache().then(function () { renderDataList(type); });
+        _loadIdbCache().then(function () { renderDataList(btn.dataset.dtype); });
+      });
+    }
+
+    // ── Filter bar: status chips ───────────────────────────────────────────────
+    var statusBar = document.getElementById('dfc-statuses');
+    if (statusBar) {
+      statusBar.addEventListener('click', function (e) {
+        var btn = e.target.closest('[data-status-filter]');
+        if (!btn) return;
+        _filterState.status = btn.dataset.statusFilter;
+        statusBar.querySelectorAll('[data-status-filter]').forEach(function (b) {
+          b.classList.toggle('active', b.dataset.statusFilter === _filterState.status);
+        });
+        renderDataList(_dataState.type);
+      });
+    }
+
+    // ── Filter bar: sort select ────────────────────────────────────────────────
+    var sortSel = document.getElementById('dfc-sort-select');
+    if (sortSel) {
+      sortSel.addEventListener('change', function () {
+        _filterState.sort = sortSel.value;
+        renderDataList(_dataState.type);
       });
     }
 
