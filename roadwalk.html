@@ -18345,7 +18345,7 @@ body.mobile-mode #app {
     return '<div class="df-row" style="flex-direction:column;gap:4px;align-items:stretch;">' +
            '<span class="df-lbl" style="padding-top:0">' + _esc(label) + '</span>' +
            '<textarea class="df-textarea" data-field="' + _esc(field) + '" rows="3">' +
-           _esc(val == null ? '') + '</textarea></div>';
+           _esc(val == null ? '' : val) + '</textarea></div>';
   }
 
   function _flagRow(label, field, flags, options) {
