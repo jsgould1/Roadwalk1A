@@ -4952,37 +4952,36 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
   overflow-x: auto;
   overflow-y: visible;
   -webkit-overflow-scrolling: touch;
-  /* inner scroll on the .data-list-scroll parent */
 }
 .data-table {
   border-collapse: collapse;
-  width: max-content;
-  min-width: 100%;
+  width: 100%;
+  table-layout: auto;
 }
-/* Header row */
+/* Header row — blue background */
 .data-table thead tr th {
   position: sticky;
   top: 0;
   z-index: 4;
-  background: var(--paper-2);
-  border-bottom: 2px solid var(--rule);
-  padding: 6px 10px;
+  background: var(--blue);
+  border-bottom: 2px solid #09335a;
+  padding: 7px 10px;
   font: 700 8.5px/1 'IBM Plex Mono', monospace;
   text-transform: uppercase;
   letter-spacing: 0.07em;
-  color: var(--ink-3);
+  color: #fff;
   white-space: nowrap;
   text-align: left;
   cursor: pointer;
   user-select: none;
   -webkit-user-select: none;
 }
-.data-table thead tr th:hover { color: var(--blue); }
-/* Sticky dot + ID columns */
+.data-table thead tr th:hover { color: #a8d4ff; }
+/* Sticky dot + ID columns (body) */
 .dt-th-dot, .dt-cell-dot {
   position: sticky;
   left: 0;
-  background: var(--paper-2);
+  background: #fff;
   z-index: 5;
   width: 32px;
   padding: 0 4px 0 12px !important;
@@ -4991,65 +4990,75 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
 .dt-th-id, .dt-cell-id {
   position: sticky;
   left: 32px;
-  background: var(--paper-2);
+  background: #fff;
   z-index: 5;
-  border-right: 2px solid var(--rule);
+  border-right: 2px solid #c5d8ec;
   min-width: 105px;
   padding-right: 12px !important;
 }
 .dt-th-caret, .dt-cell-caret {
   position: sticky;
   right: 0;
-  background: var(--paper-2);
+  background: #fff;
   z-index: 5;
   width: 24px;
   padding: 0 8px !important;
-  border-left: 1px solid var(--rule-soft);
-  color: var(--rule);
+  border-left: 1px solid #dde8f4;
+  color: #bbb;
   font-size: 11px;
 }
-/* Body rows */
+/* Override sticky cell backgrounds in header row to stay blue */
+.data-table thead th.dt-th-dot,
+.data-table thead th.dt-th-id,
+.data-table thead th.dt-th-caret {
+  background: var(--blue);
+  z-index: 6;
+  border-right-color: #1a5589;
+  border-left-color: #1a5589;
+}
+/* Body rows — white base */
 .data-table tbody tr.data-pin-row {
   cursor: pointer;
   transition: background 0.08s;
   -webkit-tap-highlight-color: transparent;
+  background: #fff;
 }
-.data-table tbody tr.data-pin-row:hover { background: var(--paper-2); }
+.data-table tbody tr.data-pin-row:hover { background: #ddeeff; }
 .data-table tbody tr.data-pin-row:hover .dt-cell-dot,
 .data-table tbody tr.data-pin-row:hover .dt-cell-id,
-.data-table tbody tr.data-pin-row:hover .dt-cell-caret { background: var(--paper-2); }
-.data-table tbody tr.data-pin-row:active { background: var(--rule-soft); }
+.data-table tbody tr.data-pin-row:hover .dt-cell-caret { background: #ddeeff; }
+.data-table tbody tr.data-pin-row:active { background: #c5d8f5; }
 .data-table tbody td {
   padding: 8px 10px;
   font: 400 11px/1.3 'IBM Plex Sans', sans-serif;
   color: var(--ink-2);
   white-space: nowrap;
   vertical-align: middle;
-  border-bottom: 1px solid var(--rule-soft);
+  border-bottom: 1px solid #e8f0f8;
   max-width: 240px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.dt-cell-dot { background: var(--paper); }
+.dt-cell-dot { background: #fff; }
 .dt-cell-id {
-  background: var(--paper);
+  background: #fff;
   font: 700 10px/1 'IBM Plex Mono', monospace;
   color: var(--blue);
   letter-spacing: 0.02em;
 }
-.dt-cell-caret { background: var(--paper); }
-/* Section group header rows inside tbody */
+.dt-cell-caret { background: #fff; }
+/* Section group header rows inside tbody — light blue band */
 .dt-sec-hdr td {
-  padding: 4px 12px;
+  padding: 5px 12px;
   font: 700 8.5px/1 'IBM Plex Mono', monospace;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--ink-3);
-  background: var(--paper-2);
-  border-top: 1px solid var(--rule);
-  border-bottom: 1px solid var(--rule-soft);
+  color: var(--blue-2);
+  background: #ddeeff;
+  border-top: 1px solid #c5d8ec;
+  border-bottom: 1px solid #c5d8ec;
   position: sticky;
-  top: 26px;
+  top: 27px;
   z-index: 3;
 }
 /* Status chip inside table cell */
@@ -18382,18 +18391,28 @@ body.mobile-mode #app {
         // Fall back to notes (e.g. "NB Spur, > Chevron") then road name
         return a.notes || a.loc_name || (a.road ? a.road.split(',')[0].trim() : '') || 'Sign';
       }
-      case 'culvert':
-        return a.rpt_type || a.material || a.CULVERTMATERIAL || 'Culvert';
+      case 'culvert': {
+        // Strip raw NPS GIS feature-type codes (e.g. "ln_culvert", "pt_culvert")
+        var cRpt = a.rpt_type || '';
+        if (/^(ln|pt|py|pg)_/i.test(cRpt)) cRpt = '';
+        return cRpt || a.material || a.fmss_type || 'Culvert';
+      }
       case 'guardrail': {
         var gParts = [];
-        if (a.rpt_type || a.barrier_type) gParts.push(a.rpt_type || a.barrier_type);
+        // Strip raw GIS codes (same pattern guard)
+        var gRpt = a.rpt_type || '';
+        if (/^(ln|pt|py|pg)_/i.test(gRpt)) gRpt = '';
+        if (gRpt || a.barrier_type) gParts.push(gRpt || a.barrier_type);
+        if (a.barrier_material) gParts.push(a.barrier_material);
         if (a.side) gParts.push('Side ' + a.side);
         if (a.length_ft) gParts.push(Math.round(a.length_ft) + ' ft');
         return gParts.join(' · ') || 'Guardrail';
       }
       case 'wall': {
         var wParts = [];
-        if (a.rpt_type || a.wall_material) wParts.push(a.rpt_type || a.wall_material);
+        var wRpt = a.rpt_type || '';
+        if (/^(ln|pt|py|pg)_/i.test(wRpt)) wRpt = '';
+        if (wRpt || a.wall_material) wParts.push(wRpt || a.wall_material);
         if (a.wall_function) wParts.push(a.wall_function);
         if (a.side) wParts.push('Side ' + a.side);
         if (a.length_ft) wParts.push(Math.round(a.length_ft) + ' ft');
