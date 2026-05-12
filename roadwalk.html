@@ -5167,6 +5167,225 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
 }
 .data-empty-icon { font-size: 36px; display: block; margin-bottom: 12px; opacity: 0.45; }
 
+/* ── Right preview pane (slides in when a row is clicked) ───────────────── */
+#data-preview-pane {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 380px;
+  max-width: 92%;
+  background: #fff;
+  border-left: 1px solid #c5d8ec;
+  box-shadow: -4px 0 14px rgba(11, 61, 102, 0.08);
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.22s ease;
+  z-index: 6;          /* above table, below full form pane */
+  overflow: hidden;
+}
+#data-preview-pane.visible { transform: translateX(0); }
+.dpp-hdr {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--blue);
+  color: #fff;
+  border-bottom: 1px solid #09335a;
+}
+.dpp-close {
+  font: 700 14px/1 sans-serif;
+  background: transparent;
+  border: 1px solid #1a5589;
+  color: #fff;
+  cursor: pointer;
+  width: 26px; height: 26px;
+  border-radius: 3px;
+  padding: 0;
+}
+.dpp-close:hover { background: #1a5589; }
+.dpp-id {
+  flex: 1;
+  font: 700 11px/1 'IBM Plex Mono', monospace;
+  letter-spacing: 0.04em;
+}
+.dpp-status {
+  font: 700 9px/1 'IBM Plex Mono', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 3px 7px;
+  border-radius: 3px;
+  background: rgba(255,255,255,0.18);
+  color: #fff;
+}
+.dpp-status.confirmed { background: #15803d; }
+.dpp-status.discarded { background: #b91c1c; }
+.dpp-status.relocated { background: #c2410c; }
+.dpp-body {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 14px 14px 16px;
+}
+.dpp-title {
+  font: 600 14px/1.3 'IBM Plex Sans', sans-serif;
+  color: var(--ink);
+  margin: 0 0 4px;
+}
+.dpp-sub {
+  font: 400 11px/1.4 'IBM Plex Mono', monospace;
+  color: var(--ink-3);
+  margin: 0 0 12px;
+}
+.dpp-photos {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  margin: 0 0 14px;
+  padding-bottom: 2px;
+  -webkit-overflow-scrolling: touch;
+}
+.dpp-photos::-webkit-scrollbar { height: 4px; }
+.dpp-photo {
+  flex: 0 0 auto;
+  width: 140px;
+  height: 96px;
+  border: 1px solid #c5d8ec;
+  border-radius: 4px;
+  background: #f3f4f6 center/cover no-repeat;
+  position: relative;
+}
+.dpp-photo-label {
+  position: absolute;
+  bottom: 3px; left: 3px;
+  font: 700 8px/1 'IBM Plex Mono', monospace;
+  background: rgba(11,61,102,0.85);
+  color: #fff;
+  padding: 2px 5px;
+  border-radius: 2px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.dpp-photos-empty {
+  width: 100%;
+  border: 1px dashed #c5d8ec;
+  border-radius: 4px;
+  padding: 14px;
+  text-align: center;
+  font: 11px/1.4 'IBM Plex Mono', monospace;
+  color: var(--ink-3);
+  background: #fbfdff;
+}
+.dpp-sec {
+  margin: 0 0 12px;
+}
+.dpp-sec-hdr {
+  font: 700 8.5px/1 'IBM Plex Mono', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--blue-2);
+  padding: 6px 0 4px;
+  border-bottom: 1px solid #dde8f4;
+  margin-bottom: 6px;
+}
+.dpp-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 4px 0;
+}
+.dpp-row-lbl {
+  flex: 0 0 110px;
+  font: 600 10px/1.4 'IBM Plex Mono', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-3);
+}
+.dpp-row-val {
+  flex: 1;
+  font: 400 12px/1.4 'IBM Plex Sans', sans-serif;
+  color: var(--ink);
+  word-break: break-word;
+}
+.dpp-foot {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px;
+  border-top: 1px solid #dde8f4;
+  background: #fbfdff;
+}
+.dpp-edit-btn {
+  flex: 1;
+  font: 700 11px/1 'IBM Plex Sans', sans-serif;
+  letter-spacing: 0.03em;
+  background: var(--blue);
+  color: #fff;
+  border: 1px solid var(--blue);
+  border-radius: 4px;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.dpp-edit-btn:hover { background: var(--blue-2); }
+.dpp-secondary-btn {
+  font: 600 11px/1 'IBM Plex Mono', monospace;
+  background: #fff;
+  color: var(--blue);
+  border: 1px solid #c5d8ec;
+  border-radius: 4px;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+.dpp-secondary-btn:hover { background: #ddeeff; }
+
+/* ── Custom (user-added) fields section in edit forms ───────────────────── */
+.df-custom-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 6px 0 4px 12px;
+  padding: 6px 12px;
+  font: 700 10px/1 'IBM Plex Mono', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--blue);
+  background: #fff;
+  border: 1px dashed var(--blue);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.df-custom-add:hover { background: #ddeeff; }
+.df-custom-row {
+  position: relative;
+}
+.df-custom-row .df-custom-remove {
+  position: absolute;
+  right: 6px;
+  top: 6px;
+  background: transparent;
+  border: none;
+  color: #b91c1c;
+  font: 700 14px/1 sans-serif;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+.df-custom-row .df-custom-remove:hover { color: #ef4444; }
+.df-custom-hdr {
+  font: 700 8.5px/1 'IBM Plex Mono', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--blue-2);
+  background: #ddeeff;
+  padding: 8px 12px;
+  border-top: 1px solid #c5d8ec;
+  border-bottom: 1px solid #c5d8ec;
+  margin-top: 8px;
+}
+
 /* ── Overview cards (All tab) ───────────────────────────────────────────── */
 .data-overview-cards {
   display: flex;
@@ -6384,6 +6603,22 @@ body.mobile-mode #app {
             </div>
           </div>
         </div>
+
+        <!-- ── Right preview pane: slides in when row is clicked ──── -->
+        <aside id="data-preview-pane" aria-label="Feature preview">
+          <header class="dpp-hdr">
+            <button class="dpp-close" id="dpp-close-btn" aria-label="Close preview">✕</button>
+            <span class="dpp-id" id="dpp-id">—</span>
+            <span class="dpp-status" id="dpp-status">Pending</span>
+          </header>
+          <div class="dpp-body" id="dpp-body">
+            <!-- Populated by _renderPreviewPane() -->
+          </div>
+          <footer class="dpp-foot">
+            <button class="dpp-edit-btn" id="dpp-edit-btn">✎ Edit Details</button>
+            <button class="dpp-secondary-btn" id="dpp-map-btn" title="Show on map">⌖ Map</button>
+          </footer>
+        </aside>
 
         <!-- ── Form pane: slides in over list ─────────────────────── -->
         <div id="data-form-pane">
@@ -18531,6 +18766,8 @@ body.mobile-mode #app {
   }
 
   // ── _wireListClicks: attach tap handler to all .data-pin-row els ───────────
+  // Row click → preview pane (summary + photos). Edit button in the pane
+  // opens the full type-specific data-entry form (openDataForm).
   function _wireListClicks(scrollEl) {
     scrollEl.querySelectorAll('.data-pin-row').forEach(function (row) {
       row.addEventListener('click', function () {
@@ -18538,7 +18775,7 @@ body.mobile-mode #app {
         var secId = row.dataset.secId;
         var sec   = (window.SECTIONS || []).find(function (s) { return s.id === secId; });
         var pin   = sec && (sec.pins || []).find(function (p) { return p.id === pinId; });
-        if (pin && sec) openDataForm(pin, sec);
+        if (pin && sec) _openPreviewPane(pin, sec);
       });
     });
   }
@@ -18797,8 +19034,182 @@ body.mobile-mode #app {
   }
   window.renderDataList = renderDataList;
 
+  // ── Preview pane (right rail) ──────────────────────────────────────────────
+  // Lightweight summary shown when a row is tapped. Has an "Edit" button
+  // that escalates to the full per-type entry form (openDataForm).
+  var _previewState = { pin: null, sec: null };
+
+  function _openPreviewPane(pin, sec) {
+    var merged = _mergedPin(pin);
+    _previewState.pin = merged;
+    _previewState.sec = sec;
+
+    var idEl     = document.getElementById('dpp-id');
+    var statusEl = document.getElementById('dpp-status');
+    var bodyEl   = document.getElementById('dpp-body');
+    if (idEl)     idEl.textContent     = merged.id || '—';
+    if (statusEl) {
+      var st = (merged.status || 'pending');
+      statusEl.textContent = st.charAt(0).toUpperCase() + st.slice(1);
+      statusEl.className   = 'dpp-status ' + st;
+    }
+    if (bodyEl)   bodyEl.innerHTML     = _renderPreviewBody(merged, sec);
+
+    var pane = document.getElementById('data-preview-pane');
+    if (pane) requestAnimationFrame(function () { pane.classList.add('visible'); });
+  }
+  window._openPreviewPane = _openPreviewPane;
+
+  function _closePreviewPane() {
+    var pane = document.getElementById('data-preview-pane');
+    if (pane) pane.classList.remove('visible');
+    _previewState.pin = null;
+    _previewState.sec = null;
+  }
+
+  /**
+   * Build the inner HTML for the preview body. Shows a photo strip and a
+   * compact key/value field summary keyed off the feature kind.
+   */
+  function _renderPreviewBody(pin, sec) {
+    var a = pin.attrs || {};
+    var html = '';
+
+    // Title block
+    html += '<h3 class="dpp-title">' + _esc(_pinListDesc(pin)) + '</h3>';
+    html += '<p class="dpp-sub">' + _esc(_pinListRef(pin) || (sec ? sec.name : '')) + '</p>';
+
+    // Photo strip
+    var photos = _collectPreviewPhotos(pin);
+    if (photos.length) {
+      html += '<div class="dpp-photos">';
+      photos.forEach(function (ph) {
+        var bg = 'background-image:url(' + JSON.stringify(ph.src) + ')';
+        html += '<div class="dpp-photo" style="' + bg + '">' +
+                  '<span class="dpp-photo-label">' + _esc(ph.label) + '</span>' +
+                '</div>';
+      });
+      html += '</div>';
+    } else {
+      html += '<div class="dpp-photos-empty">No photos yet — tap “Edit Details” to add field photos.</div>';
+    }
+
+    // Build a generic IDENTITY summary
+    html += '<section class="dpp-sec">';
+    html += '<div class="dpp-sec-hdr">Identity</div>';
+    html += _previewRow('Pin ID',  pin.id);
+    if (sec)              html += _previewRow('Section', sec.name);
+    if (pin.sta)          html += _previewRow('STA',     pin.sta);
+    if (a.side)           html += _previewRow('Side',    a.side);
+    if (a.length_ft)      html += _previewRow('Length',  Math.round(a.length_ft) + ' ft');
+    if (a.road)           html += _previewRow('Road',    a.road);
+    if (pin.asset_id)     html += _previewRow('Report ID', pin.asset_id);
+    if (a.fmss_asset)     html += _previewRow('FMSS',    a.fmss_asset);
+    else if (a.fmss_loc)  html += _previewRow('FMSS',    a.fmss_loc);
+    if (pin.reported_in && pin.reported_in.length)
+      html += _previewRow('Source', pin.reported_in.join(' / '));
+    html += '</section>';
+
+    // Kind-specific block
+    var detail = _previewKindBlock(pin);
+    if (detail) html += detail;
+
+    // Custom user fields (if any)
+    var customs = Array.isArray(a.custom_fields) ? a.custom_fields : [];
+    if (customs.length) {
+      html += '<section class="dpp-sec">';
+      html += '<div class="dpp-sec-hdr">Custom</div>';
+      customs.forEach(function (cf) {
+        if (cf && cf.label) html += _previewRow(cf.label, cf.value || '—');
+      });
+      html += '</section>';
+    }
+
+    return html;
+  }
+
+  function _previewRow(lbl, val) {
+    if (val == null || val === '') val = '—';
+    return '<div class="dpp-row">' +
+             '<span class="dpp-row-lbl">' + _esc(lbl) + '</span>' +
+             '<span class="dpp-row-val">' + _esc(val) + '</span>' +
+           '</div>';
+  }
+
+  function _previewKindBlock(pin) {
+    var a = pin.attrs || {};
+    var rows = [];
+    switch (pin.kind) {
+      case 'sign': {
+        var panels = Array.isArray(a.panels) ? a.panels : [];
+        rows.push(['Post type',  a.post_type]);
+        rows.push(['Post cond',  a.post_condition]);
+        rows.push(['# Panels',   panels.length ? String(panels.length) : null]);
+        if (panels.length) {
+          var codes = panels.map(function (p) { return p.sign_code || '(?)'; }).join(' + ');
+          rows.push(['Sign codes', codes]);
+        }
+        break;
+      }
+      case 'culvert':
+        rows.push(['Material',   a.material]);
+        rows.push(['Shape',      a.shape]);
+        rows.push(['Diameter',   a.diameter_in ? a.diameter_in + ' in' : null]);
+        rows.push(['Condition',  a.condition]);
+        rows.push(['Drainage',   a.drainage_issue]);
+        rows.push(['Rating',     a.rating]);
+        break;
+      case 'guardrail':
+        rows.push(['Type',       a.rpt_type || a.barrier_type]);
+        rows.push(['Test level', a.test_level]);
+        rows.push(['Crashworthy',a.crashworthy]);
+        rows.push(['Condition',  a.condition]);
+        rows.push(['Action',     a.rec_treatment]);
+        rows.push(['Repair $',   a.repair_cost]);
+        break;
+      case 'wall':
+        rows.push(['Wall type',  a.wall_material || a.rpt_type]);
+        rows.push(['Function',   a.wall_function]);
+        rows.push(['Height',     a.wall_height_ft ? a.wall_height_ft + ' ft' : null]);
+        rows.push(['Condition',  a.condition]);
+        rows.push(['Action',     a.rec_treatment]);
+        break;
+      default:
+        rows.push(['Condition',  a.condition]);
+        rows.push(['Notes',      a.notes]);
+        break;
+    }
+    var keep = rows.filter(function (r) { return r[1] != null && r[1] !== ''; });
+    if (!keep.length) return '';
+    var out = '<section class="dpp-sec">';
+    out += '<div class="dpp-sec-hdr">' + _esc((pin.kind || 'Detail').replace(/_/g,' ')) + '</div>';
+    keep.forEach(function (r) { out += _previewRow(r[0], r[1]); });
+    out += '</section>';
+    return out;
+  }
+
+  function _collectPreviewPhotos(pin) {
+    var a = pin.attrs || {};
+    var list = [];
+    if (a.photo) list.push({ src: 'data/photos/' + a.photo, label: 'Reference' });
+    if (Array.isArray(a.photos)) {
+      a.photos.forEach(function (f) {
+        if (f && f !== a.photo) list.push({ src: 'data/photos/' + f, label: 'Reference' });
+      });
+    }
+    if (Array.isArray(pin._added_photos)) {
+      pin._added_photos.forEach(function (p) {
+        if (p && p.dataUrl) list.push({ src: p.dataUrl, label: p.label || 'Field' });
+      });
+    }
+    return list;
+  }
+
   // ── openDataForm ───────────────────────────────────────────────────────────
   function openDataForm(pin, sec) {
+    // Hide the preview pane so the full edit form takes over cleanly.
+    _closePreviewPane();
+
     var merged = _mergedPin(pin);
     _dataState.pin     = merged;
     _dataState.sec     = sec;
@@ -18974,6 +19385,49 @@ body.mobile-mode #app {
     return '<div class="df-sec-hdr">' + _esc(title) + '</div>';
   }
 
+  /**
+   * Render a user-extensible "Custom fields" block. Reads from
+   * pin.attrs.custom_fields (an array of {label, value} objects) and appends
+   * a "+ New field" button. Wired by _wireFormInteractions().
+   *
+   * Each custom field is a free-text label + free-text value so it works for
+   * any kind of feature in the field. Designed to grow with what users
+   * actually need to record without requiring a code change per project.
+   */
+  function _customFieldsSection(pin) {
+    var customs = Array.isArray(pin.attrs && pin.attrs.custom_fields)
+                ? pin.attrs.custom_fields : [];
+    var html = '<div class="df-custom-hdr">Custom Fields</div>';
+    if (customs.length) {
+      customs.forEach(function (cf, i) {
+        var label = (cf && cf.label) || '';
+        var value = (cf && cf.value) || '';
+        html +=
+          '<div class="df-row df-custom-row" data-custom-idx="' + i + '">' +
+            '<span class="df-lbl">' +
+              '<input class="df-input df-custom-label" data-custom-idx="' + i + '" ' +
+                     'type="text" value="' + _esc(label) + '" placeholder="Field name" ' +
+                     'style="font:600 10px/1.2 \'IBM Plex Mono\',monospace;background:transparent;border:none;padding:0;">' +
+            '</span>' +
+            '<span class="df-ctrl">' +
+              '<input class="df-input df-custom-value" data-custom-idx="' + i + '" ' +
+                     'type="text" value="' + _esc(value) + '" placeholder="Value">' +
+            '</span>' +
+            '<button class="df-custom-remove" data-custom-idx="' + i + '" ' +
+                    'aria-label="Remove field">✕</button>' +
+          '</div>';
+      });
+    } else {
+      html += '<div class="df-row" style="color:var(--ink-3);font:11px/1.4 \'IBM Plex Mono\',monospace;padding:8px 12px;">' +
+              'No custom fields yet. Add one to capture anything the form doesn’t cover.' +
+              '</div>';
+    }
+    html += '<div style="padding:4px 12px 12px;">' +
+              '<button type="button" class="df-custom-add" id="df-custom-add-btn">+ New field</button>' +
+            '</div>';
+    return html;
+  }
+
   // ── Sign form ──────────────────────────────────────────────────────────────
   function _renderSignForm(pin, sec) {
     var a   = pin.attrs || {};
@@ -18996,7 +19450,8 @@ body.mobile-mode #app {
         _readonlyRow('Pin ID',   pin.id) +
         _readonlyRow('Section',  sec ? sec.name : '—') +
         _readonlyRow('STA',      pin.sta || '—') +
-        _textareaRow('Notes',    'notes',           a.notes);
+        _textareaRow('Notes',    'notes',           a.notes) +
+        _customFieldsSection(pin);
     }
 
     // ── Panel sub-tab ─────────────────────────────────────────────
@@ -19077,7 +19532,8 @@ body.mobile-mode #app {
       _selectRow('Drainage',    'drainage_issue',  a.drainage_issue || '', drainage.map(function(d){return {v:d,l:d};})) +
       _inputRow ('Rating (0–100)', 'rating',       a.rating, 'number') +
       _textareaRow('Repair action', 'repair_action', a.repair_action) +
-      _textareaRow('Notes',         'notes',          a.notes);
+      _textareaRow('Notes',         'notes',          a.notes) +
+      _customFieldsSection(pin);
   }
 
   // ── Guard rail form ────────────────────────────────────────────────────────
@@ -19107,7 +19563,8 @@ body.mobile-mode #app {
       _sectionHdr('CONDITION') +
       _condRow  ('Overall',          'condition',         a.condition,        conditions, 'data-cond') +
       _selectRow('Recommended action','rec_treatment',    a.rec_treatment  || '',[{v:'',l:'— select —'}].concat(treatments.map(function(t){return {v:t,l:t};}))) +
-      _textareaRow('Notes',          'notes',             a.notes);
+      _textareaRow('Notes',          'notes',             a.notes) +
+      _customFieldsSection(pin);
   }
 
   // ── Retaining wall form ────────────────────────────────────────────────────
@@ -19137,7 +19594,8 @@ body.mobile-mode #app {
       _condRow  ('Structural',      'struct_condition',a.struct_condition,conditions,'data-cond') +
       _selectRow('Recommended action','rec_treatment',a.rec_treatment || '',
                  [{v:'',l:'— select —'}].concat(treatments.map(function(t){return {v:t,l:t};}))) +
-      _textareaRow('Notes', 'notes', a.notes);
+      _textareaRow('Notes', 'notes', a.notes) +
+      _customFieldsSection(pin);
   }
 
   // ── Other / generic form ───────────────────────────────────────────────────
@@ -19157,7 +19615,8 @@ body.mobile-mode #app {
       _sectionHdr('CONDITION') +
       _condRow('Overall', 'condition', a.condition, conditions, 'data-cond') +
       _textareaRow('Repair action', 'repair_action', a.repair_action) +
-      _textareaRow('Notes', 'notes', a.notes);
+      _textareaRow('Notes', 'notes', a.notes) +
+      _customFieldsSection(pin);
   }
 
   // ── Wire form interactions (change events + sign picker) ───────────────────
@@ -19322,6 +19781,52 @@ body.mobile-mode #app {
         _renderFormBody();
       });
     }
+
+    // ── Custom user fields: add / edit / remove ─────────────────────────────
+    function _ensureCustomArr() {
+      if (!Array.isArray(a.custom_fields)) a.custom_fields = [];
+      return a.custom_fields;
+    }
+    // "+ New field" → prompt for a label then re-render
+    var addBtn = document.getElementById('df-custom-add-btn');
+    if (addBtn) {
+      addBtn.addEventListener('click', function () {
+        var label = (window.prompt('New field name:') || '').trim();
+        if (!label) return;
+        var arr = _ensureCustomArr();
+        arr.push({ label: label, value: '' });
+        _dataState.dirty = true;
+        _renderFormBody();
+      });
+    }
+    // Edit label (free text override)
+    scroll.querySelectorAll('input.df-custom-label[data-custom-idx]').forEach(function (inp) {
+      inp.addEventListener('input', function () {
+        var arr = _ensureCustomArr();
+        var i = parseInt(inp.dataset.customIdx, 10);
+        if (arr[i]) { arr[i].label = inp.value; _dataState.dirty = true; }
+      });
+    });
+    // Edit value
+    scroll.querySelectorAll('input.df-custom-value[data-custom-idx]').forEach(function (inp) {
+      inp.addEventListener('input', function () {
+        var arr = _ensureCustomArr();
+        var i = parseInt(inp.dataset.customIdx, 10);
+        if (arr[i]) { arr[i].value = inp.value; _dataState.dirty = true; }
+      });
+    });
+    // Remove
+    scroll.querySelectorAll('button.df-custom-remove[data-custom-idx]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var arr = _ensureCustomArr();
+        var i = parseInt(btn.dataset.customIdx, 10);
+        if (i >= 0 && i < arr.length) {
+          arr.splice(i, 1);
+          _dataState.dirty = true;
+          _renderFormBody();
+        }
+      });
+    });
   }
 
   // ── Save to IDB ────────────────────────────────────────────────────────────
@@ -19500,6 +20005,30 @@ body.mobile-mode #app {
 
     // Save button
     document.getElementById('data-save-btn')?.addEventListener('click', _saveDataForm);
+
+    // ── Preview pane buttons ────────────────────────────────────────────────
+    document.getElementById('dpp-close-btn')?.addEventListener('click', _closePreviewPane);
+
+    document.getElementById('dpp-edit-btn')?.addEventListener('click', function () {
+      if (!_previewState.pin || !_previewState.sec) return;
+      // Find the original (un-merged) bundle pin so openDataForm can re-merge.
+      var sec = _previewState.sec;
+      var pid = _previewState.pin.id;
+      var bundlePin = (sec.pins || []).find(function (p) { return p.id === pid; }) || _previewState.pin;
+      openDataForm(bundlePin, sec);
+    });
+
+    // Optional: "⌖ Map" button — focus this pin on the map view if available
+    document.getElementById('dpp-map-btn')?.addEventListener('click', function () {
+      if (!_previewState.pin) return;
+      try {
+        if (typeof window.focusPinOnMap === 'function') {
+          window.focusPinOnMap(_previewState.pin.id, _previewState.sec && _previewState.sec.id);
+        } else if (typeof window.showModule === 'function') {
+          window.showModule('map');
+        }
+      } catch (e) { /* graceful */ }
+    });
   }
   window.initDataModule = initDataModule;
 
