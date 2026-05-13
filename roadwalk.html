@@ -6556,6 +6556,18 @@ body.mobile-mode #app {
                 role="tab" aria-selected="false">
           Walls <span class="data-type-badge" id="dtb-wall">—</span>
         </button>
+        <button class="data-type-tab" data-dtype="pavement"
+                role="tab" aria-selected="false">
+          Pavement <span class="data-type-badge" id="dtb-pavement">—</span>
+        </button>
+        <button class="data-type-tab" data-dtype="overlook"
+                role="tab" aria-selected="false">
+          Overlooks <span class="data-type-badge" id="dtb-overlook">—</span>
+        </button>
+        <button class="data-type-tab" data-dtype="monument"
+                role="tab" aria-selected="false">
+          Monuments <span class="data-type-badge" id="dtb-monument">—</span>
+        </button>
         <button class="data-type-tab" data-dtype="other"
                 role="tab" aria-selected="false">
           Others <span class="data-type-badge" id="dtb-other">—</span>
@@ -12446,7 +12458,8 @@ body.mobile-mode #app {
       attrs.area_sq_ft = +polygonAreaSqFt(geometry.coordinates[0]).toFixed(2);
     }
     const pin = {
-      id: '',                         // filled by renumberPinsForKind below
+      id: '',                         // filled by renumberPinsForKind below (mutable label)
+      ulid: (typeof makeULID === 'function' ? makeULID() : ''), // canonical immutable id
       kind,
       source: 'user',
       status: 'pending',
@@ -17442,14 +17455,18 @@ body.mobile-mode #app {
    * active — default visibility when no lean-state entry exists
    */
   const MAP_LAYERS = [
-    { label: 'Guardrails',   kind: 'guardrail',   color: '#E8A838', active: true  },
-    { label: 'Ret. Walls',   kind: 'wall',         color: '#7B3F9E', active: true  },
-    { label: 'Culverts',     kind: 'culvert',      color: '#3A7AC8', active: true  },
-    { label: 'Signs',        kind: 'sign',         color: '#27A04B', active: true  },
-    { label: 'Mile Markers', kind: 'mile_marker',  color: '#888888', active: true  },
-    { label: 'Bridges',      kind: 'bridge',       color: '#1A5589', active: true  },
-    { label: 'Gates',        kind: 'gate',         color: '#C85A2B', active: true  },
-    { label: 'Parking',      kind: 'parking',      color: '#4A6B4D', active: true  },
+    { label: 'Guardrails',    kind: 'guardrail',    color: '#E8A838', active: true  },
+    { label: 'Ret. Walls',    kind: 'wall',          color: '#7B3F9E', active: true  },
+    { label: 'Culverts',      kind: 'culvert',       color: '#3A7AC8', active: true  },
+    { label: 'Signs',         kind: 'sign',          color: '#27A04B', active: true  },
+    { label: 'Mile Markers',  kind: 'mile_marker',   color: '#888888', active: true  },
+    { label: 'Bridges',       kind: 'bridge',        color: '#1A5589', active: true  },
+    { label: 'Gates',         kind: 'gate',          color: '#C85A2B', active: true  },
+    { label: 'Parking',       kind: 'parking',       color: '#4A6B4D', active: true  },
+    // New kinds (added after CSV import) ───────────────────────────────────────
+    { label: 'Pavement',      kind: 'pavement',      color: '#9CA3AF', active: true  },
+    { label: 'Overlooks',     kind: 'overlook',      color: '#DC2626', active: true  },
+    { label: 'NGS Monuments', kind: 'ngs_monument',  color: '#0EA5E9', active: false },
   ];
 
   /**
@@ -18621,13 +18638,45 @@ body.mobile-mode #app {
 
   // ── helpers ────────────────────────────────────────────────────────────────
 
+  /**
+   * Mint a ULID — 26-char Crockford-base32, time-prefixed so they sort
+   * chronologically when listed lexicographically. Used as the canonical
+   * primary key for every feature record (pin.ulid). The companion `pin_id`
+   * (e.g. "A-CUL-001") remains the human-facing label and may be renumbered
+   * when new features are inserted in stationing order; the ULID never
+   * changes, so cross-references and IDB keys stay stable across renames.
+   *
+   * Output format:   TTTTTTTTTT RRRRRRRRRRRRRRRR        (10 time + 16 random)
+   * Example:         01HF8XK7M3QZJP2N4VBR5S6T7W
+   *
+   * Uses crypto.getRandomValues when available; falls back to Math.random
+   * for ancient browsers (only the random tail is affected; the time prefix
+   * is still good).
+   */
+  var _ULID_CHARS = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+  function makeULID() {
+    var t = Date.now();
+    var timeStr = '';
+    for (var i = 0; i < 10; i++) { timeStr = _ULID_CHARS[t % 32] + timeStr; t = Math.floor(t / 32); }
+    var randStr = '';
+    var buf = new Uint8Array(16);
+    if (typeof crypto !== 'undefined' && crypto.getRandomValues) crypto.getRandomValues(buf);
+    else for (var j = 0; j < 16; j++) buf[j] = Math.floor(Math.random() * 256);
+    for (var k = 0; k < 16; k++) randStr += _ULID_CHARS[buf[k] % 32];
+    return timeStr + randStr;
+  }
+  window.makeULID = makeULID;
+
   /** Map bundle pin.kind → type-tab key */
   function _kindToType(kind) {
     if (!kind) return 'other';
-    if (kind === 'sign')      return 'sign';
-    if (kind === 'culvert')   return 'culvert';
-    if (kind === 'guardrail') return 'guardrail';
-    if (kind === 'wall')      return 'wall';
+    if (kind === 'sign')         return 'sign';
+    if (kind === 'culvert')      return 'culvert';
+    if (kind === 'guardrail')    return 'guardrail';
+    if (kind === 'wall')         return 'wall';
+    if (kind === 'pavement')     return 'pavement';
+    if (kind === 'overlook')     return 'overlook';
+    if (kind === 'ngs_monument') return 'monument';
     return 'other';
   }
 
@@ -18681,6 +18730,17 @@ body.mobile-mode #app {
         return [a.type || 'Parking', a.loc_name || ''].filter(Boolean).join(' · ');
       case 'mile_marker':
         return 'MP ' + (a.mile_label || '?') + (a.road ? ' — ' + a.road.split(',')[0].trim() : '');
+      case 'pavement': {
+        var pParts = [];
+        if (a.loc_name)    pParts.push(a.loc_name);
+        if (a.surface)     pParts.push(a.surface);
+        if (a.acres)       pParts.push((+a.acres).toFixed(2) + ' ac');
+        return pParts.join(' · ') || 'Pavement';
+      }
+      case 'overlook':
+        return a.loc_name || a.alt_name || 'Overlook';
+      case 'ngs_monument':
+        return (a.pid ? a.pid + ' — ' : '') + (a.name || a.marker || 'NGS Monument');
       default:
         return a.name || a.loc_name || pin.kind || '—';
     }
@@ -18775,12 +18835,16 @@ body.mobile-mode #app {
     });
   }
 
-  /** Get a merged pin: bundle attrs + any saved IDB attrs */
+  /** Get a merged pin: bundle attrs + any saved IDB attrs.
+   *  Pulls `ulid` from the IDB record when present so the canonical id
+   *  flows through the form into _saveDataForm without being clobbered.
+   */
   function _mergedPin(bundlePin) {
     var idb = _dataState.idbCache[bundlePin.id] || {};
     var merged = Object.assign({}, bundlePin);
     merged.attrs  = Object.assign({}, bundlePin.attrs, idb.attrs || {});
     merged.status = idb.status || bundlePin.status || 'pending';
+    merged.ulid   = idb.ulid || bundlePin.ulid || null;
     return merged;
   }
 
@@ -18937,10 +19001,13 @@ body.mobile-mode #app {
 
   // ── _renderAllOverview: "All" tab — summary cards + full feature list ────────
   function _renderAllOverview(sections, scrollEl) {
-    var TYPES     = ['sign', 'culvert', 'guardrail', 'wall', 'other'];
-    var TYPE_NAMES = { sign: 'Posts/Signs', culvert: 'Culverts', guardrail: 'Guard Rails', wall: 'Walls', other: 'Others' };
-    var counts    = { sign: 0, culvert: 0, guardrail: 0, wall: 0, other: 0 };
-    var confirmed = { sign: 0, culvert: 0, guardrail: 0, wall: 0, other: 0 };
+    var TYPES     = ['sign', 'culvert', 'guardrail', 'wall', 'pavement', 'overlook', 'monument', 'other'];
+    var TYPE_NAMES = {
+      sign: 'Posts/Signs', culvert: 'Culverts', guardrail: 'Guard Rails', wall: 'Walls',
+      pavement: 'Pavement', overlook: 'Overlooks', monument: 'NGS Monuments', other: 'Others',
+    };
+    var counts    = { sign:0, culvert:0, guardrail:0, wall:0, pavement:0, overlook:0, monument:0, other:0 };
+    var confirmed = { sign:0, culvert:0, guardrail:0, wall:0, pavement:0, overlook:0, monument:0, other:0 };
     var allRows   = [];
 
     sections.forEach(function (sec) {
@@ -19331,11 +19398,14 @@ body.mobile-mode #app {
     var sec = _dataState.sec;
 
     switch (pin.kind) {
-      case 'sign':     scrollEl.innerHTML = _renderSignForm(pin, sec);    break;
-      case 'culvert':  scrollEl.innerHTML = _renderCulvertForm(pin, sec); break;
-      case 'guardrail':scrollEl.innerHTML = _renderGuardrailForm(pin, sec);break;
-      case 'wall':     scrollEl.innerHTML = _renderWallForm(pin, sec);    break;
-      default:         scrollEl.innerHTML = _renderOtherForm(pin, sec);   break;
+      case 'sign':         scrollEl.innerHTML = _renderSignForm(pin, sec);     break;
+      case 'culvert':      scrollEl.innerHTML = _renderCulvertForm(pin, sec);  break;
+      case 'guardrail':    scrollEl.innerHTML = _renderGuardrailForm(pin, sec); break;
+      case 'wall':         scrollEl.innerHTML = _renderWallForm(pin, sec);     break;
+      case 'pavement':     scrollEl.innerHTML = _renderPavementForm(pin, sec); break;
+      case 'overlook':     scrollEl.innerHTML = _renderOverlookForm(pin, sec); break;
+      case 'ngs_monument': scrollEl.innerHTML = _renderMonumentForm(pin, sec); break;
+      default:             scrollEl.innerHTML = _renderOtherForm(pin, sec);    break;
     }
 
     // Wire interactive elements inside the form
@@ -19638,6 +19708,95 @@ body.mobile-mode #app {
       _customFieldsSection(pin);
   }
 
+  // ── Pavement form (polygon — area, surface, condition) ────────────────────
+  function _renderPavementForm(pin, sec) {
+    var a = pin.attrs || {};
+    var conditions = window._RW.SIGN_CONDITIONS || [];
+    var surfaces   = ['—','Asphalt','Concrete','Chip Seal','Gravel','Brick/Stone','Other'];
+
+    return _sectionHdr('IDENTITY') +
+      _readonlyRow('Pin ID',   pin.id) +
+      _readonlyRow('ULID',     pin.ulid || '—') +
+      _readonlyRow('Section',  sec ? sec.name : '—') +
+      _readonlyRow('STA',      pin.sta || '—') +
+      _readonlyRow('Location', a.loc_name || '—') +
+      _readonlyRow('Road',     a.road || '—') +
+      _sectionHdr('SURFACE') +
+      _selectRow('Surface type', 'surface', a.surface || '', surfaces.map(function(s){return{v:s,l:s};})) +
+      _readonlyRow('Area (acres)', a.acres != null ? (+a.acres).toFixed(3) : '—') +
+      _inputRow ('Length (ft)',   'length_ft',   a.length_ft,  'number') +
+      _inputRow ('Width  (ft)',   'width_ft',    a.width_ft,   'number') +
+      _sectionHdr('CONDITION') +
+      _condRow  ('Overall',       'condition',   a.condition,  conditions, 'data-cond') +
+      _selectRow('Cracking',      'cracking',    a.cracking || '', [
+        {v:'',l:'—'},{v:'None',l:'None'},{v:'Minor',l:'Minor'},
+        {v:'Moderate',l:'Moderate'},{v:'Severe',l:'Severe'},
+      ]) +
+      _selectRow('Rutting',       'rutting',     a.rutting || '', [
+        {v:'',l:'—'},{v:'None',l:'None'},{v:'Minor',l:'Minor'},
+        {v:'Moderate',l:'Moderate'},{v:'Severe',l:'Severe'},
+      ]) +
+      _inputRow ('PCI (0–100)',   'pci',         a.pci,        'number') +
+      _textareaRow('Repair action','repair_action', a.repair_action) +
+      _textareaRow('Notes',       'notes',       a.notes) +
+      _customFieldsSection(pin);
+  }
+
+  // ── Scenic overlook form ──────────────────────────────────────────────────
+  function _renderOverlookForm(pin, sec) {
+    var a = pin.attrs || {};
+    var conditions = window._RW.SIGN_CONDITIONS || [];
+
+    return _sectionHdr('IDENTITY') +
+      _readonlyRow('Pin ID',     pin.id) +
+      _readonlyRow('ULID',       pin.ulid || '—') +
+      _readonlyRow('Section',    sec ? sec.name : '—') +
+      _readonlyRow('STA',        pin.sta || '—') +
+      _readonlyRow('Name',       a.loc_name || '—') +
+      _readonlyRow('Alt name',   a.alt_name || '—') +
+      _readonlyRow('Road',       a.road || '—') +
+      _readonlyRow('Elevation',  a.elevation != null ? a.elevation + ' ft' : '—') +
+      _sectionHdr('CONDITION') +
+      _condRow  ('Overall',      'condition',    a.condition,    conditions, 'data-cond') +
+      _condRow  ('Pavement',     'pavement_cond',a.pavement_cond,conditions, 'data-cond') +
+      _condRow  ('Signage',      'sign_cond',    a.sign_cond,    conditions, 'data-cond') +
+      _condRow  ('Vegetation',   'veg_cond',     a.veg_cond,     conditions, 'data-cond') +
+      _inputRow ('Parking spots','parking_spots',a.parking_spots,'number') +
+      _textareaRow('Repair action','repair_action', a.repair_action) +
+      _textareaRow('Notes',      'notes',        a.notes) +
+      _customFieldsSection(pin);
+  }
+
+  // ── NGS monument form (survey reference; read-mostly) ─────────────────────
+  function _renderMonumentForm(pin, sec) {
+    var a = pin.attrs || {};
+    var conditions = window._RW.SIGN_CONDITIONS || [];
+
+    return _sectionHdr('IDENTITY') +
+      _readonlyRow('Pin ID',     pin.id) +
+      _readonlyRow('ULID',       pin.ulid || '—') +
+      _readonlyRow('Section',    sec ? sec.name : '—') +
+      _readonlyRow('STA',        pin.sta || '—') +
+      _readonlyRow('PID',        a.pid || '—') +
+      _readonlyRow('Name',       a.name || '—') +
+      _readonlyRow('Marker',     a.marker || '—') +
+      _readonlyRow('Setting',    a.setting || '—') +
+      _readonlyRow('Stability',  a.stability || '—') +
+      _readonlyRow('Stamping',   a.stamping || '—') +
+      _readonlyRow('County',     a.county || '—') +
+      _readonlyRow('Elev (m)',   a.ortho_ht != null ? a.ortho_ht : '—') +
+      _sectionHdr('FIELD CHECK') +
+      _condRow  ('Found?',       'found_status', a.found_status, [
+        {v:'Found',  l:'Found',    col:'#15803d'},
+        {v:'NotFound', l:'Not Found', col:'#b91c1c'},
+        {v:'Damaged',l:'Damaged',  col:'#c2410c'},
+        {v:'Unknown',l:'Unknown',  col:'#6B7079'},
+      ], 'data-cond') +
+      _condRow  ('Marker cond.', 'condition',    a.condition,    conditions, 'data-cond') +
+      _textareaRow('Notes',      'notes',        a.notes) +
+      _customFieldsSection(pin);
+  }
+
   // ── Wire form interactions (change events + sign picker) ───────────────────
   function _wireFormInteractions(pin) {
     var scroll = document.getElementById('data-form-scroll');
@@ -19856,8 +20015,14 @@ body.mobile-mode #app {
     var saveBtn = document.getElementById('data-save-btn');
     if (saveBtn) saveBtn.disabled = true;
 
+    // Ensure every record carries a ULID — the canonical, immutable identifier.
+    // pin.ulid may already be set from the bundle migration or a prior save;
+    // mint a fresh one for legacy records that pre-date the ULID rollout.
+    if (!pin.ulid) pin.ulid = makeULID();
+
     var record = {
-      pin_id:   pin.id,
+      pin_id:   pin.id,             // human-readable label (mutable: renumbered on insert)
+      ulid:     pin.ulid,           // canonical primary key (immutable)
       kind:     pin.kind,
       sec_id:   _dataState.sec ? _dataState.sec.id : null,
       status:   pin.status || 'pending',
@@ -19916,7 +20081,7 @@ body.mobile-mode #app {
   /** Refresh all Nav 3 type badge counts (including the "All" total) */
   function _updateTypeBadges() {
     var sections = window.SECTIONS || [];
-    var counts   = { sign: 0, culvert: 0, guardrail: 0, wall: 0, other: 0 };
+    var counts   = { sign:0, culvert:0, guardrail:0, wall:0, pavement:0, overlook:0, monument:0, other:0 };
     sections.forEach(function (sec) {
       (sec.pins || []).forEach(function (pin) {
         var t = _kindToType(pin.kind);
