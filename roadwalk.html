@@ -8066,8 +8066,16 @@ body.mobile-mode #app {
       // hover tooltip with quick info.
       const featureGroup = L.layerGroup();
       const pins = sec.pins || [];
+      // Per-kind visibility — drives the floating Layers panel toggles.
+      // A missing/undefined entry defaults to visible. Only an explicit
+      // `false` hides a kind, so the very first render always shows
+      // everything until the user actually flips a toggle.
+      let _layersVis = {};
+      try { _layersVis = (typeof lsLoad === 'function' && lsLoad().layersVis) || {}; }
+      catch (_) { _layersVis = {}; }
       for (const pin of pins) {
         if (pin._editingVertices) continue;   // shown via the vertex-edit overlay
+        if (pin.kind && _layersVis[pin.kind] === false) continue;   // hidden via Layers panel
         const marker = buildPinLayer(pin);
         if (!marker) continue;
         // Double-stroke lines attach a non-interactive inner (white) sibling layer
@@ -8440,6 +8448,17 @@ body.mobile-mode #app {
       if (typeof renderStrip === 'function' && typeof stripCurrentSec !== 'undefined' && stripCurrentSec === sec) {
         renderStrip();
       }
+    },
+    /**
+     * Toggle visibility of a feature kind ("guardrail", "wall", "sign", …).
+     * The Layers panel persists the new state to lsSave().layersVis before
+     * calling this; here we just re-render so the pin loop's layersVis
+     * filter (in initOrUpdateMap) actually drops/restores the kind.
+     */
+    toggleLayer(kind, visible) {
+      // Persistence is handled by the panel click handler (buildLayersPanel),
+      // so we don't need to touch localStorage here — just redraw.
+      if (typeof this.rerender === 'function') this.rerender();
     },
   };
 
