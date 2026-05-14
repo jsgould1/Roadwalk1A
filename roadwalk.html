@@ -2263,109 +2263,82 @@ a { color: inherit; text-decoration: none; }
 /* Button active state while panel is open */
 #layers-toggle-btn.on { color: var(--blue); }
 
-.feature-picker { width: 230px; max-height: calc(100vh - 140px); overflow-y: auto; }
+/* Feature-picker: header fixed, only list scrolls → fixes unselectable bottom items */
+.feature-picker { width: 230px; max-height: calc(100vh - 160px); display: flex; flex-direction: column; overflow: hidden; }
 .feature-picker .fp-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 4px;
+  overflow-y: auto; overflow-x: hidden; flex: 1 1 auto;
+  display: flex; flex-direction: column; gap: 4px; padding: 4px;
 }
-.feature-picker .fp-group {
-  border: 1px solid var(--rule);
-  background: var(--paper);
-}
+.feature-picker .fp-group { border: 1px solid var(--rule); background: var(--paper); }
 .feature-picker .fp-group.fp-dragging { opacity: 0.4; }
 .feature-picker .fp-group-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 6px;
-  background: var(--paper-2);
-  cursor: grab;
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.6px;
-  color: var(--ink);
-  border-bottom: 1px solid var(--rule);
-  user-select: none;
-  -webkit-user-select: none;
+  display: flex; align-items: center; gap: 6px; padding: 4px 6px;
+  background: var(--paper-2); cursor: grab;
+  font: 700 10px/1 'IBM Plex Mono',monospace; letter-spacing: 0.6px;
+  color: var(--ink); border-bottom: 1px solid var(--rule);
+  user-select: none; -webkit-user-select: none;
 }
 .feature-picker .fp-group-header:active { cursor: grabbing; }
 .feature-picker .fp-group.collapsed .fp-group-header { border-bottom: 0; }
-.feature-picker .fp-collapse {
-  display: inline-block;
-  font-size: 9px;
-  width: 10px;
-  text-align: center;
-  transition: transform 150ms;
-}
+.feature-picker .fp-collapse { display: inline-block; font-size: 9px; width: 10px; text-align: center; transition: transform 150ms; }
 .feature-picker .fp-group.collapsed .fp-collapse { transform: rotate(-90deg); }
-.feature-picker .fp-group-geom {
-  font-size: 8.5px;
-  background: var(--ink);
-  color: var(--paper);
-  padding: 1px 4px;
-  letter-spacing: 0.5px;
-}
+.feature-picker .fp-group-geom { font-size: 8.5px; background: var(--ink); color: var(--paper); padding: 1px 4px; letter-spacing: 0.5px; }
 .feature-picker .fp-group-name { text-transform: uppercase; flex: 1 1 auto; }
-.feature-picker .fp-group-items {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 2px;
-  padding: 4px;
-}
+.feature-picker .fp-group-items { display: grid; grid-template-columns: repeat(2,1fr); gap: 2px; padding: 4px; }
 .feature-picker .fp-group.collapsed .fp-group-items { display: none; }
+/* ── Favorites group ── */
+.feature-picker .fp-group.fp-favorites .fp-group-header {
+  background: var(--blue,#0A2A5D); color: #fff; cursor: default;
+  border-bottom: 1px solid rgba(255,255,255,.15);
+}
+.feature-picker .fp-group.fp-favorites .fp-group-header:active { cursor: default; }
+.feature-picker .fp-group.fp-favorites .fp-group-items.fp-drop-over {
+  outline: 2px dashed var(--blue,#0A2A5D); background: rgba(10,42,93,.05);
+}
+.feature-picker .fp-fav-empty {
+  padding: 6px 4px; font: 400 9px/1.4 'IBM Plex Mono',monospace;
+  color: var(--ink-3); font-style: italic; text-align: center; grid-column: 1/-1;
+}
+/* ── Item buttons ── */
 .feature-picker .fp-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 6px 4px 4px;
-  background: var(--paper-2);
-  border: 1px solid transparent;
-  cursor: pointer;
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.3px;
-  color: var(--ink);
-  text-align: left;
-  white-space: nowrap;
-  min-width: 0;
+  display: flex; align-items: center; gap: 5px; padding: 3px 4px;
+  background: var(--paper-2); border: 1px solid transparent; cursor: pointer;
+  font: 600 9.5px/1 'IBM Plex Mono',monospace; letter-spacing: 0.3px;
+  color: var(--ink); text-align: left; white-space: nowrap; min-width: 0;
 }
-.feature-picker .fp-btn[draggable="true"]         { cursor: grab; }
-.feature-picker .fp-btn[draggable="true"]:active  { cursor: grabbing; }
-.feature-picker .fp-btn:hover { background: var(--paper); border-color: var(--rule); }
-.feature-picker .fp-btn.active {
-  background: var(--orange); color: #fff; border-color: var(--orange);
-}
+.feature-picker .fp-btn[draggable="true"]        { cursor: grab; }
+.feature-picker .fp-btn[draggable="true"]:active { cursor: grabbing; }
+.feature-picker .fp-btn:hover  { background: var(--paper); border-color: var(--rule); }
+.feature-picker .fp-btn.active { background: var(--orange); color: #fff; border-color: var(--orange); }
 .feature-picker .fp-btn.fp-dragging { opacity: 0.4; }
-.feature-picker .fp-btn .lbl {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  flex: 1 1 auto;
-  min-width: 0;
+.feature-picker .fp-btn .lbl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1 1 auto; min-width: 0; font-size: 9px; }
+/* Code swatch — lines / polygons */
+.feature-picker .fp-code-swatch {
+  flex: 0 0 22px; width: 22px; height: 16px;
+  color: #fff; font-size: 8.5px; font-weight: 700; line-height: 16px;
+  text-align: center; border-radius: 2px; flex-shrink: 0;
 }
+.feature-picker .fp-btn.line    .fp-code-swatch { border-radius: 0; border: 1px dashed rgba(255,255,255,.5); }
+.feature-picker .fp-btn.polygon .fp-code-swatch { border-radius: 0; border: 1px solid  rgba(255,255,255,.5); }
+/* Point glyph — colored text, no background */
+.feature-picker .fp-pt-glyph { flex: 0 0 20px; width: 20px; text-align: center; font-size: 14px; line-height: 1; flex-shrink: 0; }
+/* Marking word abbreviation */
+.feature-picker .fp-mark-word { flex: 0 0 auto; font-size: 7.5px; font-weight: 800; letter-spacing: 0.4px; white-space: nowrap; line-height: 1; flex-shrink: 0; }
+/* Remove-from-Favorites × */
+.feature-picker .fp-unfav {
+  flex: 0 0 12px; width: 12px; height: 12px; padding: 0; background: transparent; border: none;
+  cursor: pointer; font-size: 9px; color: var(--ink-3); line-height: 1;
+  display: flex; align-items: center; justify-content: center; border-radius: 2px; margin-left: auto;
+}
+.feature-picker .fp-unfav:hover { color: #c0392b; background: rgba(192,57,43,.1); }
+/* Legacy swatch class — kept for any outside references */
 .feature-picker .fp-btn .swatch {
-  flex: 0 0 22px;
-  width: 22px; height: 18px;
-  background: var(--swatch, #888);
-  color: #fff;
-  font-size: 9px;
-  line-height: 18px;
-  text-align: center;
-  border-radius: 2px;
-  font-weight: 700;
+  flex: 0 0 22px; width: 22px; height: 16px;
+  background: var(--swatch,#888); color: #fff; font-size: 8.5px; font-weight: 700;
+  line-height: 16px; text-align: center; border-radius: 2px;
 }
-.feature-picker .fp-btn.line .swatch {
-  border-radius: 0;
-  border: 1px dashed rgba(255,255,255,0.6);
-}
-.feature-picker .fp-btn.polygon .swatch {
-  border-radius: 0;
-  border: 1px solid rgba(255,255,255,0.6);
-}
+.feature-picker .fp-btn.line    .swatch { border-radius: 0; border: 1px dashed rgba(255,255,255,.6); }
+.feature-picker .fp-btn.polygon .swatch { border-radius: 0; border: 1px solid  rgba(255,255,255,.6); }
 .feature-picker.collapsed .fp-list { display: none; }
 
 /* Header "⋯" settings button — sits next to the SOLO sync chip */
@@ -12684,63 +12657,109 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   (function buildFeaturePicker() {
     const picker = $('#feature-picker');
     const list   = $('#fp-list');
-    const handle = $('#fp-handle');
-    if (!picker || !list || !handle) return;
+    if (!picker || !list) return;
 
     const STORE_KEY = 'rw_feature_picker_state';
+    const FAV_GID   = 'favorites';
+
     const loadState = () => {
       try { return JSON.parse(localStorage.getItem(STORE_KEY) || 'null') || {}; }
       catch (_) { return {}; }
     };
     const saveState = (patch) => {
-      try {
-        const cur = loadState();
-        const next = Object.assign({}, cur, patch);
-        localStorage.setItem(STORE_KEY, JSON.stringify(next));
-      } catch (_) {}
+      try { localStorage.setItem(STORE_KEY, JSON.stringify(Object.assign({}, loadState(), patch))); }
+      catch (_) {}
     };
     const groupId = (cat) => `${cat.geom}-${cat.name}`;
 
-    // Apply persisted ordering on top of the default catalog.
+    const getFavorites = () => { const s = loadState(); return Array.isArray(s.favorites) ? s.favorites : []; };
+    const setFavorites = (arr) => saveState({ favorites: arr });
+
+    // Text abbreviations for marking features (shown instead of code swatch)
+    const MARKING_WORDS = {
+      'ln_stop_bar':      'STOP',
+      'ln_crosswalk':     'XWALK',
+      'ln_dycl':          'DYCL',
+      'ln_sycl':          'SYCL',
+      'ln_swel':          'SWEL',
+      'ln_hatching':      'HATCH',
+      'ln_parking':       'PARK',
+      'ln_mark_other':    'MARK',
+      'pt_hc_marking':    'HC SYM',
+      'pt_fire_lane':     'FIRE',
+      'pg_hatching_area': 'HATCH',
+    };
+
+    // Live-read PIN_STYLE (updated by Style Guide); fall back to catalog color
+    function liveColor(kind, fallback) {
+      const ps = window._RW && window._RW.PIN_STYLE && window._RW.PIN_STYLE[kind];
+      return (ps && ps.color) || fallback || '#888';
+    }
+    function liveGlyph(kind) {
+      const ps = window._RW && window._RW.PIN_STYLE && window._RW.PIN_STYLE[kind];
+      return (ps && ps.glyph) || '●';
+    }
+
+    // Build the icon element for a button (point glyph / marking word / code swatch)
+    function makeIcon(item, geom) {
+      const color = liveColor(item.value, item.color);
+      if (geom === 'point') {
+        return `<span class="fp-pt-glyph" style="color:${color}">${liveGlyph(item.value)}</span>`;
+      }
+      const mw = MARKING_WORDS[item.value];
+      if (mw) {
+        return `<span class="fp-mark-word" style="color:${color}">${mw}</span>`;
+      }
+      return `<span class="fp-code-swatch" style="background:${color}">${item.code}</span>`;
+    }
+
+    // Find a catalog entry by kind value
+    function findCatalogItem(kind) {
+      for (const cat of FEATURE_CATALOG) {
+        const it = cat.items.find(i => i.value === kind);
+        if (it) return { item: it, geom: cat.geom };
+      }
+      return null;
+    }
+
     function getOrderedCatalog() {
       const st = loadState();
       const groupOrder = Array.isArray(st.groupOrder) ? st.groupOrder : null;
       const itemOrder  = (st.itemOrder && typeof st.itemOrder === 'object') ? st.itemOrder : {};
       const byId = new Map(FEATURE_CATALOG.map(c => [groupId(c), c]));
-      const ordered = [];
-      const seen = new Set();
+      const ordered = []; const seen = new Set();
       if (groupOrder) {
         for (const gid of groupOrder) {
+          if (gid === FAV_GID) continue;   // Favorites always at top; skip in regular order
           const c = byId.get(gid);
           if (c) { ordered.push(c); seen.add(gid); }
         }
       }
-      for (const c of FEATURE_CATALOG) {
-        if (!seen.has(groupId(c))) ordered.push(c);
-      }
-      // Reorder items within each group, keeping any new (unsaved) items at the end
+      for (const c of FEATURE_CATALOG) { if (!seen.has(groupId(c))) ordered.push(c); }
       return ordered.map(cat => {
         const order = itemOrder[groupId(cat)];
         if (!Array.isArray(order)) return cat;
         const byVal = new Map(cat.items.map(it => [it.value, it]));
-        const reordered = [];
-        const used = new Set();
-        for (const v of order) {
-          if (byVal.has(v)) { reordered.push(byVal.get(v)); used.add(v); }
-        }
+        const reordered = []; const used = new Set();
+        for (const v of order) { if (byVal.has(v)) { reordered.push(byVal.get(v)); used.add(v); } }
         for (const it of cat.items) if (!used.has(it.value)) reordered.push(it);
         return Object.assign({}, cat, { items: reordered });
       });
     }
 
     function persistOrderFromDOM() {
-      const groupOrder = [];
-      const itemOrder = {};
-      list.querySelectorAll('.fp-group').forEach(g => {
+      const groupOrder = [FAV_GID];   // Favorites always first in saved order
+      const itemOrder  = {};
+      list.querySelectorAll('.fp-group:not(.fp-favorites)').forEach(g => {
         const gid = g.dataset.groupId;
         groupOrder.push(gid);
         itemOrder[gid] = Array.from(g.querySelectorAll('.fp-btn')).map(b => b.dataset.kind);
       });
+      // Persist Favorites item order from DOM
+      const favItemsBox = list.querySelector('.fp-group.fp-favorites .fp-group-items');
+      if (favItemsBox) {
+        setFavorites(Array.from(favItemsBox.querySelectorAll('.fp-btn')).map(b => b.dataset.kind));
+      }
       saveState({ groupOrder, itemOrder });
     }
 
@@ -12752,128 +12771,223 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       saveState({ collapsed });
     }
 
+    // Build one feature button (shared for Favorites and regular groups)
+    function makeBtn(item, geom, isFav) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = `fp-btn ${geom}`;
+      btn.dataset.kind    = item.value;
+      btn.dataset.tool    = geom;
+      btn.dataset.groupId = isFav ? FAV_GID : groupId({ geom, name: '' });
+      btn.draggable = true;
+      btn.title     = item.label;
+      const unfavHtml = isFav
+        ? '<button class="fp-unfav" title="Remove from Favorites" tabindex="-1">✕</button>'
+        : '';
+      btn.innerHTML = makeIcon(item, geom) + `<span class="lbl">${item.label}</span>` + unfavHtml;
+
+      btn.addEventListener('click', (e) => {
+        if (e.target.classList.contains('fp-unfav')) return;
+        if (btn._suppressClick) { btn._suppressClick = false; return; }
+        setDrawTool(geom, item.value);
+        if (geom === 'line') fpArmedKind = item.value;
+      });
+      if (isFav) {
+        const x = btn.querySelector('.fp-unfav');
+        if (x) x.addEventListener('click', (e) => {
+          e.stopPropagation();
+          setFavorites(getFavorites().filter(k => k !== item.value));
+          render();
+        });
+      }
+      return btn;
+    }
+
     function render() {
       const st = loadState();
       const collapsed = (st.collapsed && typeof st.collapsed === 'object') ? st.collapsed : {};
       list.innerHTML = '';
-      const cats = getOrderedCatalog();
       const geomLabel = (g) => g === 'point' ? 'Pt' : g === 'line' ? 'Ln' : 'Pg';
-      for (const cat of cats) {
+
+      // ── Favorites group (always first, locked at top) ─────────────────────
+      const favKinds  = getFavorites();
+      const favGroup  = document.createElement('div');
+      favGroup.className = 'fp-group fp-favorites';
+      favGroup.dataset.groupId = FAV_GID;
+      if (collapsed[FAV_GID]) favGroup.classList.add('collapsed');
+
+      const favHeader = document.createElement('div');
+      favHeader.className = 'fp-group-header';
+      favHeader.innerHTML = `<span class="fp-collapse">▾</span><span class="fp-group-name">★ Favorites</span>`;
+      favHeader.addEventListener('click', () => { favGroup.classList.toggle('collapsed'); persistCollapsed(); });
+      favGroup.appendChild(favHeader);
+
+      const favItems = document.createElement('div');
+      favItems.className = 'fp-group-items';
+      if (favKinds.length === 0) {
+        favItems.innerHTML = '<span class="fp-fav-empty">Drag items here to pin</span>';
+      } else {
+        for (const kind of favKinds) {
+          const found = findCatalogItem(kind);
+          if (!found) continue;
+          const btn = makeBtn(found.item, found.geom, true);
+          btn.dataset.groupId = FAV_GID;
+          favItems.appendChild(btn);
+        }
+      }
+      favGroup.appendChild(favItems);
+      list.appendChild(favGroup);
+
+      // ── Regular groups ────────────────────────────────────────────────────
+      for (const cat of getOrderedCatalog()) {
         const gid = groupId(cat);
         const group = document.createElement('div');
         group.className = 'fp-group';
         group.dataset.groupId = gid;
         if (collapsed[gid]) group.classList.add('collapsed');
+
         const header = document.createElement('div');
         header.className = 'fp-group-header';
         header.draggable = true;
-        header.innerHTML = `
-          <span class="fp-collapse">▾</span>
+        header.innerHTML = `<span class="fp-collapse">▾</span>
           <span class="fp-group-geom">${geomLabel(cat.geom)}</span>
           <span class="fp-group-name">${cat.name}</span>`;
-        // Header click toggles collapse (but not while a drag is finishing —
-        // browsers fire a click after dragend, so guard with a flag).
         header.addEventListener('click', () => {
           if (header._suppressClick) { header._suppressClick = false; return; }
           group.classList.toggle('collapsed');
           persistCollapsed();
         });
         group.appendChild(header);
+
         const itemsBox = document.createElement('div');
         itemsBox.className = 'fp-group-items';
         for (const item of cat.items) {
-          const btn = document.createElement('button');
-          btn.type = 'button';
-          btn.className = `fp-btn ${cat.geom}`;
-          btn.dataset.kind = item.value;
-          btn.dataset.tool = cat.geom;
+          const btn = makeBtn(item, cat.geom, false);
           btn.dataset.groupId = gid;
-          btn.draggable = true;
-          btn.title = item.label;
-          btn.style.setProperty('--swatch', item.color);
-          btn.innerHTML = `<span class="swatch">${item.code}</span><span class="lbl">${item.label}</span>`;
-          btn.addEventListener('click', () => {
-            if (btn._suppressClick) { btn._suppressClick = false; return; }
-            setDrawTool(cat.geom, item.value);
-            if (cat.geom === 'line') fpArmedKind = item.value;
-          });
           itemsBox.appendChild(btn);
         }
         group.appendChild(itemsBox);
         list.appendChild(group);
       }
+
       wireDnD();
     }
 
-    // HTML5 drag-and-drop: groups reorder vertically, items reorder within
-    // their own group. We mutate the DOM in dragover; on dragend we persist.
+    // ── Drag-and-drop ─────────────────────────────────────────────────────────
+    // Groups reorder vertically (non-Favorites only).
+    // Items reorder within their group, OR can be dragged INTO Favorites from
+    // any group (adds to favorites; original stays). Favorites items can be
+    // reordered within Favorites via DnD; use ✕ button to remove.
     function wireDnD() {
-      let draggedEl = null;
+      let draggedEl   = null;
       let draggedKind = null;   // 'group' | 'item'
-      // Group drags start on the header; we walk up to the .fp-group.
-      list.querySelectorAll('.fp-group-header').forEach(h => {
+      let srcGroupId  = null;
+
+      // Non-Favorites group headers → reorder groups
+      list.querySelectorAll('.fp-group:not(.fp-favorites) .fp-group-header').forEach(h => {
         h.addEventListener('dragstart', (e) => {
           const group = h.closest('.fp-group');
           if (!group) return;
-          draggedEl = group;
-          draggedKind = 'group';
+          draggedEl = group; draggedKind = 'group';
           group.classList.add('fp-dragging');
           e.dataTransfer.effectAllowed = 'move';
           try { e.dataTransfer.setData('text/plain', group.dataset.groupId); } catch (_) {}
         });
         h.addEventListener('dragend', () => {
           if (draggedEl) draggedEl.classList.remove('fp-dragging');
-          draggedEl = null; draggedKind = null;
+          draggedEl = null; draggedKind = null; srcGroupId = null;
           h._suppressClick = true;
           persistOrderFromDOM();
         });
       });
+
+      // All item buttons → drag within group, or into Favorites
       list.querySelectorAll('.fp-btn').forEach(btn => {
         btn.addEventListener('dragstart', (e) => {
-          draggedEl = btn;
-          draggedKind = 'item';
+          draggedEl = btn; draggedKind = 'item';
+          srcGroupId = btn.dataset.groupId;
           btn.classList.add('fp-dragging');
           e.dataTransfer.effectAllowed = 'move';
           try { e.dataTransfer.setData('text/plain', btn.dataset.kind); } catch (_) {}
-          e.stopPropagation();   // don't bubble up as a group drag
+          e.stopPropagation();
         });
         btn.addEventListener('dragend', () => {
           btn.classList.remove('fp-dragging');
-          draggedEl = null; draggedKind = null;
+          // Check if item landed inside Favorites from another group
+          const landed = btn.closest('.fp-group');
+          const landedGid = landed ? landed.dataset.groupId : null;
+          if (landedGid === FAV_GID && srcGroupId !== FAV_GID) {
+            // Add to favorites list; re-render so original group is also intact
+            const kind = btn.dataset.kind;
+            const favs = getFavorites();
+            if (!favs.includes(kind)) { favs.push(kind); setFavorites(favs); }
+            render();
+          } else {
+            // Normal reorder within same group (or within Favorites)
+            persistOrderFromDOM();
+          }
+          draggedEl = null; draggedKind = null; srcGroupId = null;
           btn._suppressClick = true;
-          persistOrderFromDOM();
         });
       });
+
+      const favItemsBox = list.querySelector('.fp-group.fp-favorites .fp-group-items');
+
       list.addEventListener('dragover', (e) => {
         if (!draggedEl) return;
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
+
         if (draggedKind === 'group') {
-          const targetGroup = e.target.closest('.fp-group');
-          if (!targetGroup || targetGroup === draggedEl) return;
-          const rect = targetGroup.getBoundingClientRect();
-          const before = (e.clientY - rect.top) < rect.height / 2;
-          if (before) list.insertBefore(draggedEl, targetGroup);
-          else        list.insertBefore(draggedEl, targetGroup.nextSibling);
-        } else if (draggedKind === 'item') {
-          // Items move within their own group only
-          const targetItem = e.target.closest('.fp-btn');
-          if (!targetItem || targetItem === draggedEl) return;
-          if (targetItem.dataset.groupId !== draggedEl.dataset.groupId) return;
-          const itemsBox = targetItem.parentElement;
-          const rect = targetItem.getBoundingClientRect();
-          // Decide before/after based on the dominant axis (since items wrap)
-          const horiz = (rect.width >= rect.height);
-          const before = horiz
-            ? (e.clientX - rect.left) < rect.width / 2
-            : (e.clientY - rect.top)  < rect.height / 2;
-          if (before) itemsBox.insertBefore(draggedEl, targetItem);
-          else        itemsBox.insertBefore(draggedEl, targetItem.nextSibling);
+          const tg = e.target.closest('.fp-group:not(.fp-favorites)');
+          if (!tg || tg === draggedEl) return;
+          const rect = tg.getBoundingClientRect();
+          if ((e.clientY - rect.top) < rect.height / 2) list.insertBefore(draggedEl, tg);
+          else list.insertBefore(draggedEl, tg.nextSibling);
+          return;
+        }
+
+        if (draggedKind !== 'item') return;
+
+        // Cross-group drag: non-Favorites item over Favorites zone
+        if (srcGroupId !== FAV_GID && favItemsBox && e.target.closest('.fp-group.fp-favorites')) {
+          favItemsBox.classList.add('fp-drop-over');
+          const ti = e.target.closest('.fp-btn');
+          if (ti && ti.closest('.fp-group.fp-favorites')) {
+            const r = ti.getBoundingClientRect();
+            if ((e.clientX - r.left) < r.width / 2) favItemsBox.insertBefore(draggedEl, ti);
+            else favItemsBox.insertBefore(draggedEl, ti.nextSibling);
+          } else {
+            favItemsBox.appendChild(draggedEl);
+          }
+          return;
+        }
+
+        if (favItemsBox) favItemsBox.classList.remove('fp-drop-over');
+
+        // Same-group item reorder
+        const ti = e.target.closest('.fp-btn');
+        if (!ti || ti === draggedEl) return;
+        if (ti.dataset.groupId !== draggedEl.dataset.groupId) return;
+        const ib = ti.parentElement;
+        const r  = ti.getBoundingClientRect();
+        const hz = r.width >= r.height;
+        const before = hz ? (e.clientX - r.left) < r.width / 2 : (e.clientY - r.top) < r.height / 2;
+        if (before) ib.insertBefore(draggedEl, ti);
+        else        ib.insertBefore(draggedEl, ti.nextSibling);
+      });
+
+      list.addEventListener('dragleave', (e) => {
+        if (favItemsBox && !list.contains(e.relatedTarget)) {
+          favItemsBox.classList.remove('fp-drop-over');
         }
       });
     }
 
     render();
+
+    // Expose so Style Guide changes refresh picker icons live
+    if (window._RW) window._RW.refreshPicker = render;
 
   })();
 
@@ -16912,8 +17026,9 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       so.slotLevel = s.offset;
     }
 
-    // 4. Rebuild layer toggle dots then re-render map + SLD
+    // 4. Rebuild layer toggle dots, refresh picker icons, re-render map + SLD
     if (typeof window.buildLayersPanel === 'function') window.buildLayersPanel();
+    if (window._RW && typeof window._RW.refreshPicker === 'function') window._RW.refreshPicker();
     if (window._RW && typeof window._RW.rerender === 'function') window._RW.rerender();
   }
 
@@ -16983,6 +17098,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       rw.PIN_STYLE[kind].size   = s.size;
       rw.PIN_STYLE[kind].sldPos = s.sldPos;
     }
+    if (typeof rw.refreshPicker === 'function') rw.refreshPicker();
     if (typeof rw.rerender === 'function') rw.rerender();
   }
 
