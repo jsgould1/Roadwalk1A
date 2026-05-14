@@ -8127,8 +8127,10 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       // `false` hides a kind, so the very first render always shows
       // everything until the user actually flips a toggle.
       let _layersVis = {};
-      try { _layersVis = (typeof lsLoad === 'function' && lsLoad().layersVis) || {}; }
-      catch (_) { _layersVis = {}; }
+      try {
+        var _lsFn = typeof lsLoad === 'function' ? lsLoad : window.RWLsLoad;
+        _layersVis = (_lsFn && _lsFn().layersVis) || {};
+      } catch (_) { _layersVis = {}; }
       console.log('[initOrUpdateMap] _layersVis=', JSON.stringify(_layersVis), 'total pins=', pins.length);
       for (const pin of pins) {
         if (pin._editingVertices) continue;   // shown via the vertex-edit overlay
@@ -8536,8 +8538,9 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     toggleLayer(kind, visible) {
       // Persistence is handled by the panel click handler (buildLayersPanel),
       // so we don't need to touch localStorage here — just redraw.
+      var _tlLsFn = typeof lsLoad === 'function' ? lsLoad : window.RWLsLoad;
       console.log('[RW.toggleLayer] kind=', kind, 'visible=', visible,
-                  'layersVis in LS=', (typeof lsLoad === 'function' ? lsLoad().layersVis : 'N/A'));
+                  'layersVis in LS=', (_tlLsFn ? _tlLsFn().layersVis : 'N/A'));
       if (typeof this.rerender === 'function') this.rerender();
     },
   };
@@ -11508,8 +11511,10 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     // Reads the same key the Layers panel writes so toggling a kind hides it in
     // both the Leaflet map and the SLD simultaneously.
     let _sldLayersVis = {};
-    try { _sldLayersVis = (typeof lsLoad === 'function' && lsLoad().layersVis) || {}; }
-    catch (_) { _sldLayersVis = {}; }
+    try {
+      var _sldLsFn = typeof lsLoad === 'function' ? lsLoad : window.RWLsLoad;
+      _sldLayersVis = (_sldLsFn && _sldLsFn().layersVis) || {};
+    } catch (_) { _sldLayersVis = {}; }
     const _sldKindVisible = k => _sldLayersVis[k] !== false;
 
     // ── Pre-pass: project sta_ft for any pin that doesn't have it yet ──────────
@@ -17796,6 +17801,12 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   // form builders, the map feature-popup "Edit Data" handler, etc.) can
   // navigate to a module without needing direct access to this IIFE scope.
   window.showModule = showModule;
+
+  // Expose lsLoad / lsSave globally so the main IIFE (initOrUpdateMap,
+  // SLD strip renderer, etc.) can read/write lean localStorage state.
+  // Both functions reference LS_KEY which is in this IIFE's closure.
+  window.RWLsLoad = lsLoad;
+  window.RWLsSave = lsSave;
 
   // Also expose doAutoSave so other modules can trigger a save after writes.
   window.RWAutoSave = doAutoSave;
