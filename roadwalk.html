@@ -4965,7 +4965,7 @@ input.fs-slider::-webkit-slider-thumb {
 .data-table {
   border-collapse: collapse;
   width: 100%;
-  table-layout: auto;
+  table-layout: fixed;
 }
 /* Header row — blue background */
 .data-table thead tr th {
@@ -5002,7 +5002,6 @@ input.fs-slider::-webkit-slider-thumb {
   background: #fff;
   z-index: 5;
   border-right: 2px solid #c5d8ec;
-  min-width: 105px;
   padding-right: 12px !important;
 }
 .dt-th-caret, .dt-cell-caret {
@@ -5044,7 +5043,6 @@ input.fs-slider::-webkit-slider-thumb {
   white-space: nowrap;
   vertical-align: middle;
   border-bottom: 1px solid #e8f0f8;
-  max-width: 240px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -7555,9 +7553,51 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         status.textContent = `Reading ${file.name}…`;
         status.className   = 'pp-status';
         try {
-          const text   = await file.text();
-          const bundle = JSON.parse(text);
-          if (!bundle.sections) throw new Error('Not a valid project bundle (missing "sections")');
+          const text    = await file.text();
+          const parsed  = JSON.parse(text);
+
+          // Detect a full RoadWalk export (roadwalk-export-v1) vs a raw prewalk bundle
+          const isExport = parsed._export_meta && parsed._export_meta.version === 'roadwalk-export-v1';
+          const bundle   = isExport ? parsed.bundle : parsed;
+          if (!bundle || !bundle.sections) throw new Error('Not a valid project file (missing "sections")');
+
+          // Restore field_data from a full export
+          if (isExport && parsed.field_data) {
+            const fd = parsed.field_data;
+            // Merge feature_styles back into localStorage via the Style Guide IIFE bridge
+            if (fd.feature_styles && typeof fd.feature_styles === 'object' && Object.keys(fd.feature_styles).length) {
+              if (typeof window.RWSave === 'function') {
+                const cur = typeof window.RWLsLoad === 'function' ? window.RWLsLoad() : {};
+                cur.featureStyles = fd.feature_styles;
+                window.RWSave(cur);
+              }
+              // Re-apply styles to map/SLD once the bundle is rendered
+              setTimeout(function () {
+                if (window._RW && typeof window._RW.applyAllStyles === 'function') window._RW.applyAllStyles();
+                if (window._RW && typeof window._RW.rerender       === 'function') window._RW.rerender();
+                if (typeof window.renderStyleGuide === 'function') window.renderStyleGuide();
+              }, 400);
+            }
+            // Restore pin statuses + layersVis + settings
+            if (typeof window.RWSave === 'function' && typeof window.RWLsLoad === 'function') {
+              const cur2 = window.RWLsLoad() || {};
+              if (fd.pin_statuses)   cur2.pinStatuses = fd.pin_statuses;
+              if (fd.layers_vis)     cur2.layersVis   = fd.layers_vis;
+              if (fd.settings)       cur2.settings    = fd.settings;
+              window.RWSave(cur2);
+            }
+            // Restore inspections to IDB (best-effort; errors are non-fatal)
+            if (Array.isArray(fd.inspections) && fd.inspections.length && window.RWIdb) {
+              window.RWIdb.openDB().then(function (db) {
+                const tx = db.transaction('inspections', 'readwrite');
+                const st = tx.objectStore('inspections');
+                fd.inspections.forEach(function (r) { try { st.put(r); } catch (_) {} });
+              }).catch(function (err) {
+                console.warn('[RoadWalk] Export import: IDB inspection restore failed', err);
+              });
+            }
+          }
+
           await _applyAndClose(bundle);
         } catch (err) {
           status.textContent = `⚠ ${err.message}`;
@@ -17700,6 +17740,10 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     });
   };
 
+  // Expose so the import path can re-apply styles after loading a full export
+  window._RW = window._RW || {};
+  window._RW.applyAllStyles = applyAllStyles;
+
   // Apply saved styles at boot once _RW + PIN_STYLE are ready
   setTimeout(applyAllStyles, 400);
 
@@ -18627,14 +18671,15 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
    */
   async function _scanExportData(onProgress) {
     const result = {
-      bundle:       window.BUNDLE || null,
-      inspections:  [],
-      daily_logs:   [],
-      safety:       null,
-      pin_statuses: {},
-      layers_vis:   {},
-      settings:     {},
-      photos:       [],
+      bundle:         window.BUNDLE || null,
+      inspections:    [],
+      daily_logs:     [],
+      safety:         null,
+      pin_statuses:   {},
+      layers_vis:     {},
+      settings:       {},
+      feature_styles: {},
+      photos:         [],
     };
 
     // ── Step 1/6: Bundle (synchronous — already in memory) ──────
@@ -18695,9 +18740,10 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     // ── Step 5/6: Pin statuses + settings (localStorage) ────────
     try {
       const ls = lsLoad();
-      result.pin_statuses = ls.pinStatuses || {};
-      result.layers_vis   = ls.layersVis   || {};
-      result.settings     = ls.settings    || {};
+      result.pin_statuses   = ls.pinStatuses   || {};
+      result.layers_vis     = ls.layersVis     || {};
+      result.settings       = ls.settings      || {};
+      result.feature_styles = ls.featureStyles || {};
       const n = Object.keys(result.pin_statuses).length;
       _expRowUpdate('statuses', n > 0 ? 'ok' : 'info',
         n > 0 ? '✓' : '○',
@@ -18771,12 +18817,13 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       },
       bundle: scanResult.bundle,
       field_data: {
-        inspections:  scanResult.inspections,
-        daily_logs:   scanResult.daily_logs,
-        safety:       scanResult.safety,
-        pin_statuses: scanResult.pin_statuses,
-        layers_vis:   scanResult.layers_vis,
-        settings:     scanResult.settings,
+        inspections:    scanResult.inspections,
+        daily_logs:     scanResult.daily_logs,
+        safety:         scanResult.safety,
+        pin_statuses:   scanResult.pin_statuses,
+        layers_vis:     scanResult.layers_vis,
+        settings:       scanResult.settings,
+        feature_styles: scanResult.feature_styles,
       },
       photos: photosOut,   // null = opted out; [] = opted in, none found
     };
@@ -19642,12 +19689,22 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     var grouped = (_filterState.sort === 'sec-sta') && (_filterState.section === 'all');
     var span    = cols.length + 3;  // dot + id + configurable + caret
 
+    // colgroup — defines fixed column widths (required for table-layout:fixed)
+    var colgroup = '<colgroup>';
+    colgroup += '<col style="width:32px">';   // dot
+    colgroup += '<col style="width:120px">';  // ID
+    cols.forEach(function(col) {
+      colgroup += '<col style="width:' + col.w + 'px">';
+    });
+    colgroup += '<col style="width:28px">';   // caret
+    colgroup += '</colgroup>';
+
     // thead
     var thead = '<thead><tr>';
     thead += '<th class="dt-th-dot"></th>';
     thead += '<th class="dt-th-id">ID</th>';
     cols.forEach(function(col) {
-      thead += '<th style="min-width:' + col.w + 'px" data-sort-col="' + col.id + '">' + _esc(col.label) + '</th>';
+      thead += '<th data-sort-col="' + col.id + '">' + _esc(col.label) + '</th>';
     });
     thead += '<th class="dt-th-caret"></th></tr></thead>';
 
@@ -19673,7 +19730,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       tbody += '</tbody>';
     }
 
-    return '<div class="data-table-wrap"><table class="data-table">' + thead + tbody + '</table></div>';
+    return '<div class="data-table-wrap"><table class="data-table">' + colgroup + thead + tbody + '</table></div>';
   }
 
   // ── Column picker open / close ─────────────────────────────────────────────
