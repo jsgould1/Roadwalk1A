@@ -3931,14 +3931,26 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
   font: 500 12px/1.2 'IBM Plex Sans', sans-serif;
   color: var(--ink); white-space: nowrap; min-width: 110px; display: block; }
 
-/* Color swatch + picker */
+/* Color swatch — click opens the grid picker */
 .fs-swatch {
   width: 28px; height: 28px; border-radius: 4px; flex-shrink: 0;
-  border: 1.5px solid rgba(0,0,0,.18); cursor: pointer;
-  position: relative; overflow: hidden; }
-.fs-swatch input[type=color] {
-  position: absolute; inset: -4px; width: calc(100% + 8px);
-  height: calc(100% + 8px); opacity: 0; cursor: pointer; }
+  border: 1.5px solid rgba(0,0,0,.18); cursor: pointer; position: relative; }
+.fs-swatch:hover { border-color: var(--blue); box-shadow: 0 0 0 2px rgba(37,99,235,.22); }
+/* hidden input stores the hex value — no visual */
+.fs-swatch input[type=hidden] { display: none; }
+/* Singleton color-grid popover */
+#fs-color-popover {
+  position: fixed; z-index: 8500; display: none;
+  background: var(--paper); border: 1px solid var(--rule);
+  border-radius: 6px; box-shadow: 0 4px 24px rgba(0,0,0,.30);
+  padding: 6px; }
+.fcp-grid { display: grid; grid-template-columns: repeat(8, 24px); gap: 3px; }
+.fcp-cell {
+  width: 24px; height: 24px; border-radius: 3px; cursor: pointer;
+  border: 1px solid rgba(0,0,0,.15); transition: transform 80ms; }
+.fcp-cell:hover { transform: scale(1.22); position: relative; z-index: 1;
+  border-color: rgba(255,255,255,.6); box-shadow: 0 1px 4px rgba(0,0,0,.4); }
+.fcp-cell.fcp-selected { outline: 2.5px solid var(--blue); outline-offset: 1px; }
 
 /* Line-type select */
 .fs-lt-select {
@@ -17440,6 +17452,94 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     return '<svg width="' + W + '" height="' + H + '">' + lines + '</svg>';
   }
 
+  // ── Singleton color-grid picker ────────────────────────────────────────────
+  // 48-color palette: 8 cols × 6 rows
+  var FCP_COLORS = [
+    // Neutrals
+    '#000000','#303030','#505050','#707070','#909090','#b0b0b0','#d4d4d4','#ffffff',
+    // Blues (includes AECOM navy #0B3D66)
+    '#0B3D66','#1e3a8a','#1d4ed8','#2563eb','#3b82f6','#60a5fa','#93c5fd','#bfdbfe',
+    // Teals / Cyans
+    '#134e4a','#0f766e','#0891b2','#06b6d4','#22d3ee','#67e8f9','#a5f3fc','#e0f2fe',
+    // Greens
+    '#14532d','#15803d','#16a34a','#22c55e','#4ade80','#86efac','#bbf7d0','#dcfce7',
+    // Yellows / Ambers (road marking yellow #D4A943 included)
+    '#78350f','#b45309','#d97706','#D4A943','#f59e0b','#fcd34d','#fde68a','#fef9c3',
+    // Oranges / Reds (includes #C85A2B rust, #CC3333 fire red)
+    '#7f1d1d','#991b1b','#CC3333','#C85A2B','#ea580c','#f97316','#fb923c','#fed7aa',
+  ];
+
+  var _fcpEl      = null;  // popover DOM element (singleton)
+  var _fcpColorEl = null;  // hidden <input> currently being edited
+  var _fcpSwEl    = null;  // .fs-swatch element currently open
+
+  function _fcpBuild() {
+    if (document.getElementById('fs-color-popover')) {
+      _fcpEl = document.getElementById('fs-color-popover');
+      return;
+    }
+    _fcpEl = document.createElement('div');
+    _fcpEl.id = 'fs-color-popover';
+    _fcpEl.innerHTML = '<div class="fcp-grid">' +
+      FCP_COLORS.map(function (c) {
+        return '<div class="fcp-cell" data-color="' + c + '" style="background:' + c + '" title="' + c + '"></div>';
+      }).join('') +
+      '</div>';
+    document.body.appendChild(_fcpEl);
+
+    // Cell click → commit color
+    _fcpEl.querySelectorAll('.fcp-cell').forEach(function (cell) {
+      cell.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var chosen = cell.dataset.color;
+        if (_fcpColorEl) {
+          _fcpColorEl.value = chosen;
+          _fcpColorEl.dispatchEvent(new Event('input'));
+        }
+        if (_fcpSwEl) _fcpSwEl.style.background = chosen;
+        _fcpEl.querySelectorAll('.fcp-cell').forEach(function (c) { c.classList.remove('fcp-selected'); });
+        cell.classList.add('fcp-selected');
+        _fcpClose();
+      });
+    });
+
+    // Close on outside click
+    document.addEventListener('click', function (e) {
+      if (_fcpEl && _fcpEl.style.display !== 'none' && !_fcpEl.contains(e.target)) {
+        _fcpClose();
+      }
+    }, true);
+  }
+
+  function _fcpOpen(swEl, colorEl) {
+    _fcpBuild();
+    _fcpColorEl = colorEl;
+    _fcpSwEl    = swEl;
+
+    // Highlight the currently active color
+    var cur = (colorEl.value || '').toLowerCase();
+    _fcpEl.querySelectorAll('.fcp-cell').forEach(function (c) {
+      c.classList.toggle('fcp-selected', c.dataset.color.toLowerCase() === cur);
+    });
+
+    // Position below the swatch, clamped to viewport
+    _fcpEl.style.display = 'block';
+    var rect = swEl.getBoundingClientRect();
+    var pop  = _fcpEl.getBoundingClientRect();
+    var left = rect.left;
+    var top  = rect.bottom + 4;
+    if (left + pop.width  > window.innerWidth  - 8) left = window.innerWidth  - pop.width  - 8;
+    if (top  + pop.height > window.innerHeight - 8) top  = rect.top - pop.height - 4;
+    _fcpEl.style.left = Math.max(4, left) + 'px';
+    _fcpEl.style.top  = Math.max(4, top)  + 'px';
+  }
+
+  function _fcpClose() {
+    if (_fcpEl) _fcpEl.style.display = 'none';
+    _fcpColorEl = null;
+    _fcpSwEl    = null;
+  }
+
   // ── Render the panel (Phase 1: Lines + Phase 2: Points) ──────────────────
   window.renderStyleGuide = function () {
     var body = document.getElementById('sg-body');
@@ -17460,8 +17560,8 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       return [
         '<tr class="fs-row" data-kind="' + f.kind + '">',
         '<td><span class="fs-kind-label">' + f.label + '</span></td>',
-        '<td><div class="fs-swatch" id="fs-sw-' + f.kind + '" style="background:' + s.color + '">',
-        '<input type="color" id="fs-color-' + f.kind + '" value="' + s.color + '"></div></td>',
+        '<td><div class="fs-swatch" id="fs-sw-' + f.kind + '" style="background:' + s.color + '" title="' + s.color + '">',
+        '<input type="hidden" id="fs-color-' + f.kind + '" value="' + s.color + '"></div></td>',
         '<td><select class="fs-lt-select" id="fs-lt-' + f.kind + '">' + sel + '</select></td>',
         '<td><input type="number" class="fs-num" id="fs-wt-' + f.kind + '" value="' + s.weight + '" min="1" max="12" step="1"></td>',
         '<td><div class="fs-offset-cell">',
@@ -17491,8 +17591,8 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       return groupHdr + [
         '<tr class="fs-row" data-kind="' + f.kind + '">',
         '<td><span class="fs-kind-label">' + f.label + '</span></td>',
-        '<td><div class="fs-swatch" id="fs-sw-' + f.kind + '" style="background:' + s.color + '">',
-        '<input type="color" id="fs-color-' + f.kind + '" value="' + s.color + '"></div></td>',
+        '<td><div class="fs-swatch" id="fs-sw-' + f.kind + '" style="background:' + s.color + '" title="' + s.color + '">',
+        '<input type="hidden" id="fs-color-' + f.kind + '" value="' + s.color + '"></div></td>',
         '<td><button class="fs-glyph-trigger" id="fs-gt-' + f.kind + '" title="Click to pick symbol">' + (s.glyph || '●') + '</button></td>',
         '<td><input type="number" class="fs-pt-size" id="fs-sz-' + f.kind + '" value="' + s.size + '" min="12" max="30" step="1"></td>',
         '<td>' + sldSel + '</td>',
@@ -17534,11 +17634,15 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         if (pv) pv.innerHTML = previewSVG(s.color, s.lineType, s.weight);
       }
       var colorEl = document.getElementById('fs-color-' + f.kind);
-      if (colorEl) colorEl.oninput = function (e) {
-        var sw = document.getElementById('fs-sw-' + f.kind);
-        if (sw) sw.style.background = e.target.value;
+      var swEl    = document.getElementById('fs-sw-'    + f.kind);
+      if (colorEl) colorEl.addEventListener('input', function (e) {
+        if (swEl) { swEl.style.background = e.target.value; swEl.title = e.target.value; }
         commit();
-      };
+      });
+      if (swEl && colorEl) swEl.addEventListener('click', function (e) {
+        e.stopPropagation();
+        _fcpOpen(swEl, colorEl);
+      });
       var ltEl = document.getElementById('fs-lt-' + f.kind);
       if (ltEl) ltEl.onchange = commit;
       var wtEl = document.getElementById('fs-wt-' + f.kind);
@@ -17562,12 +17666,16 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       }
 
       var colorEl = document.getElementById('fs-color-' + f.kind);
-      if (colorEl) colorEl.oninput = function (e) {
-        var sw = document.getElementById('fs-sw-' + f.kind);
-        if (sw) sw.style.background = e.target.value;
+      var swEl    = document.getElementById('fs-sw-'    + f.kind);
+      if (colorEl) colorEl.addEventListener('input', function (e) {
+        if (swEl) { swEl.style.background = e.target.value; swEl.title = e.target.value; }
         ptStyles[f.kind].color = e.target.value;
         commitPt();
-      };
+      });
+      if (swEl && colorEl) swEl.addEventListener('click', function (e) {
+        e.stopPropagation();
+        _fcpOpen(swEl, colorEl);
+      });
 
       var szEl = document.getElementById('fs-sz-' + f.kind);
       if (szEl) szEl.oninput = function (e) {
