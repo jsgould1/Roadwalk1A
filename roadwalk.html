@@ -4008,6 +4008,29 @@ input.fs-slider::-webkit-slider-thumb {
   display: inline-flex; align-items: center; justify-content: center; }
 .header-styleguide-btn:hover { background: var(--hover); }
 
+/* Phase 2 — Point Feature Styles */
+.fs-sym-picker { display: flex; gap: 4px; flex-wrap: wrap; max-width: 148px; }
+.fs-sym-btn {
+  width: 26px; height: 26px;
+  border: 1.5px solid var(--rule); border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; background: transparent; padding: 0;
+  transition: border-color .1s; }
+.fs-sym-btn.fs-active { border-color: var(--blue); background: rgba(10,42,93,.08); }
+.fs-sym-btn:hover { border-color: var(--blue); }
+.fs-pt-size {
+  font: 400 12px/1 'IBM Plex Mono', monospace;
+  color: var(--ink); background: var(--paper-2);
+  border: 1px solid var(--rule); border-radius: 3px;
+  padding: 5px 4px; width: 42px; text-align: center; }
+.fs-group-hdr td {
+  font: 600 9px/1 'IBM Plex Mono', monospace;
+  text-transform: uppercase; letter-spacing: .08em;
+  color: var(--blue); padding: 12px 0 4px !important;
+  border-bottom: 1px solid var(--rule) !important; }
+.fs-pt-preview { min-width: 32px; }
+.fs-pt-preview svg { display: block; }
+
 /* ============================================================
    PHASE 1: Multi-module shell
    Two-tier navigation: #app-nav (brand/actions) + #app-tabs (module tabs)
@@ -8952,6 +8975,34 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         ">${style.code}</div>`;
         iconSize   = [22, 20];
         iconAnchor = [11, 18];          /* anchor near the triangle's base */
+      } else if (style.shape && style.shape !== 'circle' && style.shape !== 'triangle') {
+        // Generic shape renderer: square / diamond / cross / hexagon / pentagon
+        const _SHAPES = {
+          square:   { br: '3px',  cp: '' },
+          diamond:  { br: '0',    cp: 'polygon(50% 0%,100% 50%,50% 100%,0% 50%)' },
+          cross:    { br: '0',    cp: 'polygon(33% 0%,67% 0%,67% 33%,100% 33%,100% 67%,67% 67%,67% 100%,33% 100%,33% 67%,0% 67%,0% 33%,33% 33%)' },
+          hexagon:  { br: '0',    cp: 'polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%)' },
+          pentagon: { br: '0',    cp: 'polygon(50% 0%,100% 38%,82% 100%,18% 100%,0% 38%)' },
+        };
+        const _sh = _SHAPES[style.shape] || _SHAPES.square;
+        const _sz = Math.round(style.size || 22);
+        const _fs = Math.round(_sz * 0.36);
+        html = `<div class="rw-pin-code" style="
+          background: ${style.color};
+          color: #F5F1EA;
+          font-family: 'IBM Plex Mono', monospace;
+          font-size: ${_fs}px;
+          font-weight: 700;
+          width: ${_sz}px; height: ${_sz}px;
+          border-radius: ${_sh.br};
+          ${_sh.cp ? 'clip-path:' + _sh.cp + ';' : ''}
+          display: flex; align-items: center; justify-content: center;
+          ${_sh.cp ? '' : 'border:1.5px solid ' + status.ring + ';box-shadow:0 1px 3px rgba(0,0,0,.3);'}
+          opacity: ${status.opacity};
+          white-space: nowrap; overflow: hidden; letter-spacing: -0.3px;
+        ">${style.code}</div>`;
+        iconSize   = [_sz, _sz];
+        iconAnchor = [Math.round(_sz / 2), Math.round(_sz / 2)];
       } else {
         html = `<div class="rw-pin-code" style="
           background: ${style.color};
@@ -16791,9 +16842,122 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     if (window._RW && typeof window._RW.rerender === 'function') window._RW.rerender();
   }
 
+  // ── Phase 2: Point Feature Styles ─────────────────────────────────────────
+
+  var PT_SYMBOLS = [
+    { v: 'circle',   l: 'Circle',   p: '<circle cx="10" cy="10" r="7" fill="{c}"/>' },
+    { v: 'square',   l: 'Square',   p: '<rect x="3" y="3" width="14" height="14" rx="2" fill="{c}"/>' },
+    { v: 'diamond',  l: 'Diamond',  p: '<polygon points="10,2 18,10 10,18 2,10" fill="{c}"/>' },
+    { v: 'triangle', l: 'Triangle', p: '<polygon points="10,2 19,18 1,18" fill="{c}"/>' },
+    { v: 'cross',    l: 'Cross',    p: '<path d="M7,1 h6 v6 h6 v6 h-6 v6 h-6 v-6 h-6 v-6 h6z" fill="{c}"/>' },
+    { v: 'hexagon',  l: 'Hexagon',  p: '<polygon points="10,2 17,6 17,14 10,18 3,14 3,6" fill="{c}"/>' },
+    { v: 'pentagon', l: 'Pentagon', p: '<polygon points="10,1 18,7 15,17 5,17 2,7" fill="{c}"/>' },
+  ];
+
+  var FS_POINT_FEATURES = [
+    // ── Misc ─────────────────────────────────────────────────────────────────
+    { kind: 'pt_sign',        label: 'Sign',        defColor: '#C85A2B', defShape: 'circle',   defSize: 22, group: 'Misc' },
+    { kind: 'pt_swing_gate',  label: 'Swing Gate',  defColor: '#C85A2B', defShape: 'square',   defSize: 20, group: 'Misc' },
+    { kind: 'pt_man_gate',    label: 'Man Gate',    defColor: '#C85A2B', defShape: 'square',   defSize: 20, group: 'Misc' },
+    { kind: 'pt_monument',    label: 'Monument',    defColor: '#0B3D66', defShape: 'triangle', defSize: 22, group: 'Misc' },
+    { kind: 'pt_light_pole',  label: 'Light Pole',  defColor: '#C85A2B', defShape: 'circle',   defSize: 20, group: 'Misc' },
+    { kind: 'pt_guy_wire',    label: 'Guy Wire',    defColor: '#C85A2B', defShape: 'cross',    defSize: 20, group: 'Misc' },
+    { kind: 'pt_delineator',  label: 'Delineator',  defColor: '#C85A2B', defShape: 'diamond',  defSize: 20, group: 'Misc' },
+    { kind: 'pt_mailbox',     label: 'Mailbox',     defColor: '#C85A2B', defShape: 'square',   defSize: 20, group: 'Misc' },
+    { kind: 'pt_flagpole',    label: 'Flagpole',    defColor: '#C85A2B', defShape: 'pentagon', defSize: 20, group: 'Misc' },
+    { kind: 'pt_ada_ramp',    label: 'ADA Ramp',    defColor: '#C85A2B', defShape: 'hexagon',  defSize: 20, group: 'Misc' },
+    // ── Utilities ────────────────────────────────────────────────────────────
+    { kind: 'pt_cb',          label: 'CB',          defColor: '#0B3D66', defShape: 'square',   defSize: 20, group: 'Utilities' },
+    { kind: 'pt_di',          label: 'DI',          defColor: '#0B3D66', defShape: 'square',   defSize: 20, group: 'Utilities' },
+    { kind: 'pt_dmh',         label: 'DMH',         defColor: '#0B3D66', defShape: 'circle',   defSize: 20, group: 'Utilities' },
+    { kind: 'pt_smh',         label: 'SMH',         defColor: '#0B3D66', defShape: 'circle',   defSize: 20, group: 'Utilities' },
+    { kind: 'pt_emh',         label: 'EMH',         defColor: '#0B3D66', defShape: 'circle',   defSize: 20, group: 'Utilities' },
+    { kind: 'pt_pb',          label: 'PB',          defColor: '#0B3D66', defShape: 'hexagon',  defSize: 20, group: 'Utilities' },
+    { kind: 'pt_gg',          label: 'GG',          defColor: '#0B3D66', defShape: 'pentagon', defSize: 20, group: 'Utilities' },
+    { kind: 'pt_wg',          label: 'WG',          defColor: '#0B3D66', defShape: 'pentagon', defSize: 20, group: 'Utilities' },
+    { kind: 'pt_hyd',         label: 'HYD',         defColor: '#CC3333', defShape: 'cross',    defSize: 20, group: 'Utilities' },
+    { kind: 'pt_transformer', label: 'Transformer', defColor: '#0B3D66', defShape: 'diamond',  defSize: 20, group: 'Utilities' },
+    // ── Markings ─────────────────────────────────────────────────────────────
+    { kind: 'pt_hc_marking',  label: 'HC Marking',  defColor: '#D4A943', defShape: 'hexagon',  defSize: 20, group: 'Markings' },
+    { kind: 'pt_arrow',       label: 'Arrow',       defColor: '#D4A943', defShape: 'diamond',  defSize: 20, group: 'Markings' },
+    { kind: 'pt_fire_lane',   label: 'Fire Lane',   defColor: '#D4A943', defShape: 'square',   defSize: 20, group: 'Markings' },
+    { kind: 'pt_text',        label: 'TEXT',        defColor: '#D4A943', defShape: 'square',   defSize: 20, group: 'Markings' },
+  ];
+
+  function ptGet(kind) {
+    var f    = FS_POINT_FEATURES.find(function (x) { return x.kind === kind; });
+    if (!f) return { color: '#888888', shape: 'circle', size: 20 };
+    var saved = fsLoadAll()[kind] || {};
+    return {
+      color: saved.color !== undefined ? saved.color : f.defColor,
+      shape: saved.shape !== undefined ? saved.shape : f.defShape,
+      size:  saved.size  !== undefined ? saved.size  : f.defSize,
+    };
+  }
+
+  function applyPtKindStyle(kind, s) {
+    var rw = window._RW;
+    if (!rw || !rw.PIN_STYLE) return;
+    if (rw.PIN_STYLE[kind]) {
+      rw.PIN_STYLE[kind].color = s.color;
+      rw.PIN_STYLE[kind].shape = s.shape;
+      rw.PIN_STYLE[kind].size  = s.size;
+    }
+    if (typeof rw.rerender === 'function') rw.rerender();
+  }
+
+  function applyAllPtStyles() {
+    FS_POINT_FEATURES.forEach(function (f) { applyPtKindStyle(f.kind, ptGet(f.kind)); });
+  }
+
+  // Point marker preview (28×28 SVG)
+  function previewMarker(color, shape, size) {
+    var r  = Math.round((size || 20) * 0.36);
+    var cx = 14, cy = 14;
+    var inner;
+    switch (shape) {
+      case 'square':
+        inner = '<rect x="' + (cx - r) + '" y="' + (cy - r) + '" width="' + (2 * r) + '" height="' + (2 * r) + '" rx="2" fill="' + color + '"/>';
+        break;
+      case 'diamond':
+        inner = '<polygon points="' + cx + ',' + (cy - r) + ' ' + (cx + r) + ',' + cy + ' ' + cx + ',' + (cy + r) + ' ' + (cx - r) + ',' + cy + '" fill="' + color + '"/>';
+        break;
+      case 'triangle':
+        inner = '<polygon points="' + cx + ',' + (cy - r) + ' ' + (cx + r) + ',' + (cy + r) + ' ' + (cx - r) + ',' + (cy + r) + '" fill="' + color + '"/>';
+        break;
+      case 'cross': {
+        var t = Math.max(2, Math.round(r * 0.38));
+        inner = '<path d="M' + (cx - t) + ',' + (cy - r) + ' h' + (2 * t) + ' v' + (r - t) + ' h' + (r - t) + ' v' + (2 * t) + ' h-' + (r - t) + ' v' + (r - t) + ' h-' + (2 * t) + ' v-' + (r - t) + ' h-' + (r - t) + ' v-' + (2 * t) + ' h' + (r - t) + 'z" fill="' + color + '"/>';
+        break;
+      }
+      case 'hexagon': {
+        var hpts = [];
+        for (var hi = 0; hi < 6; hi++) {
+          var ha = Math.PI / 180 * (60 * hi - 30);
+          hpts.push((cx + r * Math.cos(ha)).toFixed(1) + ',' + (cy + r * Math.sin(ha)).toFixed(1));
+        }
+        inner = '<polygon points="' + hpts.join(' ') + '" fill="' + color + '"/>';
+        break;
+      }
+      case 'pentagon': {
+        var ppts = [];
+        for (var pi = 0; pi < 5; pi++) {
+          var pa = Math.PI / 180 * (72 * pi - 90);
+          ppts.push((cx + r * Math.cos(pa)).toFixed(1) + ',' + (cy + r * Math.sin(pa)).toFixed(1));
+        }
+        inner = '<polygon points="' + ppts.join(' ') + '" fill="' + color + '"/>';
+        break;
+      }
+      default:  // circle
+        inner = '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="' + color + '"/>';
+    }
+    return '<svg width="28" height="28" viewBox="0 0 28 28">' + inner + '</svg>';
+  }
+
   // Apply all saved styles (called at boot and on panel open)
   function applyAllStyles() {
     FS_LINE_FEATURES.forEach(function (f) { applyKindStyle(f.kind, fsGet(f.kind)); });
+    applyAllPtStyles();
   }
 
   // ── Line preview SVG ──────────────────────────────────────────────────────
@@ -16813,22 +16977,20 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     return '<svg width="' + W + '" height="' + H + '">' + lines + '</svg>';
   }
 
-  // ── Render the panel ──────────────────────────────────────────────────────
+  // ── Render the panel (Phase 1: Lines + Phase 2: Points) ──────────────────
   window.renderStyleGuide = function () {
     var body = document.getElementById('sg-body');
     if (!body) return;
 
-    // Cache current styles
-    var styles = {};
-    FS_LINE_FEATURES.forEach(function (f) { styles[f.kind] = fsGet(f.kind); });
+    // ── Gather current styles ────────────────────────────────────────────────
+    var lineStyles = {};
+    FS_LINE_FEATURES.forEach(function (f) { lineStyles[f.kind] = fsGet(f.kind); });
+    var ptStyles = {};
+    FS_POINT_FEATURES.forEach(function (f) { ptStyles[f.kind] = ptGet(f.kind); });
 
-    // Build table HTML
-    var ltOptions = LINE_TYPES.map(function (t) {
-      return '<option value="' + t.v + '">' + t.l + '</option>';
-    }).join('');
-
-    var rows = FS_LINE_FEATURES.map(function (f) {
-      var s   = styles[f.kind];
+    // ── Build line rows ──────────────────────────────────────────────────────
+    var lineRows = FS_LINE_FEATURES.map(function (f) {
+      var s   = lineStyles[f.kind];
       var sel = LINE_TYPES.map(function (t) {
         return '<option value="' + t.v + '"' + (t.v === s.lineType ? ' selected' : '') + '>' + t.l + '</option>';
       }).join('');
@@ -16848,58 +17010,125 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       ].join('');
     }).join('');
 
+    // ── Build point rows ─────────────────────────────────────────────────────
+    var prevGroup = '';
+    var ptRows = FS_POINT_FEATURES.map(function (f) {
+      var s = ptStyles[f.kind];
+      var groupHdr = '';
+      if (f.group !== prevGroup) {
+        prevGroup = f.group;
+        groupHdr = '<tr class="fs-group-hdr"><td colspan="5">' + f.group + '</td></tr>';
+      }
+      var symBtns = PT_SYMBOLS.map(function (sym) {
+        var active = sym.v === s.shape ? ' fs-active' : '';
+        return '<button class="fs-sym-btn' + active + '" data-kind="' + f.kind + '" data-sym="' + sym.v + '" title="' + sym.l + '">' +
+          '<svg width="16" height="16" viewBox="0 0 20 20">' + sym.p.replace(/\{c\}/g, s.color) + '</svg>' +
+          '</button>';
+      }).join('');
+      return groupHdr + [
+        '<tr class="fs-row" data-kind="' + f.kind + '">',
+        '<td><span class="fs-kind-label">' + f.label + '</span></td>',
+        '<td><div class="fs-swatch" id="fs-sw-' + f.kind + '" style="background:' + s.color + '">',
+        '<input type="color" id="fs-color-' + f.kind + '" value="' + s.color + '"></div></td>',
+        '<td><div class="fs-sym-picker" id="fs-sp-' + f.kind + '">' + symBtns + '</div></td>',
+        '<td><input type="number" class="fs-pt-size" id="fs-sz-' + f.kind + '" value="' + s.size + '" min="12" max="30" step="1"></td>',
+        '<td class="fs-pt-preview" id="fs-pv-' + f.kind + '">' + previewMarker(s.color, s.shape, s.size) + '</td>',
+        '</tr>',
+      ].join('');
+    }).join('');
+
     body.innerHTML =
       '<div class="sg-section">' +
       '<div class="sg-section-title">Line Feature Styles</div>' +
       '<p class="sg-section-note">Changes apply live to the map, SLD, and layer toggle dots.</p>' +
-      '<table class="fs-table">' +
-      '<thead><tr class="fs-thead">' +
+      '<table class="fs-table"><thead><tr class="fs-thead">' +
       '<th>Feature</th><th>Color</th><th>Line Type</th><th>Wt</th><th style="min-width:140px">SLD Offset</th><th>Preview</th>' +
-      '</tr></thead>' +
-      '<tbody>' + rows + '</tbody>' +
-      '</table>' +
-      '</div>';
+      '</tr></thead><tbody>' + lineRows + '</tbody></table></div>' +
+      '<div class="sg-section">' +
+      '<div class="sg-section-title">Point Feature Styles</div>' +
+      '<p class="sg-section-note">Shape and color apply live to map pins.</p>' +
+      '<table class="fs-table"><thead><tr class="fs-thead">' +
+      '<th>Feature</th><th>Color</th><th>Shape</th><th>Size</th><th>Preview</th>' +
+      '</tr></thead><tbody>' + ptRows + '</tbody></table></div>';
 
-    // ── Wire every control ─────────────────────────────────────────────────
+    // ── Wire line controls ───────────────────────────────────────────────────
     FS_LINE_FEATURES.forEach(function (f) {
       function collect() {
         return {
-          color:    document.getElementById('fs-color-' + f.kind)?.value ?? styles[f.kind].color,
-          lineType: document.getElementById('fs-lt-'    + f.kind)?.value ?? styles[f.kind].lineType,
-          weight:   parseFloat(document.getElementById('fs-wt-' + f.kind)?.value) || styles[f.kind].weight,
+          color:    document.getElementById('fs-color-' + f.kind)?.value ?? lineStyles[f.kind].color,
+          lineType: document.getElementById('fs-lt-'    + f.kind)?.value ?? lineStyles[f.kind].lineType,
+          weight:   parseFloat(document.getElementById('fs-wt-' + f.kind)?.value) || lineStyles[f.kind].weight,
           offset:   parseInt(  document.getElementById('fs-sl-' + f.kind)?.value, 10),
         };
       }
       function commit() {
         var s = collect();
-        styles[f.kind] = s;
-        var all = fsLoadAll();
-        all[f.kind] = s;
-        fsSaveAll(all);
+        lineStyles[f.kind] = s;
+        var all = fsLoadAll(); all[f.kind] = s; fsSaveAll(all);
         applyKindStyle(f.kind, s);
         var pv = document.getElementById('fs-pv-' + f.kind);
         if (pv) pv.innerHTML = previewSVG(s.color, s.lineType, s.weight);
       }
-
       var colorEl = document.getElementById('fs-color-' + f.kind);
       if (colorEl) colorEl.oninput = function (e) {
         var sw = document.getElementById('fs-sw-' + f.kind);
         if (sw) sw.style.background = e.target.value;
         commit();
       };
-
       var ltEl = document.getElementById('fs-lt-' + f.kind);
       if (ltEl) ltEl.onchange = commit;
-
       var wtEl = document.getElementById('fs-wt-' + f.kind);
       if (wtEl) wtEl.oninput = commit;
-
       var slEl = document.getElementById('fs-sl-' + f.kind);
       var ovEl = document.getElementById('fs-ov-' + f.kind);
       if (slEl) slEl.oninput = function (e) {
         if (ovEl) ovEl.textContent = e.target.value;
         commit();
       };
+    });
+
+    // ── Wire point controls ──────────────────────────────────────────────────
+    FS_POINT_FEATURES.forEach(function (f) {
+      function commitPt() {
+        var s = ptStyles[f.kind];
+        var all = fsLoadAll(); all[f.kind] = s; fsSaveAll(all);
+        applyPtKindStyle(f.kind, s);
+        var pv = document.getElementById('fs-pv-' + f.kind);
+        if (pv) pv.innerHTML = previewMarker(s.color, s.shape, s.size);
+      }
+
+      var colorEl = document.getElementById('fs-color-' + f.kind);
+      if (colorEl) colorEl.oninput = function (e) {
+        var sw = document.getElementById('fs-sw-' + f.kind);
+        if (sw) sw.style.background = e.target.value;
+        ptStyles[f.kind].color = e.target.value;
+        // Update symbol SVG fills in the picker live
+        var picker = document.getElementById('fs-sp-' + f.kind);
+        if (picker) {
+          picker.querySelectorAll('.fs-sym-btn').forEach(function (btn, i) {
+            var sym = PT_SYMBOLS[i];
+            if (sym) btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 20 20">' + sym.p.replace(/\{c\}/g, e.target.value) + '</svg>';
+          });
+        }
+        commitPt();
+      };
+
+      var szEl = document.getElementById('fs-sz-' + f.kind);
+      if (szEl) szEl.oninput = function (e) {
+        ptStyles[f.kind].size = parseInt(e.target.value, 10) || ptStyles[f.kind].size;
+        commitPt();
+      };
+
+      var picker = document.getElementById('fs-sp-' + f.kind);
+      if (picker) picker.addEventListener('click', function (e) {
+        var btn = e.target.closest('.fs-sym-btn');
+        if (!btn) return;
+        ptStyles[f.kind].shape = btn.dataset.sym;
+        picker.querySelectorAll('.fs-sym-btn').forEach(function (b) {
+          b.classList.toggle('fs-active', b.dataset.sym === ptStyles[f.kind].shape);
+        });
+        commitPt();
+      });
     });
   };
 
