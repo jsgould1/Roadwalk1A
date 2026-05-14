@@ -7922,6 +7922,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
 
   // --- Map initialization ------------------------------------------------
   function initOrUpdateMap(sec) {
+    console.log('[initOrUpdateMap] sec=', sec?.id, 'map exists=', !!state.map);
     if (!state.map) {
       state.map = L.map('map', {
         zoomControl: false,
@@ -8128,6 +8129,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       let _layersVis = {};
       try { _layersVis = (typeof lsLoad === 'function' && lsLoad().layersVis) || {}; }
       catch (_) { _layersVis = {}; }
+      console.log('[initOrUpdateMap] _layersVis=', JSON.stringify(_layersVis), 'total pins=', pins.length);
       for (const pin of pins) {
         if (pin._editingVertices) continue;   // shown via the vertex-edit overlay
         if (pin.kind && _layersVis[pin.kind] === false) continue;   // hidden via Layers panel
@@ -8515,6 +8517,10 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
                || (state.sectionId && _rerSecs.find(s => s.id === state.sectionId))
                || (state.mapLayers && state.mapLayers._lastSecId
                    && _rerSecs.find(s => s.id === state.mapLayers._lastSecId));
+      console.log('[RW.rerender] stripCurrentSec=', typeof stripCurrentSec !== 'undefined' ? stripCurrentSec?.id : 'UNDEF',
+                  'sectionId=', state.sectionId,
+                  '_lastSecId=', state.mapLayers?._lastSecId,
+                  '→ sec=', sec?.id || 'NONE');
       if (!sec) return;
       if (typeof initOrUpdateMap === 'function') initOrUpdateMap(sec);
       if (typeof renderStrip === 'function' && typeof stripCurrentSec !== 'undefined' && stripCurrentSec === sec) {
@@ -8530,6 +8536,8 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     toggleLayer(kind, visible) {
       // Persistence is handled by the panel click handler (buildLayersPanel),
       // so we don't need to touch localStorage here — just redraw.
+      console.log('[RW.toggleLayer] kind=', kind, 'visible=', visible,
+                  'layersVis in LS=', (typeof lsLoad === 'function' ? lsLoad().layersVis : 'N/A'));
       if (typeof this.rerender === 'function') this.rerender();
     },
   };
