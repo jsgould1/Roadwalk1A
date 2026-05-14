@@ -4991,8 +4991,7 @@ input.fs-slider::-webkit-slider-thumb {
 }
 .data-table {
   border-collapse: collapse;
-  width: max-content;   /* grow to fit columns; wrapper scrolls horizontally */
-  min-width: 100%;
+  width: max-content;   /* natural width = sum of colgroup widths; wrapper scrolls if overflow */
   table-layout: fixed;
 }
 /* Header row — blue background */
@@ -5002,7 +5001,7 @@ input.fs-slider::-webkit-slider-thumb {
   z-index: 4;
   background: var(--blue);
   border-bottom: 2px solid #09335a;
-  border-right: 1px solid rgba(255,255,255,0.18);
+  border-right: 1px solid rgba(255,255,255,0.25); /* visible col separator */
   padding: 9px 22px 9px 10px; /* right pad leaves room for resize handle */
   font: 700 11px/1 'IBM Plex Mono', monospace;
   text-transform: uppercase;
@@ -5015,19 +5014,41 @@ input.fs-slider::-webkit-slider-thumb {
   -webkit-user-select: none;
   overflow: hidden;
 }
-.data-table thead tr th:hover { background: #0d4d85; }
-/* Resize drag handle — right edge of each th */
+/* Draggable column headers — grab cursor on hover */
+.data-table thead tr th[draggable="true"]:hover { background: #0d4d85; cursor: grab; }
+.data-table thead tr th[draggable="true"]:active { cursor: grabbing; }
+/* Resize drag handle — right edge of each th, visible vertical line by default */
 .dt-resize-handle {
   position: absolute;
-  right: 0; top: 0;
-  width: 7px; height: 100%;
+  right: -1px; top: 4px;
+  width: 9px; height: calc(100% - 8px);
   cursor: col-resize;
   z-index: 10;
   background: transparent;
-  transition: background 120ms;
+  border-right: 2px solid rgba(255,255,255,0.30); /* visible grip line */
+  transition: background 120ms, border-right-color 120ms;
 }
-.dt-resize-handle:hover,
-.dt-resize-handle.dt-resizing { background: rgba(255,255,255,0.40); }
+.dt-resize-handle:hover { background: rgba(255,255,255,0.20); border-right-color: rgba(255,255,255,0.8); }
+.dt-resize-handle.dt-resizing { background: rgba(255,255,255,0.40); border-right-color: #fff; }
+/* Drag grip + label inside draggable headers */
+.dt-th-grip {
+  display: inline-block;
+  font-size: 11px;
+  color: rgba(255,255,255,0.55);
+  margin-right: 5px;
+  letter-spacing: -1px;
+  cursor: grab;
+  vertical-align: middle;
+  font-weight: 400;
+}
+.data-table thead tr th:hover .dt-th-grip { color: rgba(255,255,255,0.95); }
+.dt-th-lbl {
+  display: inline-block;
+  vertical-align: middle;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: calc(100% - 24px); /* reserve room for grip + resize handle */
+}
 /* Column drag-to-reorder visual feedback */
 .dt-th-drag-over-before { box-shadow: inset 3px 0 0 #fff !important; }
 .dt-th-drag-over-after  { box-shadow: inset -3px 0 0 #fff !important; }
@@ -7525,6 +7546,29 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     $('#project-name').textContent = PROJECT.name;
     const shortName = bundle.short_name || PROJECT.name.split('·')[0].trim().slice(0, 18);
     $('#header-name').textContent = shortName;
+
+    // ── Remap legacy 3-letter ID prefixes to current 2-letter PIN_STYLE codes ──
+    // Bundles authored before the code standardization use prefixes like
+    // CUL/GUA/MIL/BRI/SIG/GAT inside pin IDs ("A-CUL-001"). We rebuild each
+    // id as `${secPrefix}-${PIN_STYLE[kind].code}-${num}` so badges, ID-prefix
+    // generation, and the data table all share the same code.
+    const _legacyIdRe = /^([A-Z]+)-([A-Z]+)-(\d+)$/;
+    SECTIONS.forEach(sec => {
+      (sec.pins || []).forEach(pin => {
+        if (!pin || !pin.id || !pin.kind) return;
+        const m = String(pin.id).match(_legacyIdRe);
+        if (!m) return;
+        const secPrefix  = m[1];
+        const legacyCode = m[2];
+        const num        = m[3];
+        const newCode    = (PIN_STYLE[pin.kind] && PIN_STYLE[pin.kind].code) || legacyCode;
+        if (newCode === legacyCode) return; // already matches
+        const newId = `${secPrefix}-${newCode}-${num}`;
+        // Update attrs.name if it was auto-generated from the old id
+        if (pin.attrs && pin.attrs.name === pin.id) pin.attrs.name = newId;
+        pin.id = newId;
+      });
+    });
 
     // Expose globals so Phase 1 Dashboard module can read them without
     // needing direct access to this IIFE's scope.
@@ -19770,8 +19814,10 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     { id:'notes',  label:'Notes',             w:220, def:false,
       get:function(r){ return (r.merged.attrs||{}).notes || '—'; } },
   ];
-  var _LS_COLS       = 'rw_data_cols_v1';
-  var _LS_COL_WIDTHS = 'rw_data_col_widths_v1';
+  // v2 keys force a fresh start so older saved orderings (with stale column
+  // ids or non-matching counts) cannot misalign the table.
+  var _LS_COLS       = 'rw_data_cols_v2';
+  var _LS_COL_WIDTHS = 'rw_data_col_widths_v2';
 
   function _getActiveCols() {
     var saved = null;
@@ -19834,7 +19880,8 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
              '<div class="dt-resize-handle" data-resize-id="id"></div></th>';
     cols.forEach(function(col) {
       thead += '<th data-col-id="' + col.id + '" data-sort-col="' + col.id + '" draggable="true">' +
-               _esc(col.label) +
+               '<span class="dt-th-grip" title="Drag to reorder">⠿</span>' +
+               '<span class="dt-th-lbl">' + _esc(col.label) + '</span>' +
                '<div class="dt-resize-handle" data-resize-id="' + col.id + '"></div>' +
                '</th>';
     });
