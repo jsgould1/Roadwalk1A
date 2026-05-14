@@ -17175,7 +17175,7 @@ body.mobile-mode #app {
                       Safety module data; not date-keyed (project-level).
      --------------------------------------------------------------- */
   const RW_IDB_NAME    = 'RoadWalkDB';
-  const RW_IDB_VERSION = 1;
+  const RW_IDB_VERSION = 2;          // v2: inspections re-keyed pin_id → ulid
 
   /** Promise-based open of the RoadWalk field data IDB. */
   function openRWDB() {
@@ -17184,10 +17184,44 @@ body.mobile-mode #app {
 
       req.onupgradeneeded = function (e) {
         const db = e.target.result;
-        // inspections: field data keyed by pin_id
-        if (!db.objectStoreNames.contains('inspections')) {
-          db.createObjectStore('inspections', { keyPath: 'pin_id' });
+        const tx = e.target.transaction;   // versionchange transaction
+
+        // ── v1 → v2: re-key inspections from pin_id → ulid ───────────────
+        // IDB keyPath cannot be changed in-place; copy records out, delete
+        // the old store, recreate with keyPath:'ulid', then re-insert.
+        if (e.oldVersion < 2) {
+          if (db.objectStoreNames.contains('inspections')) {
+            // Harvest every existing record via cursor
+            var oldStore   = tx.objectStore('inspections');
+            var oldRecords = [];
+            var cursorReq  = oldStore.openCursor();
+            cursorReq.onsuccess = function (ce) {
+              var cursor = ce.target.result;
+              if (cursor) {
+                var rec = cursor.value;
+                if (!rec.ulid) rec.ulid = makeULID();   // backfill for pre-ULID saves
+                oldRecords.push(rec);
+                cursor.continue();
+              } else {
+                // All records collected — restructure the store
+                db.deleteObjectStore('inspections');
+                var ns = db.createObjectStore('inspections', { keyPath: 'ulid' });
+                ns.createIndex('by_pin_id', 'pin_id', { unique: false });
+                oldRecords.forEach(function (r) { ns.add(r); });
+                console.log('[RoadWalk] IDB migrated v1→v2: ' + oldRecords.length + ' inspection(s) re-keyed');
+              }
+            };
+            cursorReq.onerror = function (ce) {
+              console.warn('[RoadWalk] IDB v2 migration cursor error:', ce.target.error);
+            };
+          } else {
+            // Fresh install at v2 — create inspections with ulid keyPath directly
+            var ns2 = db.createObjectStore('inspections', { keyPath: 'ulid' });
+            ns2.createIndex('by_pin_id', 'pin_id', { unique: false });
+          }
         }
+
+        // ── Other stores (unchanged; created fresh if absent) ──────────────
         // photos: blobs keyed by auto-increment id; secondary index on pin_id
         if (!db.objectStoreNames.contains('photos')) {
           const photoStore = db.createObjectStore('photos', {
@@ -17619,11 +17653,13 @@ body.mobile-mode #app {
 
     // ── Data module: refresh list + badges on tab switch ───────
     if (name === 'data') {
-      _loadIdbCache().then(function () {
-        _updateTypeBadges();
-        _updateFilterBar();   // populates Section chips from loaded bundle
-        renderDataList(_dataState.type);
-      });
+      _loadIdbCache()
+        .then(function () { return _migrateBundleToInspections(); })
+        .then(function () {
+          _updateTypeBadges();
+          _updateFilterBar();   // populates Section chips from loaded bundle
+          renderDataList(_dataState.type);
+        });
     }
 
     // ── Leaflet invalidateSize on map module switch ─────────────
@@ -18477,7 +18513,7 @@ body.mobile-mode #app {
     var _allPhotos = [];  // raw IDB records
 
     (function scanPhotos() {
-      window.RWIdb.then(function (db) {
+      window.RWIdb.openDB().then(function (db) {
         var tx    = db.transaction('photos', 'readonly');
         var store = tx.objectStore('photos');
         var req   = store.getAll();
@@ -18821,17 +18857,94 @@ body.mobile-mode #app {
     sec:          null,     // section the pin belongs to
     dirty:        false,    // unsaved changes flag
     signSubTab:   'post',   // 'post' | 0 | 1 | 2 | ... (panel index)
-    idbCache:     {},       // { pin_id: inspectionRecord } — lazy-loaded
+    idbCache:       {},     // { pin_id → inspectionRecord } — lazy-loaded
+    idbCacheByUlid: {},     // { ulid   → inspectionRecord } — parallel index for renumber-safe lookup
   };
 
-  /** Load all IDB inspection records once, cache them */
+  /** Load all IDB inspection records once, cache them.
+   *  Builds two parallel indexes:
+   *    idbCache[pin_id]         — primary lookup used by _mergedPin
+   *    idbCacheByUlid[ulid]     — fallback after pin renumbering
+   */
   function _loadIdbCache() {
     return window.RWIdb.getAll('inspections').then(function (records) {
-      _dataState.idbCache = {};
+      _dataState.idbCache       = {};
+      _dataState.idbCacheByUlid = {};
       (records || []).forEach(function (rec) {
-        if (rec && rec.pin_id) _dataState.idbCache[rec.pin_id] = rec;
+        if (rec && rec.pin_id) _dataState.idbCache[rec.pin_id]     = rec;
+        if (rec && rec.ulid)   _dataState.idbCacheByUlid[rec.ulid] = rec;
       });
       return _dataState.idbCache;
+    });
+  }
+
+  /**
+   * Seed the IDB inspections store from the loaded bundle.
+   * Called once after _loadIdbCache() when the Data module is first opened.
+   * For every bundle pin that has no IDB record yet, writes a baseline record
+   * so that the pre-populated bundle attrs are visible in forms immediately
+   * without requiring a separate "import" step.
+   *
+   * Idempotent: pins already in the cache are skipped.  Runs fast on
+   * subsequent tab switches (toSeed will be empty after the first pass).
+   */
+  function _migrateBundleToInspections() {
+    var sections = window.SECTIONS || [];
+    var toSeed   = [];
+
+    sections.forEach(function (sec) {
+      (sec.pins || []).forEach(function (pin) {
+        // Skip if already in either cache index
+        if (_dataState.idbCache[pin.id]) return;
+        if (pin.ulid && _dataState.idbCacheByUlid[pin.ulid]) return;
+
+        var ulid = pin.ulid || makeULID();
+        toSeed.push({
+          pin_id:   pin.id,
+          ulid:     ulid,
+          kind:     pin.kind,
+          sec_id:   sec.id,
+          status:   'pending',
+          attrs:    Object.assign({}, pin.attrs || {}),
+          saved_at: new Date().toISOString(),
+          _seeded:  true,    // marker: baseline bundle seed, not a user-entered save
+        });
+      });
+    });
+
+    if (toSeed.length === 0) return Promise.resolve();
+
+    console.log('[RoadWalk] Seeding ' + toSeed.length + ' bundle pin(s) into inspections store…');
+
+    return window.RWIdb.openDB().then(function (db) {
+      return new Promise(function (resolve) {
+        var tx    = db.transaction('inspections', 'readwrite');
+        var store = tx.objectStore('inspections');
+
+        toSeed.forEach(function (rec) {
+          var req   = store.add(rec);
+          req.onsuccess = function () {
+            // Keep in-memory cache consistent
+            _dataState.idbCache[rec.pin_id]     = rec;
+            _dataState.idbCacheByUlid[rec.ulid] = rec;
+          };
+          req.onerror = function (ev) {
+            // Suppress individual-record errors (e.g. stale duplicate key)
+            // so the transaction continues for the remaining records.
+            ev.preventDefault();
+            console.warn('[RoadWalk] Seed skipped:', rec.pin_id, ev.target.error);
+          };
+        });
+
+        tx.oncomplete = function () {
+          console.log('[RoadWalk] Bundle seed complete (' + toSeed.length + ' records).');
+          resolve();
+        };
+        tx.onerror = function (ev) {
+          console.warn('[RoadWalk] Bundle seed transaction error:', ev.target.error);
+          resolve();   // non-fatal: resolve so the UI still renders
+        };
+      });
     });
   }
 
@@ -18840,7 +18953,10 @@ body.mobile-mode #app {
    *  flows through the form into _saveDataForm without being clobbered.
    */
   function _mergedPin(bundlePin) {
-    var idb = _dataState.idbCache[bundlePin.id] || {};
+    // Primary lookup by pin_id; fall back to ulid lookup in case pin was renumbered.
+    var idb = _dataState.idbCache[bundlePin.id]
+           || (bundlePin.ulid && _dataState.idbCacheByUlid[bundlePin.ulid])
+           || {};
     var merged = Object.assign({}, bundlePin);
     merged.attrs  = Object.assign({}, bundlePin.attrs, idb.attrs || {});
     merged.status = idb.status || bundlePin.status || 'pending';
@@ -20031,8 +20147,9 @@ body.mobile-mode #app {
     };
 
     window.RWIdb.put('inspections', record).then(function () {
-      // Update cache
-      _dataState.idbCache[pin.id] = record;
+      // Update both cache indexes so _mergedPin finds the record immediately
+      _dataState.idbCache[pin.id]             = record;
+      _dataState.idbCacheByUlid[record.ulid]  = record;
       _dataState.dirty = false;
       if (flash) {
         flash.textContent = '✓ Saved';
