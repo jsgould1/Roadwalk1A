@@ -5727,6 +5727,56 @@ input.fs-slider::-webkit-slider-thumb {
   color: var(--ink); text-align: left; width: 100%;
 }
 .df-photo-btn:hover { background: var(--paper); border-color: var(--blue); color: var(--blue); }
+/* Primary "Take Photo" button — full-width, blue, centered */
+.df-photo-btn-take {
+  justify-content: center; font-size: 10.5px;
+  background: var(--blue); color: #fff; border-color: var(--blue);
+}
+.df-photo-btn-take:hover { background: #0a2d6e; border-color: #0a2d6e; color: #fff; }
+/* Asset quick-action buttons in data-form-bar header */
+.dfa-asset-btns { display: flex; gap: 3px; margin-left: 4px; }
+.dfa-btn {
+  width: 30px; height: 26px; border-radius: 3px;
+  border: 1px solid var(--rule); background: var(--paper);
+  color: var(--ink-2); font-size: 12px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'IBM Plex Mono', monospace; flex-shrink: 0;
+}
+.dfa-btn:hover { border-color: var(--blue); color: var(--blue); background: var(--paper-2); }
+.dfa-btn.dfa-confirm:hover { background: #dcfce7; border-color: #15803d; color: #15803d; }
+.dfa-btn.dfa-move:hover    { background: #eff6ff; border-color: var(--blue); color: var(--blue); }
+.dfa-btn.dfa-delete:hover  { background: #fee2e2; border-color: #b91c1c;   color: #b91c1c; }
+.dfa-btn.active            { background: var(--blue); color: #fff; border-color: var(--blue); }
+/* Photo annotation modal */
+.rw-annotate-overlay {
+  position: fixed; inset: 0; z-index: 9000;
+  background: #000; display: flex; flex-direction: column;
+}
+.rw-annotate-toolbar {
+  flex: 0 0 48px; display: flex; align-items: center; gap: 6px;
+  padding: 0 10px; background: #1a1a1a; border-bottom: 1px solid #333;
+}
+.rw-annotate-toolbar button {
+  height: 32px; padding: 0 10px; border-radius: 3px;
+  border: 1px solid #444; background: #2a2a2a; color: #ccc;
+  font: 600 10px/1 'IBM Plex Mono', monospace; cursor: pointer;
+}
+.rw-annotate-toolbar button.active { background: var(--blue); border-color: var(--blue); color: #fff; }
+.rw-annotate-toolbar button:hover  { border-color: #888; color: #fff; }
+.rw-annotate-toolbar .at-sep { flex: 1; }
+.rw-annotate-color {
+  width: 26px; height: 26px; border-radius: 50%; border: 2px solid #555;
+  cursor: pointer; flex-shrink: 0;
+}
+.rw-annotate-color.active { border-color: #fff; }
+.rw-annotate-canvas-wrap {
+  flex: 1 1 auto; overflow: hidden; display: flex;
+  align-items: center; justify-content: center; position: relative;
+}
+.rw-annotate-canvas-wrap canvas { max-width: 100%; max-height: 100%; touch-action: none; }
+.rw-text-cursor { cursor: text; }
+/* Photo lightbox for annotation trigger */
+.df-photo-thumb { cursor: pointer; }
 /* Collapsible Dimensions section */
 .df-dim-toggle {
   display: flex; align-items: center; gap: 6px;
@@ -6510,6 +6560,54 @@ body.mobile-mode #app {
           </div>
         </div>
 
+        <!-- ── Photo watermark settings ─────────────────────────────── -->
+        <div class="settings-group">
+          <h3>Photo Watermark</h3>
+          <div class="settings-row">
+            <div>
+              <div class="s-label">Burn watermark onto captured photos</div>
+              <div class="s-sub">Composited at capture time into the bottom-left of each photo. Does not affect uploaded images.</div>
+            </div>
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px">
+              <input type="checkbox" id="s-wm-enabled" style="width:17px;height:17px">
+              <span>Enabled</span>
+            </label>
+          </div>
+          <div id="s-wm-fields" style="display:none">
+            <div class="settings-row" style="padding-top:4px">
+              <div class="s-sub" style="font-weight:700;color:var(--ink-2)">Line 1</div>
+              <div style="display:flex;gap:8px;align-items:center;font-size:12px">
+                <label style="display:flex;gap:4px;align-items:center">
+                  <input type="checkbox" id="s-wm-sec" checked> Section Name
+                </label>
+                <label style="display:flex;gap:4px;align-items:center">
+                  <input type="checkbox" id="s-wm-fid" checked> Feature ID
+                </label>
+              </div>
+            </div>
+            <div class="settings-row" style="padding-top:4px">
+              <div class="s-sub" style="font-weight:700;color:var(--ink-2)">Line 2</div>
+              <div style="display:flex;gap:8px;align-items:center;font-size:12px;flex-wrap:wrap">
+                <label style="display:flex;gap:4px;align-items:center">
+                  <input type="checkbox" id="s-wm-sta" checked> STA
+                </label>
+                <label style="display:flex;gap:4px;align-items:center">
+                  <input type="checkbox" id="s-wm-side" checked> Side
+                </label>
+                <label style="display:flex;gap:4px;align-items:center">
+                  <input type="checkbox" id="s-wm-gps" checked> GPS
+                </label>
+              </div>
+            </div>
+            <div class="settings-row" style="padding-top:4px">
+              <div class="s-sub" style="font-weight:700;color:var(--ink-2)">Line 3</div>
+              <label style="display:flex;gap:4px;align-items:center;font-size:12px">
+                <input type="checkbox" id="s-wm-dt" checked> Date / Time
+              </label>
+            </div>
+          </div>
+        </div>
+
         <div class="settings-group">
           <h3>About</h3>
           <div class="settings-row">
@@ -6759,6 +6857,12 @@ body.mobile-mode #app {
             <button class="data-back-btn" id="data-back-btn">◀ Back</button>
             <span class="data-form-label" id="data-form-label">—</span>
             <span class="data-stat-chip"  id="data-stat-chip">Pending</span>
+            <!-- Asset quick-actions: shown for pt_* and pg_* kinds only -->
+            <div class="dfa-asset-btns" id="dfa-asset-btns" hidden>
+              <button class="dfa-btn dfa-confirm" id="dfa-confirm-btn" title="Confirm Asset">✓</button>
+              <button class="dfa-btn dfa-move"    id="dfa-move-btn"    title="Move Asset on Map">⊹</button>
+              <button class="dfa-btn dfa-delete"  id="dfa-delete-btn"  title="Delete Asset">✕</button>
+            </div>
           </div>
 
           <!-- Sub-tabs (Signs only: Post | Panel 1 | … | + Panel) -->
@@ -14743,6 +14847,22 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     $('#s-backup').value = String(state.settings.backupMin);
     $('#s-streetview').checked = state.settings.streetViewEnabled;
 
+    // Watermark — re-apply saved values each time view opens
+    try {
+      var _wm2 = JSON.parse(localStorage.getItem('rw_wm_settings') || '{}');
+      var _wmE = $('#s-wm-enabled');
+      var _wmF = $('#s-wm-fields');
+      if (_wmE) {
+        _wmE.checked = !!_wm2.enabled;
+        if (_wmF) _wmF.style.display = _wm2.enabled ? '' : 'none';
+      }
+      var _wmIds = {'s-wm-sec':'showSec','s-wm-fid':'showFid','s-wm-sta':'showSta',
+                    's-wm-side':'showSide','s-wm-gps':'showGps','s-wm-dt':'showDt'};
+      Object.keys(_wmIds).forEach(function(id){
+        var el = $('#'+id); if (el) el.checked = (_wm2[_wmIds[id]] !== false);
+      });
+    } catch (_wmErr) { /* ignore */ }
+
     // Basemap buttons
     $$('#basemap-row .basemap-btn').forEach(b => {
       b.classList.toggle('active', b.dataset.map === state.settings.basemap);
@@ -16214,6 +16334,49 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   $('#s-streetview').addEventListener('change', e => {
     state.settings.streetViewEnabled = e.target.checked;
   });
+
+  // ── Watermark settings — load on startup, persist on change ──────────────
+  (function _initWatermarkSettings() {
+    var _wmKey = 'rw_wm_settings';
+    function _loadWm() {
+      try { return JSON.parse(localStorage.getItem(_wmKey) || '{}'); } catch (e) { return {}; }
+    }
+    function _saveWm(patch) {
+      var cur = _loadWm();
+      Object.assign(cur, patch);
+      localStorage.setItem(_wmKey, JSON.stringify(cur));
+    }
+    // Apply saved state to UI
+    var wm = _loadWm();
+    var _wmEnabled = $('#s-wm-enabled');
+    var _wmFields  = $('#s-wm-fields');
+    if (_wmEnabled) {
+      _wmEnabled.checked = !!wm.enabled;
+      if (_wmFields) _wmFields.style.display = wm.enabled ? '' : 'none';
+      _wmEnabled.addEventListener('change', function () {
+        _saveWm({ enabled: _wmEnabled.checked });
+        if (_wmFields) _wmFields.style.display = _wmEnabled.checked ? '' : 'none';
+      });
+    }
+    var _wmMap = {
+      's-wm-sec':  'showSec',
+      's-wm-fid':  'showFid',
+      's-wm-sta':  'showSta',
+      's-wm-side': 'showSide',
+      's-wm-gps':  'showGps',
+      's-wm-dt':   'showDt',
+    };
+    Object.keys(_wmMap).forEach(function (id) {
+      var el = $('#' + id);
+      if (!el) return;
+      var key = _wmMap[id];
+      el.checked = (wm[key] !== false);  // default true
+      el.addEventListener('change', function () {
+        var patch = {}; patch[key] = el.checked;
+        _saveWm(patch);
+      });
+    });
+  })();
 
   // --- Boot ----------------------------------------------------------------
   // Load order:
@@ -19789,6 +19952,70 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       if (scrollEl) scrollEl.innerHTML = '<div style="padding:16px;color:#b91c1c;font-family:monospace;font-size:12px">⚠ Form render error: ' + String(err) + '</div>';
     }
 
+    // ── Asset quick-action buttons (Confirm / Move / Delete) ─────────────────
+    // Only shown for field-placed pt_* and pg_* features.
+    var _isMiscAsset = merged.kind.startsWith('pt_') || merged.kind.startsWith('pg_');
+    var assetBtnsEl = document.getElementById('dfa-asset-btns');
+    if (assetBtnsEl) {
+      if (_isMiscAsset) assetBtnsEl.removeAttribute('hidden');
+      else               assetBtnsEl.setAttribute('hidden', '');
+    }
+    if (_isMiscAsset) {
+      var _dfaConfirmBtn = document.getElementById('dfa-confirm-btn');
+      var _dfaMoveBtn    = document.getElementById('dfa-move-btn');
+      var _dfaDeleteBtn  = document.getElementById('dfa-delete-btn');
+      var _dfaChipEl     = document.getElementById('data-stat-chip');
+
+      // Highlight confirm button if already confirmed
+      if (_dfaConfirmBtn) {
+        _dfaConfirmBtn.classList.toggle('active', (merged.status || '') === 'confirmed');
+        _dfaConfirmBtn.onclick = function () {
+          merged.status = merged.status === 'confirmed' ? 'pending' : 'confirmed';
+          _dfaConfirmBtn.classList.toggle('active', merged.status === 'confirmed');
+          if (_dfaChipEl) {
+            _dfaChipEl.textContent = merged.status.toUpperCase();
+            _dfaChipEl.className   = 'data-stat-chip ' + merged.status;
+          }
+          _saveDataForm();
+        };
+      }
+
+      // Move: engage map relocation mode and close form
+      if (_dfaMoveBtn) {
+        _dfaMoveBtn.onclick = function () {
+          if (window._RW && typeof window._RW.beginPinMove === 'function') {
+            window._RW.beginPinMove(merged);
+          }
+          _closeDataForm();
+        };
+      }
+
+      // Delete: remove from section + IDB, close form, re-render map
+      if (_dfaDeleteBtn) {
+        _dfaDeleteBtn.onclick = function () {
+          if (!window.confirm('Delete "' + (merged.id || 'this asset') + '"?\nThis cannot be undone.')) return;
+          // Remove from in-memory section pins array
+          if (sec && Array.isArray(sec.pins)) {
+            var _dIdx = -1;
+            for (var _di = 0; _di < sec.pins.length; _di++) {
+              if (sec.pins[_di].id === merged.id) { _dIdx = _di; break; }
+            }
+            if (_dIdx !== -1) sec.pins.splice(_dIdx, 1);
+          }
+          // Remove from IDB if it was ever saved
+          if (merged.ulid) {
+            window.RWIdb.openDB().then(function (db) {
+              var tx = db.transaction('inspections', 'readwrite');
+              tx.objectStore('inspections').delete(merged.ulid);
+            });
+          }
+          // Close the form and redraw the strip / map
+          _closeDataForm();
+          if (window._RW && typeof window._RW.rerender === 'function') window._RW.rerender();
+        };
+      }
+    }
+
     // Make the form pane visible.  We add the class synchronously so the pane
     // is guaranteed to appear even if requestAnimationFrame is delayed (e.g.
     // when the module was just switched).  The rAF also runs as a belt-and-
@@ -20152,6 +20379,242 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       _customFieldsSection(pin);
   }
 
+  // ── Photo watermark ────────────────────────────────────────────────────────
+  function _getWmSettings() {
+    try { return JSON.parse(localStorage.getItem('rw_wm_settings') || '{}'); } catch (e) { return {}; }
+  }
+
+  /**
+   * Composite a watermark onto a photo dataURL using Canvas 2D.
+   * Returns a Promise<string> resolving to the final dataURL.
+   * Watermark is only applied when enabled in settings.
+   */
+  function _applyWatermark(dataUrl, pin, sec) {
+    return new Promise(function (resolve) {
+      var wm = _getWmSettings();
+      if (!wm.enabled) { resolve(dataUrl); return; }
+
+      var img = new Image();
+      img.onload = function () {
+        var canvas = document.createElement('canvas');
+        canvas.width  = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        var ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+
+        var a = (pin && pin.attrs) ? pin.attrs : {};
+        var lines = [];
+
+        // Line 1: Section Name · Feature ID
+        var l1 = [];
+        if (wm.showSec !== false && sec && sec.name) l1.push(sec.name);
+        if (wm.showFid !== false && pin && pin.id)   l1.push(pin.id);
+        if (l1.length) lines.push(l1.join('  ·  '));
+
+        // Line 2: STA · Side · GPS
+        var l2 = [];
+        if (wm.showSta  !== false && pin && pin.sta) l2.push('STA ' + pin.sta);
+        if (wm.showSide !== false && a.side)         l2.push('Side ' + a.side);
+        if (wm.showGps  !== false && pin && pin.lat != null && pin.lng != null)
+          l2.push(Number(pin.lat).toFixed(6) + ', ' + Number(pin.lng).toFixed(6));
+        if (l2.length) lines.push(l2.join('  ·  '));
+
+        // Line 3: Date / Time
+        if (wm.showDt !== false) {
+          var now = new Date();
+          lines.push(now.toLocaleDateString() + '  ' + now.toLocaleTimeString());
+        }
+
+        if (!lines.length) { resolve(dataUrl); return; }
+
+        var fSize = Math.max(14, Math.round(canvas.width / 55));
+        var lineH = Math.round(fSize * 1.55);
+        var padX  = Math.round(fSize * 0.7);
+        var padY  = Math.round(fSize * 0.5);
+        var bandH = lines.length * lineH + padY * 2;
+        var bandY = canvas.height - bandH;
+
+        // Semi-transparent band
+        ctx.fillStyle = 'rgba(0,0,0,0.60)';
+        ctx.fillRect(0, bandY, canvas.width, bandH);
+
+        // Text
+        ctx.font         = 'bold ' + fSize + 'px monospace';
+        ctx.fillStyle    = '#ffffff';
+        ctx.textBaseline = 'top';
+        lines.forEach(function (line, i) {
+          ctx.fillText(line, padX, bandY + padY + i * lineH);
+        });
+
+        resolve(canvas.toDataURL('image/jpeg', 0.88));
+      };
+      img.onerror = function () { resolve(dataUrl); };
+      img.src = dataUrl;
+    });
+  }
+
+  // ── Photo annotation modal ─────────────────────────────────────────────────
+  /**
+   * Opens a full-screen canvas overlay for annotating a photo.
+   * Supports freehand pen and text placement. Saves annotated image back into
+   * pin.attrs.photos[photoIdx].dataUrl and re-renders the form on confirm.
+   */
+  function _openAnnotateModal(photoIdx, pin) {
+    var photos = Array.isArray(pin.attrs.photos) ? pin.attrs.photos : [];
+    var photo  = photos[photoIdx];
+    if (!photo) return;
+
+    // ── Build overlay ──────────────────────────────────────────────────────
+    var overlay = document.createElement('div');
+    overlay.className = 'rw-annotate-overlay';
+
+    var COLORS = ['#ff3333','#ffdd00','#33dd33','#ffffff','#000000','#3399ff'];
+    var _tool  = 'pen';
+    var _color = COLORS[0];
+    var _ptSz  = 3;
+    var _history = []; // array of ImageData snapshots for undo
+
+    overlay.innerHTML =
+      '<div class="rw-annotate-toolbar" id="rw-at-bar">' +
+        '<button class="at-tool active" data-tool="pen" title="Freehand pen">✏ Pen</button>' +
+        '<button class="at-tool"       data-tool="text" title="Place text">T Text</button>' +
+        '<input type="range" id="rw-at-size" min="1" max="10" value="3" title="Pen size"' +
+          ' style="width:60px;accent-color:var(--blue)">' +
+        COLORS.map(function (c) {
+          return '<div class="rw-annotate-color' + (c === _color ? ' active' : '') +
+            '" data-color="' + c + '" style="background:' + c + '" title="' + c + '"></div>';
+        }).join('') +
+        '<button class="at-undo"  title="Undo">↩ Undo</button>' +
+        '<button class="at-clear" title="Clear all annotations">⊘ Clear</button>' +
+        '<span class="at-sep"></span>' +
+        '<button class="at-done"   style="background:var(--blue);color:#fff;border-color:var(--blue)">✓ Save</button>' +
+        '<button class="at-cancel">✕ Cancel</button>' +
+      '</div>' +
+      '<div class="rw-annotate-canvas-wrap" id="rw-at-wrap">' +
+        '<canvas id="rw-at-canvas"></canvas>' +
+      '</div>';
+
+    document.body.appendChild(overlay);
+
+    var bar      = document.getElementById('rw-at-bar');
+    var canvasEl = document.getElementById('rw-at-canvas');
+    var ctx2     = canvasEl.getContext('2d');
+    canvasEl.style.cursor = 'crosshair';
+
+    // ── Load image ─────────────────────────────────────────────────────────
+    var _imgEl = new Image();
+    _imgEl.onload = function () {
+      canvasEl.width  = _imgEl.naturalWidth;
+      canvasEl.height = _imgEl.naturalHeight;
+      ctx2.drawImage(_imgEl, 0, 0);
+      _history = [ctx2.getImageData(0, 0, canvasEl.width, canvasEl.height)];
+    };
+    _imgEl.src = photo.dataUrl;
+
+    // ── Toolbar wiring ──────────────────────────────────────────────────────
+    bar.querySelectorAll('.at-tool').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        _tool = btn.dataset.tool;
+        bar.querySelectorAll('.at-tool').forEach(function (b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        canvasEl.style.cursor = _tool === 'text' ? 'text' : 'crosshair';
+      });
+    });
+
+    bar.querySelectorAll('.rw-annotate-color').forEach(function (sw) {
+      sw.addEventListener('click', function () {
+        _color = sw.dataset.color;
+        bar.querySelectorAll('.rw-annotate-color').forEach(function (s) { s.classList.remove('active'); });
+        sw.classList.add('active');
+      });
+    });
+
+    document.getElementById('rw-at-size').addEventListener('input', function (e) {
+      _ptSz = parseInt(e.target.value, 10) || 3;
+    });
+
+    bar.querySelector('.at-undo').addEventListener('click', function () {
+      if (_history.length > 1) {
+        _history.pop();
+        ctx2.putImageData(_history[_history.length - 1], 0, 0);
+      }
+    });
+
+    bar.querySelector('.at-clear').addEventListener('click', function () {
+      if (_history.length) {
+        ctx2.putImageData(_history[0], 0, 0);
+        _history = [_history[0]];
+      }
+    });
+
+    bar.querySelector('.at-cancel').addEventListener('click', function () {
+      overlay.remove();
+    });
+
+    bar.querySelector('.at-done').addEventListener('click', function () {
+      photos[photoIdx].dataUrl = canvasEl.toDataURL('image/jpeg', 0.88);
+      _dataState.dirty = true;
+      _renderFormBody();
+      overlay.remove();
+    });
+
+    // ── Drawing logic ───────────────────────────────────────────────────────
+    var _drawing = false;
+    var _lastX = 0, _lastY = 0;
+
+    function _xy(e) {
+      var rect = canvasEl.getBoundingClientRect();
+      var scX  = canvasEl.width  / rect.width;
+      var scY  = canvasEl.height / rect.height;
+      var src  = e.touches ? e.touches[0] : e;
+      return [(src.clientX - rect.left) * scX, (src.clientY - rect.top) * scY];
+    }
+
+    canvasEl.addEventListener('pointerdown', function (e) {
+      e.preventDefault();
+      var xy = _xy(e);
+      if (_tool === 'text') {
+        var txt = window.prompt('Enter annotation text:');
+        if (txt) {
+          _history.push(ctx2.getImageData(0, 0, canvasEl.width, canvasEl.height));
+          var fs = Math.max(16, Math.round(canvasEl.width / 28));
+          ctx2.font         = 'bold ' + fs + 'px sans-serif';
+          ctx2.fillStyle    = _color;
+          ctx2.strokeStyle  = 'rgba(0,0,0,0.65)';
+          ctx2.lineWidth    = 3;
+          ctx2.textBaseline = 'top';
+          ctx2.strokeText(txt, xy[0], xy[1]);
+          ctx2.fillText(txt, xy[0], xy[1]);
+        }
+        return;
+      }
+      _drawing = true;
+      _lastX = xy[0]; _lastY = xy[1];
+      _history.push(ctx2.getImageData(0, 0, canvasEl.width, canvasEl.height));
+      ctx2.beginPath();
+      ctx2.moveTo(_lastX, _lastY);
+    });
+
+    canvasEl.addEventListener('pointermove', function (e) {
+      if (!_drawing) return;
+      e.preventDefault();
+      var xy = _xy(e);
+      ctx2.lineTo(xy[0], xy[1]);
+      ctx2.strokeStyle = _color;
+      ctx2.lineWidth   = _ptSz * (canvasEl.width / 400);
+      ctx2.lineCap     = 'round';
+      ctx2.lineJoin    = 'round';
+      ctx2.stroke();
+      ctx2.beginPath();
+      ctx2.moveTo(xy[0], xy[1]);
+      _lastX = xy[0]; _lastY = xy[1];
+    });
+
+    function _stopDraw() { _drawing = false; }
+    canvasEl.addEventListener('pointerup',    _stopDraw);
+    canvasEl.addEventListener('pointerleave', _stopDraw);
+  }
+
   // ── Other / generic form ───────────────────────────────────────────────────
   // ── Misc/field-placed point & polygon form — 2-column layout ────────────────
   function _renderMiscForm(pin, sec) {
@@ -20180,7 +20643,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       { v:'G', col:'#4d7c0f', tip:'Good'      },
       { v:'F', col:'#d97706', tip:'Fair'       },
       { v:'P', col:'#c2410c', tip:'Poor'       },
-      { v:'X', col:'#7f1d1d', tip:'Failed'     },
+      { v:'X', col:'#111111', tip:'Failed'     },
     ];
     var condBtns = MISC_CONDS.map(function(c) {
       var on = a.condition === c.v;
@@ -20245,13 +20708,13 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       : '<span class="df-photo-empty">No photos yet</span>';
 
     var rightCol =
-      '<div class="df-photo-grid" id="df-photo-grid">' + photoHtml + '</div>' +
+      '<button type="button" class="df-photo-btn df-photo-btn-take" id="df-misc-take-photo">📷 Take Photo</button>' +
+      '<input type="file" id="df-misc-photo-input" accept="image/*" capture="environment" style="display:none">' +
       '<div class="df-photo-btns">' +
-        '<button type="button" class="df-photo-btn" id="df-misc-take-photo">📷 Take Photo</button>' +
         '<button type="button" class="df-photo-btn" id="df-misc-upload-photo">↑ Upload</button>' +
-        '<input type="file" id="df-misc-photo-input"  accept="image/*" capture="environment" style="display:none">' +
-        '<input type="file" id="df-misc-upload-input" accept="image/*" style="display:none">' +
-      '</div>';
+      '</div>' +
+      '<input type="file" id="df-misc-upload-input" accept="image/*" style="display:none">' +
+      '<div class="df-photo-grid" id="df-photo-grid">' + photoHtml + '</div>';
 
     return meta +
       '<div class="df-misc-cols">' +
@@ -20589,37 +21052,50 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       });
     }
 
-    // ── Misc form: photo capture / upload / delete ────────────────────────────
+    // ── Misc form: photo capture / upload / delete / annotate ────────────────
     function _ensurePhotos() {
       if (!Array.isArray(a.photos)) a.photos = [];
       return a.photos;
     }
-    function _readAndAddPhoto(file) {
+
+    /**
+     * Read a File, optionally composite the watermark (capture only),
+     * then add to pin.attrs.photos and re-render.
+     */
+    function _readAndAddPhoto(file, isCapture) {
       var reader = new FileReader();
       reader.onload = function (e) {
-        _ensurePhotos().push({ dataUrl: e.target.result, captured_at: new Date().toISOString() });
-        _dataState.dirty = true;
-        _renderFormBody();
+        var rawUrl = e.target.result;
+        var _finish = function (finalUrl) {
+          _ensurePhotos().push({ dataUrl: finalUrl, captured_at: new Date().toISOString() });
+          _dataState.dirty = true;
+          _renderFormBody();
+        };
+        if (isCapture) {
+          _applyWatermark(rawUrl, pin, _dataState.sec).then(_finish);
+        } else {
+          _finish(rawUrl);
+        }
       };
       reader.readAsDataURL(file);
     }
 
-    var takeBtn    = document.getElementById('df-misc-take-photo');
-    var takeInput  = document.getElementById('df-misc-photo-input');
-    var uploadBtn  = document.getElementById('df-misc-upload-photo');
+    var takeBtn     = document.getElementById('df-misc-take-photo');
+    var takeInput   = document.getElementById('df-misc-photo-input');
+    var uploadBtn   = document.getElementById('df-misc-upload-photo');
     var uploadInput = document.getElementById('df-misc-upload-input');
 
     if (takeBtn && takeInput) {
       takeBtn.addEventListener('click', function () { takeInput.click(); });
       takeInput.addEventListener('change', function () {
-        if (takeInput.files && takeInput.files[0]) _readAndAddPhoto(takeInput.files[0]);
+        if (takeInput.files && takeInput.files[0]) _readAndAddPhoto(takeInput.files[0], true);
         takeInput.value = '';
       });
     }
     if (uploadBtn && uploadInput) {
       uploadBtn.addEventListener('click', function () { uploadInput.click(); });
       uploadInput.addEventListener('change', function () {
-        if (uploadInput.files && uploadInput.files[0]) _readAndAddPhoto(uploadInput.files[0]);
+        if (uploadInput.files && uploadInput.files[0]) _readAndAddPhoto(uploadInput.files[0], false);
         uploadInput.value = '';
       });
     }
@@ -20634,6 +21110,14 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
           _dataState.dirty = true;
           _renderFormBody();
         }
+      });
+    });
+
+    // Annotate: click a thumbnail image to open the annotation modal
+    scroll.querySelectorAll('img.df-photo-thumb').forEach(function (img) {
+      img.addEventListener('click', function () {
+        var idx = parseInt(img.closest('[data-photo-idx]').dataset.photoIdx, 10);
+        if (!isNaN(idx)) _openAnnotateModal(idx, pin);
       });
     });
   }
