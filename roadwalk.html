@@ -14556,7 +14556,10 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   });
 
   // Header style guide button
-  document.getElementById('header-styleguide-btn')?.addEventListener('click', () => showView('styleguide'));
+  document.getElementById('header-styleguide-btn')?.addEventListener('click', () => {
+    if (typeof window.showModule === 'function') window.showModule('map');
+    showView('styleguide');
+  });
   // Header settings button — replaces the old "⋯ More" action button
   els.headerSettingsBtn?.addEventListener('click', () => showView('settings'));
 
