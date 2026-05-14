@@ -8965,6 +8965,7 @@ body.mobile-mode #app {
       const _LEAFLET_LATERAL_M = {
         ln_retaining_wall: 3,   // ~10 ft further out than guardrail
         ln_barrier:        1.5, // Jersey barrier sits just inside guardrail slot
+        wall:              3,   // bundle 'wall' kind — same outward shift as ln_retaining_wall
       };
       const _offsetM = _LEAFLET_LATERAL_M[pin.kind] || 0;
       function _perpOffsetCoords(coords, side, offsetM) {
@@ -11421,8 +11422,9 @@ body.mobile-mode #app {
       ln_guardrail:3, ln_retaining_wall:4, ln_barrier:2,
       ln_curb:1, ln_cg:1, ln_sidewalk:2,
       ln_swale:5, ln_drain_other:5, ln_fence:6,
-      // Bundle short-kind names
-      guardrail: 3, wall: 4,
+      // Bundle short-kind names  (wall at slot 5 — one clear slot above guardrail's
+      // thick:6 bar, giving a 4 px gap rather than the 1 px overlap at slot 4)
+      guardrail: 3, wall: 5,
     };
     // Default render mode (inline = parallel bar, cross = perpendicular marker)
     const _DEFAULT_RENDER_AS = {
@@ -11433,6 +11435,14 @@ body.mobile-mode #app {
       state.settings?.styleOverrides?.[k]?.renderAs || _DEFAULT_RENDER_AS[k] || 'inline';
 
     const isCulvertKind = k => k === 'ln_culvert' || k === 'ln_box_culvert' || k === 'culvert';
+
+    // ── Layer visibility filter (mirrors map's layersVis from lean state) ────────
+    // Reads the same key the Layers panel writes so toggling a kind hides it in
+    // both the Leaflet map and the SLD simultaneously.
+    let _sldLayersVis = {};
+    try { _sldLayersVis = (typeof lsLoad === 'function' && lsLoad().layersVis) || {}; }
+    catch (_) { _sldLayersVis = {}; }
+    const _sldKindVisible = k => _sldLayersVis[k] !== false;
 
     // ── Pre-pass: project sta_ft for any pin that doesn't have it yet ──────────
     // Covers point pins and cross-type line features that skip the trackPins path.
@@ -11460,13 +11470,15 @@ body.mobile-mode #app {
 
     // Inline bars: parallel to road, need attrs.side
     const trackPins = (sec.pins || []).filter(p =>
-      KIND_TO_SLOT[p.kind] && !isCulvertKind(p.kind)
+      _sldKindVisible(p.kind)
+      && KIND_TO_SLOT[p.kind] && !isCulvertKind(p.kind)
       && p.geometry && p.geometry.type === 'LineString' && p.attrs && p.attrs.side
       && kindRenderAs(p.kind) === 'inline'
     );
     // Cross markers: perpendicular to road (pavement change, stop bar, etc.)
     const crossPins = (sec.pins || []).filter(p =>
-      KIND_TO_SLOT[p.kind] && !isCulvertKind(p.kind)
+      _sldKindVisible(p.kind)
+      && KIND_TO_SLOT[p.kind] && !isCulvertKind(p.kind)
       && p.geometry && p.geometry.type === 'LineString' && p.attrs
       && kindRenderAs(p.kind) === 'cross'
     );
@@ -11613,7 +11625,7 @@ body.mobile-mode #app {
     }
 
     // ── Culvert crossing symbols ──────────────────────────────────────────────
-    const culvertPins = (sec.pins || []).filter(p => isCulvertKind(p.kind) && p.geometry);
+    const culvertPins = (sec.pins || []).filter(p => _sldKindVisible(p.kind) && isCulvertKind(p.kind) && p.geometry);
     for (const pin of culvertPins) {
       let staFt = pin.sta_ft;
       if (staFt == null) {
@@ -11839,6 +11851,7 @@ body.mobile-mode #app {
 
     // ── Point pins (inner — scroll with content) ──────────────────────────────
     const allPointPins = (sec.pins || []).filter(p => {
+      if (!_sldKindVisible(p.kind)) return false;
       if (p.sta_ft == null) return false;
       const g = p.geometry?.type;
       return !(g === 'LineString' || g === 'MultiLineString' || g === 'Polygon');
