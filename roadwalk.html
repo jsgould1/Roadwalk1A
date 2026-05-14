@@ -8628,12 +8628,12 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   // Style dictionary per kind. Each entry controls color + 2-letter code
   // shown on the pin and whether it renders as a point or line.
   const PIN_STYLE = {
-    monument:    { code: 'Mt', color: '#0B3D66', kind: 'point', shape: 'triangle' },
-    bridge:      { code: 'Br', color: '#6B4D8A', kind: 'point' },
-    bridge_line: { code: 'Br', color: '#6B4D8A', kind: 'line',  weight: 6 },
+    monument:    { code: 'MT', color: '#0B3D66', kind: 'point', shape: 'triangle' },
+    bridge:      { code: 'BR', color: '#6B4D8A', kind: 'point' },
+    bridge_line: { code: 'BR', color: '#6B4D8A', kind: 'line',  weight: 6 },
     mile_marker: { code: 'MM', color: '#666666', kind: 'point' },
-    gate:        { code: 'Ga', color: '#B33A2F', kind: 'point' },
-    parking:     { code: 'Pk', color: '#5A8F3E', kind: 'point' },
+    gate:        { code: 'GA', color: '#B33A2F', kind: 'point' },
+    parking:     { code: 'PK', color: '#5A8F3E', kind: 'point' },
     // Pavement-condition transitions (e.g. AC → PCC, mill/overlay limits)
     pavement_change: { code: 'PC', color: '#444444', kind: 'line', weight: 4, dashArray: '4 3' },
     // User-added geometry from the Point/Line/Polygon drawing tools
@@ -8648,10 +8648,10 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   const FEATURE_CATALOG = [
     // ===== POINTS =====
     { geom: 'point', name: 'Misc', items: [
-      { value: 'pt_sign',         label: 'Sign',        code: 'Si', color: '#C85A2B' },
+      { value: 'pt_sign',         label: 'Sign',        code: 'SI', color: '#C85A2B' },
       { value: 'pt_swing_gate',   label: 'Swing Gate',  code: 'SG', color: '#C85A2B' },
       { value: 'pt_man_gate',     label: 'Man Gate',    code: 'MG', color: '#C85A2B' },
-      { value: 'pt_monument',     label: 'Monument',    code: 'Mt', color: '#C85A2B' },
+      { value: 'pt_monument',     label: 'Monument',    code: 'MT', color: '#C85A2B' },
       { value: 'pt_light_pole',   label: 'Light Pole',  code: 'LP', color: '#C85A2B' },
       { value: 'pt_guy_wire',     label: 'Guy Wire',    code: 'GW', color: '#C85A2B' },
       { value: 'pt_delineator',   label: 'Delineator',  code: 'DL', color: '#C85A2B' },
@@ -8675,21 +8675,21 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       { value: 'pt_hc_marking',   label: 'HC marking',  code: 'HC', color: '#D4A943' },
       { value: 'pt_arrow',        label: 'Arrow',       code: 'AR', color: '#D4A943' },
       { value: 'pt_fire_lane',    label: 'Fire Lane',   code: 'FL', color: '#D4A943' },
-      { value: 'pt_text',         label: 'TEXT',        code: 'Tx', color: '#D4A943' },
+      { value: 'pt_text',         label: 'TEXT',        code: 'TX', color: '#D4A943' },
     ]},
     // ===== LINES =====
     { geom: 'line', name: 'Misc', items: [
       { value: 'ln_pvmt_change',  label: 'Pvmt Change', code: 'PC', color: '#444444', dashArray: '4 3' },
       { value: 'ln_loops',        label: 'Loops',       code: 'LO', color: '#8A5A2B' },
-      { value: 'ln_curb',         label: 'Curb',        code: 'Cu', color: '#8A5A2B' },
+      { value: 'ln_curb',         label: 'Curb',        code: 'CU', color: '#8A5A2B' },
       { value: 'ln_cg',           label: 'C&G',         code: 'CG', color: '#8A5A2B' },
       { value: 'ln_sidewalk',     label: 'Sidewalk',    code: 'SW', color: '#8A5A2B' },
       { value: 'ln_misc_other',   label: 'Other',       code: 'OT', color: '#8A5A2B' },
       { value: 'ln_fence',        label: 'Fence',       code: 'FN', color: '#8A5A2B', lineStyle: 'fence' },
     ]},
     { geom: 'line', name: 'Drainage', items: [
-      { value: 'ln_culvert',      label: 'Culvert',     code: 'Cv', color: '#0B3D66' },
-      { value: 'ln_swale',        label: 'Swale',       code: 'Sl', color: '#0B3D66', lineStyle: 'swale' },
+      { value: 'ln_culvert',      label: 'Culvert',     code: 'CV', color: '#0B3D66' },
+      { value: 'ln_swale',        label: 'Swale',       code: 'SL', color: '#0B3D66', lineStyle: 'swale' },
       { value: 'ln_box_culvert',  label: 'Box Culvert', code: 'BC', color: '#0B3D66' },
       { value: 'ln_drain_other',  label: 'Other',       code: 'OT', color: '#0B3D66' },
     ]},
@@ -8748,13 +8748,13 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   // map renderer (buildPinLayer) and SLD (renderStrip) handle them correctly.
   // Colors intentionally match MAP_LAYERS for consistent layer-panel / map /
   // SLD iconography across all three views.
-  PIN_STYLE.culvert      = { code: 'Cv', color: '#3A7AC8', kind: 'line',    lineStyle: 'culvert',   weight: 2 };
+  PIN_STYLE.culvert      = { code: 'CV', color: '#0B3D66', kind: 'line',    lineStyle: 'culvert',   weight: 2 };
   PIN_STYLE.guardrail    = { code: 'GR', color: '#E8A838', kind: 'line',    lineStyle: 'guardrail', weight: 4 };
   PIN_STYLE.wall         = { code: 'RW', color: '#7B3F9E', kind: 'line',    weight: 2 };
-  PIN_STYLE.sign         = { code: 'Si', color: '#27A04B', kind: 'point',   shape: 'circle' };
-  PIN_STYLE.pavement     = { code: 'Pv', color: '#9CA3AF', kind: 'polygon', weight: 2 };
-  PIN_STYLE.overlook     = { code: 'Ov', color: '#DC2626', kind: 'point' };
-  PIN_STYLE.ngs_monument = { code: 'Ng', color: '#0EA5E9', kind: 'point',   shape: 'triangle' };
+  PIN_STYLE.sign         = { code: 'SI', color: '#27A04B', kind: 'point',   shape: 'circle' };
+  PIN_STYLE.pavement     = { code: 'PV', color: '#9CA3AF', kind: 'polygon', weight: 2 };
+  PIN_STYLE.overlook     = { code: 'OV', color: '#DC2626', kind: 'point' };
+  PIN_STYLE.ngs_monument = { code: 'NG', color: '#0EA5E9', kind: 'point',   shape: 'triangle' };
 
   // Expose showView + showProjectPicker globally so the Phase 1 Dashboard
   // module can navigate into sections and trigger the project picker without
@@ -9229,11 +9229,13 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         iconSize   = [_sz, _sz];
         iconAnchor = [Math.round(_sz / 2), Math.round(_sz / 2)];
       } else if (style.shape === 'circle') {
-        // For pt_sign: show primary sign code + colored background from catalog
+        // For pt_sign AND bundle 'sign' (when a sign code has been recorded):
+        // show primary MUTCD sign code + colored background from catalog.
+        // This unifies the field-placed vs pre-walk rendering once a sign is identified.
         let circleLabel = style.code;
         let circleBg = style.color;
         let circleColor = '#F5F1EA';
-        if (pin.kind === 'pt_sign') {
+        if (pin.kind === 'pt_sign' || pin.kind === 'sign') {
           const primaryCode = pin.attrs?.panels?.[0]?.sign_code;
           if (primaryCode) {
             const sigMeta = (typeof MUTCD_SIGNS !== 'undefined') && MUTCD_SIGNS.find(s => s.c === primaryCode);
@@ -9452,6 +9454,35 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
           iconAnchor: [12, 8],
         });
         labelLayers.push(L.marker(latlngs[0], { icon: badgeIcon, zIndexOffset: 500 }));
+      }
+      // ── Culvert endpoint caps (headwall rectangle / flange chevron) ─────────
+      // Rotated to be perpendicular to the culvert line direction so they read
+      // as proper end-caps on the map. Mirrors the SLD capV/capH SVG glyphs.
+      const _isCulvertLine = (pin.kind === 'culvert' || pin.kind === 'ln_culvert' || pin.kind === 'ln_box_culvert');
+      if (_isCulvertLine && latlngs.length >= 2) {
+        const _n = latlngs.length;
+        const _inletType  = ((pin.attrs?.ep_inlet_type  || pin.attrs?.ep1_type || '') + '').toLowerCase();
+        const _outletType = ((pin.attrs?.ep_outlet_type || pin.attrs?.ep2_type || '') + '').toLowerCase();
+        // CSS rotation in degrees (clockwise from "north" / up) = atan2(dlng, dlat)
+        const _brg = (a, b) => Math.atan2(b[1] - a[1], b[0] - a[0]) * 180 / Math.PI;
+        const _inBrg  = _brg(latlngs[0],    latlngs[1]);
+        const _outBrg = _brg(latlngs[_n-2], latlngs[_n-1]);
+        const _epIcon = (type, brg) => {
+          let inner;
+          if (type.includes('headwall')) {
+            inner = `<rect x="-9" y="-3.5" width="18" height="7" fill="${style.color}" rx="1" stroke="rgba(255,255,255,0.7)" stroke-width="0.8"/>`;
+          } else if (type.includes('flange') || type.includes('miter')) {
+            inner = `<polyline points="-9,7 0,-4 9,7" fill="none" stroke="${style.color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`;
+          } else {
+            return null;
+          }
+          const svgHtml = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" style="overflow:visible;display:block;transform:rotate(${brg}deg);transform-origin:11px 11px"><g transform="translate(11,11)">${inner}</g></svg>`;
+          return L.divIcon({ className: 'rw-culvert-ep', html: svgHtml, iconSize: [22, 22], iconAnchor: [11, 11] });
+        };
+        const _mi = _epIcon(_inletType,  _inBrg);
+        const _mo = _epIcon(_outletType, _outBrg);
+        if (_mi) labelLayers.push(L.marker(latlngs[0],    { icon: _mi, interactive: false, zIndexOffset: 450 }));
+        if (_mo) labelLayers.push(L.marker(latlngs[_n-1], { icon: _mo, interactive: false, zIndexOffset: 450 }));
       }
       return L.featureGroup(labelLayers);
     }
@@ -10064,7 +10095,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     if (window._swIntercept && window._swIntercept(pin, sec)) return;
     sheetState.pin = pin;
     sheetState.sec = sec;
-    const style = PIN_STYLE[pin.kind] || { code: 'Si' };
+    const style = PIN_STYLE[pin.kind] || { code: 'SI' };
     const kicker = `${style.code} · SIGN · ${pin.id}`;
 
     // Initialise attrs if missing
@@ -12036,22 +12067,27 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       }
       if (staFt == null) continue;
       const pSta = axisPct(staFt);
-      const ep1 = (pin.attrs?.ep1_type || '').toLowerCase();
-      const ep2 = (pin.attrs?.ep2_type || '').toLowerCase();
+      // Read new endpoint field names (ep_inlet_type/ep_outlet_type) with
+      // fallback to legacy field names (ep1_type/ep2_type) for older saved data.
+      const ep1 = (pin.attrs?.ep_inlet_type  || pin.attrs?.ep1_type || '').toLowerCase();
+      const ep2 = (pin.attrs?.ep_outlet_type || pin.attrs?.ep2_type || '').toLowerCase();
       const C = '#0B3D66';
+      // Use .includes() so values like "Headwall — concrete" or "Flange/mitered" still match
+      const _isHeadwall = (t) => t.includes('headwall');
+      const _isFlange   = (t) => t.includes('flange') || t.includes('miter');
       let svgMarkup, wStyle;
       if (horiz) {
         const capV = (y, isTop, type) => {
-          if (type === 'headwall') return `<rect x="3" y="${isTop ? y-6 : y}" width="22" height="6" fill="${C}"/>`;
-          if (type === 'flange')  { const fy = isTop ? y-10 : y+10; return `<polyline points="2,${fy} 14,${y} 26,${fy}" fill="none" stroke="${C}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>`; }
+          if (_isHeadwall(type)) return `<rect x="3" y="${isTop ? y-6 : y}" width="22" height="6" fill="${C}"/>`;
+          if (_isFlange(type))  { const fy = isTop ? y-10 : y+10; return `<polyline points="2,${fy} 14,${y} 26,${fy}" fill="none" stroke="${C}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>`; }
           return `<circle cx="14" cy="${isTop ? y-4 : y+4}" r="4" fill="none" stroke="${C}" stroke-width="1.5"/>`;
         };
         svgMarkup = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="100" style="display:block;overflow:visible"><line x1="14" y1="12" x2="14" y2="88" stroke="${C}" stroke-width="2"/>${capV(12,true,ep1)}${capV(88,false,ep2)}</svg>`;
         wStyle = `position:absolute;left:calc(${pSta}% - 14px);top:calc(50% - 50px);z-index:3;pointer-events:auto;cursor:pointer;`;
       } else {
         const capH = (x, isLeft, type) => {
-          if (type === 'headwall') return `<rect x="${isLeft ? x-6 : x}" y="3" width="6" height="22" fill="${C}"/>`;
-          if (type === 'flange')  { const fx = isLeft ? x-10 : x+10; return `<polyline points="${fx},2 ${x},14 ${fx},26" fill="none" stroke="${C}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>`; }
+          if (_isHeadwall(type)) return `<rect x="${isLeft ? x-6 : x}" y="3" width="6" height="22" fill="${C}"/>`;
+          if (_isFlange(type))  { const fx = isLeft ? x-10 : x+10; return `<polyline points="${fx},2 ${x},14 ${fx},26" fill="none" stroke="${C}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>`; }
           return `<circle cx="${isLeft ? x-4 : x+4}" cy="14" r="4" fill="none" stroke="${C}" stroke-width="1.5"/>`;
         };
         svgMarkup = `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="28" style="display:block;overflow:visible"><line x1="12" y1="14" x2="88" y2="14" stroke="${C}" stroke-width="2"/>${capH(12,true,ep1)}${capH(88,false,ep2)}</svg>`;
@@ -12063,7 +12099,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       el.innerHTML = svgMarkup;
       el.addEventListener('click', (e) => { e.stopPropagation(); openFeaturePopup(pin, sec, e); });
       inner.appendChild(el);
-      const culCode = pin.kind === 'ln_box_culvert' ? 'BC' : 'CL';
+      const culCode = pin.kind === 'ln_box_culvert' ? 'BC' : 'CV';
       const badge = document.createElement('div');
       badge.className = 'strip-bar-badge';
       badge.textContent = culCode;
@@ -14911,9 +14947,9 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   function renderSettings() {
     // ID preview row — show next 3-4 most-used types
     const typesToShow = [
-      { code: 'Si', label: 'Sign' },
+      { code: 'SI', label: 'Sign' },
       { code: 'CB', label: 'Catch basin' },
-      { code: 'Re', label: 'Repair' },
+      { code: 'RE', label: 'Repair' },
       { code: 'GR', label: 'Guardrail' },
       { code: 'ED', label: 'Edge drop' },
       { code: 'AR', label: 'ADA ramp' },
@@ -17308,7 +17344,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   const FS_LINE_FEATURES = [
     { kind: 'guardrail', label: 'Guardrails',      defColor: '#E8A838', defLT: 'guardrail',      defWt: 6, defOff: 3 },
     { kind: 'wall',      label: 'Retaining Walls', defColor: '#7B3F9E', defLT: 'retaining_wall', defWt: 5, defOff: 5 },
-    { kind: 'culvert',   label: 'Culverts',        defColor: '#3A7AC8', defLT: 'dashed',         defWt: 4, defOff: 2 },
+    { kind: 'culvert',   label: 'Culverts',        defColor: '#0B3D66', defLT: 'dashed',         defWt: 4, defOff: 2 },
     { kind: 'misc_line', label: 'Misc Lines',      defColor: '#8A5A2B', defLT: 'solid',          defWt: 3, defOff: 0 },
   ];
 
@@ -18155,7 +18191,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   const MAP_LAYERS = [
     { label: 'Guardrails',    kind: 'guardrail',    color: '#E8A838', active: true  },
     { label: 'Ret. Walls',    kind: 'wall',          color: '#7B3F9E', active: true  },
-    { label: 'Culverts',      kind: 'culvert',       color: '#3A7AC8', active: true  },
+    { label: 'Culverts',      kind: 'culvert',       color: '#0B3D66', active: true  },
     { label: 'Signs',         kind: 'sign',          color: '#27A04B', active: true  },
     { label: 'Mile Markers',  kind: 'mile_marker',   color: '#888888', active: true  },
     { label: 'Bridges',       kind: 'bridge',        color: '#1A5589', active: true  },
