@@ -3,11 +3,14 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#F5F1EA">
-<title>RoadWalk · AECOM Pavement</title>
+<title>RoadWalk · AECOM Pavement · v20260514</title>
 
 <!-- IBM Plex via Google Fonts. Production: bundle locally. -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -5566,7 +5569,7 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
   flex: 1;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding-bottom: 72px;
+  padding-bottom: 108px;  /* clear both status bar (~36px) + save bar (~52px) */
 }
 /* Form sections */
 .df-sec { }
@@ -5734,6 +5737,36 @@ textarea.sw-text-input { resize:vertical; min-height:52px; }
   color: var(--ink-3);
 }
 /* Pinned save bar */
+/* Status bar: Confirm / Reset / Discard feature buttons */
+.data-status-bar {
+  position: absolute;
+  bottom: 52px; left: 0; right: 0;   /* sits just above the save bar */
+  display: flex;
+  gap: 0;
+  border-top: 1px solid var(--rule);
+  z-index: 10;
+  background: var(--paper-2);
+}
+.data-status-btn {
+  flex: 1;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 7px 4px;
+  border: none;
+  border-right: 1px solid var(--rule);
+  cursor: pointer;
+  letter-spacing: 0.3px;
+  transition: opacity 0.1s;
+}
+.data-status-btn:last-child { border-right: none; }
+.data-status-btn.confirmed { background: #dcfce7; color: #15803d; }
+.data-status-btn.confirmed:hover { background: #bbf7d0; }
+.data-status-btn.pending   { background: var(--paper-2); color: var(--ink-2); }
+.data-status-btn.pending:hover { background: var(--paper); }
+.data-status-btn.discarded { background: #fee2e2; color: #b91c1c; }
+.data-status-btn.discarded:hover { background: #fecaca; }
+.data-status-btn.active { outline: 2px solid currentColor; outline-offset: -2px; }
 .data-save-bar {
   position: absolute;
   bottom: 0; left: 0; right: 0;
@@ -6648,9 +6681,16 @@ body.mobile-mode #app {
           <!-- Form fields injected by openDataForm() -->
           <div class="data-form-scroll" id="data-form-scroll"></div>
 
-          <!-- Save / discard -->
+          <!-- Status row: mark the feature confirmed or discarded -->
+          <div class="data-status-bar" id="data-status-bar">
+            <button class="data-status-btn confirmed" id="data-confirm-btn">✓ Confirm</button>
+            <button class="data-status-btn pending"   id="data-reset-btn"  >↺ Reset</button>
+            <button class="data-status-btn discarded" id="data-dismiss-btn">✕ Discard</button>
+          </div>
+
+          <!-- Save / cancel -->
           <div class="data-save-bar">
-            <button class="data-discard-btn" id="data-discard-btn">Discard</button>
+            <button class="data-discard-btn" id="data-discard-btn">Cancel</button>
             <button class="data-save-btn"    id="data-save-btn">Save</button>
             <span   class="data-save-flash"  id="data-save-flash"></span>
           </div>
@@ -7113,6 +7153,7 @@ body.mobile-mode #app {
 </div><!-- /#daily-log-modal -->
 
 <script>
+console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight:bold;font-size:14px');
 /* ============================================================
    Roadwalk · prototype JS · v0.1
    In-memory mock data for first stab.
@@ -8464,11 +8505,14 @@ body.mobile-mode #app {
     rerender() {
       // Prefer stripCurrentSec (set when an SLD strip is open and persists when
       // the user navigates to the Style Guide — showView resets state.sectionId).
-      // Fall back to state.sectionId for code paths that call rerender without
-      // an open strip (e.g. initial data load on the field view).
+      // Fall back to state.sectionId, then to state.mapLayers._lastSecId (the
+      // section most recently rendered on the map — set by initOrUpdateMap on every
+      // call, even when the old view/module system bypasses state.sectionId).
+      const _rerSecs = typeof SECTIONS !== 'undefined' ? SECTIONS : [];
       const sec = (typeof stripCurrentSec !== 'undefined' && stripCurrentSec)
-               || (typeof SECTIONS !== 'undefined' && state.sectionId
-                   && SECTIONS.find(s => s.id === state.sectionId));
+               || (state.sectionId && _rerSecs.find(s => s.id === state.sectionId))
+               || (state.mapLayers && state.mapLayers._lastSecId
+                   && _rerSecs.find(s => s.id === state.mapLayers._lastSecId));
       if (!sec) return;
       if (typeof initOrUpdateMap === 'function') initOrUpdateMap(sec);
       if (typeof renderStrip === 'function' && typeof stripCurrentSec !== 'undefined' && stripCurrentSec === sec) {
@@ -9256,6 +9300,20 @@ body.mobile-mode #app {
   function openPinSheet(pin, sec) {
     if (pin.kind === 'pt_sign') { openSignSheet(pin, sec); return; }
     if (pin.kind === 'ln_guardrail' || pin.kind === 'ln_retaining_wall' || pin.kind === 'ln_barrier') { openBarrierSheet(pin, sec); return; }
+    // Bundle short-kinds → Data module rich forms (sign, culvert, guardrail, wall, etc.)
+    // These kinds come from the pre-walk bundle (NPS GIS / GIP / WIP) and have purpose-built
+    // form renderers in the Data module (_renderGuardrailForm, _renderCulvertForm, etc.).
+    // Route them there rather than showing the bare-bones generic pin sheet.
+    const _BUNDLE_DATA_KINDS = new Set(['sign','culvert','guardrail','wall','pavement','overlook','ngs_monument']);
+    if (_BUNDLE_DATA_KINDS.has(pin.kind)) {
+      console.log('[RoadWalk] openPinSheet routing', pin.kind, '→ Data module. openDataForm type:', typeof window.openDataForm);
+      if (typeof window.openDataForm === 'function') {
+        if (typeof window.showModule === 'function') window.showModule('data');
+        window.openDataForm(pin, sec);
+        return;
+      }
+      console.warn('[RoadWalk] openDataForm not available — falling back to generic sheet');
+    }
     sheetState.pin = pin;
     sheetState.sec = sec;
     const style = PIN_STYLE[pin.kind] || { code: '?' };
@@ -9318,7 +9376,7 @@ body.mobile-mode #app {
     if (geoLines.length) {
       lines.push(`<details style="margin-top:2px"><summary style="cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:0.4px;color:var(--ink-2);text-transform:uppercase">Geometry</summary><div style="margin-top:4px;padding-left:4px">${geoLines.join('<br>')}</div></details>`);
     }
-    if (isCulvertKind?.(pin.kind) && pin.attrs?.endpoint_1) {
+    if ((pin.kind === 'culvert' || pin.kind === 'ln_culvert' || pin.kind === 'ln_box_culvert') && pin.attrs?.endpoint_1) {
       lines.push('<strong>Endpoint 1:</strong> unassigned (inlet or outlet) · headwall pending');
       lines.push('<strong>Endpoint 2:</strong> unassigned (inlet or outlet) · headwall pending');
     }
@@ -19467,6 +19525,15 @@ body.mobile-mode #app {
       chipEl.textContent = (merged.status || 'pending').toUpperCase();
       chipEl.className   = 'data-stat-chip ' + (merged.status || 'pending');
     }
+    // Highlight the matching status button
+    var _odfStatBtnIds = ['data-confirm-btn', 'data-reset-btn', 'data-dismiss-btn'];
+    _odfStatBtnIds.forEach(function (id) {
+      var b = document.getElementById(id);
+      if (b) b.classList.remove('active');
+    });
+    var _odfStatBtnMap = { confirmed: 'data-confirm-btn', pending: 'data-reset-btn', discarded: 'data-dismiss-btn' };
+    var _odfActiveId = _odfStatBtnMap[merged.status || 'pending'];
+    if (_odfActiveId) { var _odfAb = document.getElementById(_odfActiveId); if (_odfAb) _odfAb.classList.add('active'); }
 
     // Show / hide sub-nav
     var subNav = document.getElementById('data-sub-nav');
@@ -19479,12 +19546,22 @@ body.mobile-mode #app {
       }
     }
 
-    // Render form body
-    _renderFormBody();
+    // Render form body (guarded so a renderer error doesn't block the pane from opening)
+    try {
+      _renderFormBody();
+    } catch (err) {
+      console.error('[RoadWalk] openDataForm: _renderFormBody threw:', err);
+      var scrollEl = document.getElementById('data-form-scroll');
+      if (scrollEl) scrollEl.innerHTML = '<div style="padding:16px;color:#b91c1c;font-family:monospace;font-size:12px">⚠ Form render error: ' + String(err) + '</div>';
+    }
 
-    // Slide in the form pane
+    // Make the form pane visible.  We add the class synchronously so the pane
+    // is guaranteed to appear even if requestAnimationFrame is delayed (e.g.
+    // when the module was just switched).  The rAF also runs as a belt-and-
+    // suspenders backup that ensures the CSS slide-in transition fires.
     var formPane = document.getElementById('data-form-pane');
     if (formPane) {
+      formPane.classList.add('visible');
       requestAnimationFrame(function () { formPane.classList.add('visible'); });
     }
   }
@@ -20338,6 +20415,32 @@ body.mobile-mode #app {
 
     // Save button
     document.getElementById('data-save-btn')?.addEventListener('click', _saveDataForm);
+
+    // Status buttons — Confirm / Reset (pending) / Discard the feature
+    function _setStatusAndSave(newStatus) {
+      if (!_dataState.pin) return;
+      _dataState.pin.status = newStatus;
+      // Update the stat chip in the form header
+      var chipEl = document.getElementById('data-stat-chip');
+      if (chipEl) {
+        chipEl.textContent = newStatus.toUpperCase();
+        chipEl.className   = 'data-stat-chip ' + newStatus;
+      }
+      // Highlight the active status button
+      var _statBtnIds = ['data-confirm-btn', 'data-reset-btn', 'data-dismiss-btn'];
+      _statBtnIds.forEach(function (id) {
+        var b = document.getElementById(id);
+        if (b) b.classList.remove('active');
+      });
+      var _statBtnMap = { confirmed: 'data-confirm-btn', pending: 'data-reset-btn', discarded: 'data-dismiss-btn' };
+      var _activeId = _statBtnMap[newStatus];
+      if (_activeId) { var _ab = document.getElementById(_activeId); if (_ab) _ab.classList.add('active'); }
+      // Save immediately to IDB
+      _saveDataForm();
+    }
+    document.getElementById('data-confirm-btn')?.addEventListener('click', function () { _setStatusAndSave('confirmed'); });
+    document.getElementById('data-reset-btn')  ?.addEventListener('click', function () { _setStatusAndSave('pending'); });
+    document.getElementById('data-dismiss-btn') ?.addEventListener('click', function () { _setStatusAndSave('discarded'); });
 
     // ── Preview pane buttons ────────────────────────────────────────────────
     document.getElementById('dpp-close-btn')?.addEventListener('click', _closePreviewPane);
