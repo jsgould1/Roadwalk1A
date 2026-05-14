@@ -9596,7 +9596,9 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   const sheetState = { pin: null, sec: null };
 
   function openPinSheet(pin, sec) {
-    if (pin.kind === 'pt_sign') { openSignSheet(pin, sec); return; }
+    // pt_sign now routes through the unified Data module form (same as bundle 'sign').
+    // The 12-step wizard (openSignSheet / _swIntercept) is preserved in code but bypassed.
+    // if (pin.kind === 'pt_sign') { openSignSheet(pin, sec); return; }
     if (pin.kind === 'ln_guardrail' || pin.kind === 'ln_retaining_wall' || pin.kind === 'ln_barrier') { openBarrierSheet(pin, sec); return; }
     // Bundle short-kinds + all pt_* / pg_* field-placed features → Data module forms.
     const _BUNDLE_DATA_KINDS = new Set(['sign','culvert','guardrail','wall','pavement','overlook','ngs_monument']);
@@ -19494,13 +19496,14 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   }
 
   var _dataState = {
-    type:         'all',    // active type tab ('all' | 'sign' | 'culvert' | 'guardrail' | 'wall' | 'other')
-    pin:          null,     // currently open pin (deep-merged with IDB data)
-    sec:          null,     // section the pin belongs to
-    dirty:        false,    // unsaved changes flag
-    signSubTab:   'post',   // 'post' | 0 | 1 | 2 | ... (panel index)
-    idbCache:       {},     // { pin_id → inspectionRecord } — lazy-loaded
-    idbCacheByUlid: {},     // { ulid   → inspectionRecord } — parallel index for renumber-safe lookup
+    type:          'all',       // active type tab ('all' | 'sign' | 'culvert' | 'guardrail' | 'wall' | 'other')
+    pin:           null,        // currently open pin (deep-merged with IDB data)
+    sec:           null,        // section the pin belongs to
+    dirty:         false,       // unsaved changes flag
+    signSubTab:    'post',      // 'post' | 0 | 1 | 2 | ... (panel index)
+    culvertSubTab: 'identity',  // 'identity' | 'barrel' | 'endpoints' | 'condition'
+    idbCache:       {},         // { pin_id → inspectionRecord } — lazy-loaded
+    idbCacheByUlid: {},         // { ulid   → inspectionRecord } — parallel index for renumber-safe lookup
   };
 
   /** Load all IDB inspection records once, cache them.
@@ -19607,8 +19610,8 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   }
 
   // ── _wireListClicks: attach tap handler to all .data-pin-row els ───────────
-  // Row click → preview pane (summary + photos). Edit button in the pane
-  // opens the full type-specific data-entry form (openDataForm).
+  // Row click → full-width Data module form (openDataForm) directly.
+  // The intermediate preview pane is bypassed for a streamlined single-step entry.
   function _wireListClicks(scrollEl) {
     scrollEl.querySelectorAll('.data-pin-row').forEach(function (row) {
       row.addEventListener('click', function () {
@@ -19616,7 +19619,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         var secId = row.dataset.secId;
         var sec   = (window.SECTIONS || []).find(function (s) { return s.id === secId; });
         var pin   = sec && (sec.pins || []).find(function (p) { return p.id === pinId; });
-        if (pin && sec) _openPreviewPane(pin, sec);
+        if (pin && sec && typeof openDataForm === 'function') openDataForm(pin, sec);
       });
     });
   }
@@ -20068,10 +20071,11 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     _dataState.pin     = merged;
     _dataState.sec     = sec;
     _dataState.dirty   = false;
-    _dataState.signSubTab = 'post';
+    _dataState.signSubTab    = 'post';
+    _dataState.culvertSubTab = 'identity';
 
-    // Ensure sign attrs defaults
-    if (merged.kind === 'sign') {
+    // Ensure sign attrs defaults — applies to both bundle 'sign' and field-placed 'pt_sign'
+    if (merged.kind === 'sign' || merged.kind === 'pt_sign') {
       if (!merged.attrs)                        merged.attrs = {};
       if (!Array.isArray(merged.attrs.panels))  merged.attrs.panels = [];
       if (!merged.attrs.post_type)              merged.attrs.post_type = '';
@@ -20079,10 +20083,20 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       if (!Array.isArray(merged.attrs.post_damage)) merged.attrs.post_damage = [];
     }
 
+    // Build a human-readable type label for the header
+    var _kindLabels = {
+      sign: 'Sign', pt_sign: 'Sign', culvert: 'Culvert', guardrail: 'Guard Rail',
+      wall: 'Retaining Wall', pavement: 'Pavement', overlook: 'Overlook',
+      ngs_monument: 'NGS Monument',
+    };
+    var _typeLabel = _kindLabels[merged.kind] ||
+      (merged.kind || '').replace(/^pt_|^pg_/, '').replace(/_/g, ' ')
+        .replace(/\b\w/g, function (c) { return c.toUpperCase(); });
+
     // Populate header
     var labelEl = document.getElementById('data-form-label');
     var chipEl  = document.getElementById('data-stat-chip');
-    if (labelEl) labelEl.textContent = merged.id || '—';
+    if (labelEl) labelEl.textContent = _typeLabel + ' — ' + (merged.id || '—');
     if (chipEl) {
       chipEl.textContent = (merged.status || 'pending').toUpperCase();
       chipEl.className   = 'data-stat-chip ' + (merged.status || 'pending');
@@ -20097,12 +20111,17 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     var _odfActiveId = _odfStatBtnMap[merged.status || 'pending'];
     if (_odfActiveId) { var _odfAb = document.getElementById(_odfActiveId); if (_odfAb) _odfAb.classList.add('active'); }
 
-    // Show / hide sub-nav
+    // Show / hide sub-nav; dispatch to the correct sub-tab builder
     var subNav = document.getElementById('data-sub-nav');
     if (subNav) {
-      if (merged.kind === 'sign') {
+      var _isSign    = merged.kind === 'sign' || merged.kind === 'pt_sign';
+      var _isCulvert = merged.kind === 'culvert';
+      if (_isSign) {
         subNav.removeAttribute('hidden');
         _buildSignSubTabs();
+      } else if (_isCulvert) {
+        subNav.removeAttribute('hidden');
+        _buildCulvertSubTabs();
       } else {
         subNav.setAttribute('hidden', '');
       }
@@ -20241,6 +20260,30 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     }
   }
 
+  // ── Sub-tab builder (Culvert) ──────────────────────────────────────────────
+  function _buildCulvertSubTabs() {
+    var subNav = document.getElementById('data-sub-nav');
+    if (!subNav) return;
+    var active = _dataState.culvertSubTab || 'identity';
+    var TABS = [
+      { id: 'identity',  lbl: 'Identity'    },
+      { id: 'barrel',    lbl: 'Pipe / Barrel' },
+      { id: 'endpoints', lbl: 'Endpoints'   },
+      { id: 'condition', lbl: 'Condition'   },
+    ];
+    subNav.innerHTML = TABS.map(function (t) {
+      return '<button class="data-sub-tab' + (active === t.id ? ' active' : '') +
+             '" data-stab="' + t.id + '">' + t.lbl + '</button>';
+    }).join('');
+    subNav.querySelectorAll('.data-sub-tab').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        _dataState.culvertSubTab = btn.dataset.stab;
+        _buildCulvertSubTabs();
+        _renderFormBody();
+      });
+    });
+  }
+
   // ── Form body renderer (dispatches by kind) ────────────────────────────────
   function _renderFormBody() {
     var scrollEl = document.getElementById('data-form-scroll');
@@ -20249,6 +20292,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     var sec = _dataState.sec;
 
     switch (pin.kind) {
+      case 'pt_sign':      // field-placed sign — same rich form as bundle signs
       case 'sign':         scrollEl.innerHTML = _renderSignForm(pin, sec);     break;
       case 'culvert':      scrollEl.innerHTML = _renderCulvertForm(pin, sec);  break;
       case 'guardrail':    scrollEl.innerHTML = _renderGuardrailForm(pin, sec); break;
@@ -20381,22 +20425,48 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
 
     if (sub === 'post') {
       // ── Post sub-tab ─────────────────────────────────────────────
-      var postTypes   = window._RW.SIGN_POST_TYPES || [];
-      var conditions  = window._RW.SIGN_CONDITIONS || [];
-      var postDmg     = window._RW.SIGN_POST_DMG   || [];
+      var postTypes    = window._RW.SIGN_POST_TYPES || [];
+      var conditions   = window._RW.SIGN_CONDITIONS || [];
+      var postDmg      = window._RW.SIGN_POST_DMG   || [];
       var postTypeOpts = [{v:'',l:'— type —'}].concat(postTypes);
+      var SIDES        = ['L','R','C','N/A'];
+      var sideBtns     = SIDES.map(function (s) {
+        var on = (a.side || '') === s;
+        return '<button class="df-cond-btn" data-cond="' + s + '" data-field="side"' +
+          (on ? ' style="background:var(--blue);color:#fff;border-color:var(--blue)"' : '') + '>' + s + '</button>';
+      }).join('');
+      var foundOpts = [
+        {v:'',l:'— select —'},{v:'buried_direct',l:'Buried direct'},
+        {v:'concrete',l:'Concrete footing'},{v:'drive_anchor',l:'Drive anchor'},
+        {v:'flange_plate',l:'Flange plate'},{v:'other',l:'Other'},
+      ];
+      var finishOpts = [
+        {v:'',l:'— select —'},{v:'galvanized',l:'Galvanized'},
+        {v:'powder_coat',l:'Powder coat'},{v:'painted',l:'Painted'},
+        {v:'bare_steel',l:'Bare steel'},{v:'other',l:'Other'},
+      ];
+      var breakOpts = [
+        {v:'',l:'— select —'},{v:'yes',l:'Yes — breakaway'},
+        {v:'no',l:'No'},{v:'unknown',l:'Unknown'},
+      ];
 
-      return _sectionHdr('POST DETAILS') +
-        _selectRow('Post type',  'post_type',      a.post_type,      postTypeOpts) +
-        _inputRow ('Post count', 'post_count',      a.post_count,     'number') +
-        _inputRow ('Height (ft)','post_height_ft',  a.post_height_ft, 'number') +
-        _condRow  ('Condition',  'post_condition',  a.post_condition, conditions, 'data-post-field') +
-        _flagRow  ('Damage',     'post_damage',     a.post_damage,    postDmg) +
-        _sectionHdr('LOCATION') +
+      return _sectionHdr('LOCATION') +
+        '<div class="df-row"><span class="df-lbl">Side</span>' +
+          '<span class="df-ctrl"><div class="df-cond">' + sideBtns + '</div></span></div>' +
+        _inputRow ('EOP Offset (ft)', 'eop_offset',    a.eop_offset,    'number') +
         _readonlyRow('Pin ID',   pin.id) +
         _readonlyRow('Section',  sec ? sec.name : '—') +
         _readonlyRow('STA',      pin.sta || '—') +
-        _textareaRow('Notes',    'notes',           a.notes) +
+        _sectionHdr('POST DETAILS') +
+        _selectRow('Post type',      'post_type',       a.post_type,       postTypeOpts) +
+        _inputRow ('Post count',     'post_count',      a.post_count,      'number') +
+        _inputRow ('Height (ft)',    'post_height_ft',  a.post_height_ft,  'number') +
+        _selectRow('Foundation',     'post_foundation', a.post_foundation || '', foundOpts) +
+        _selectRow('Finish',         'post_finish',     a.post_finish     || '', finishOpts) +
+        _selectRow('Breakaway',      'post_breakaway',  a.post_breakaway  || '', breakOpts) +
+        _condRow  ('Condition',      'post_condition',  a.post_condition,  conditions, 'data-post-field') +
+        _flagRow  ('Damage',         'post_damage',     a.post_damage,     postDmg) +
+        _textareaRow('Notes',        'notes',           a.notes) +
         _customFieldsSection(pin);
     }
 
@@ -20447,38 +20517,77 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
 
   // ── Culvert form ───────────────────────────────────────────────────────────
   function _renderCulvertForm(pin, sec) {
-    var a = pin.attrs || {};
+    var a          = pin.attrs || {};
     var conditions = window._RW.SIGN_CONDITIONS || [];
+    var sub        = _dataState.culvertSubTab || 'identity';
 
     var materials = ['—','RCP','CMP','HDPE','Box Culvert','Stone Masonry','Concrete Box','Arch Pipe','Other'];
     var shapes    = ['—','Round','Elliptical','Arch','Box/Rectangular','Other'];
     var epTypes   = ['—','Headwall — concrete','Headwall — stone','Flange/mitered','Open / none','Other'];
     var drainage  = ['—','None noted','Partial blockage','Full blockage','Sediment build-up','Debris jam'];
+    var rpTypes   = [
+      {v:'',l:'— select —'},{v:'clean',l:'Clean / flush'},
+      {v:'repair_inlet',l:'Repair inlet'},{v:'repair_outlet',l:'Repair outlet'},
+      {v:'repair_barrel',l:'Repair barrel'},{v:'replace',l:'Full replacement'},
+      {v:'extend',l:'Extend pipe'},{v:'regrade',l:'Regrade channel'},
+      {v:'monitor',l:'Monitor — no action'},{v:'other',l:'Other'},
+    ];
 
-    return _sectionHdr('IDENTITY') +
-      _readonlyRow('Pin ID',   pin.id) +
-      _readonlyRow('Section',  sec ? sec.name : '—') +
-      _readonlyRow('STA',      pin.sta || '—') +
-      _readonlyRow('Asset ID', (a.asset_id || a.fmss_asset || '—')) +
-      _readonlyRow('Side',     a.side || '—') +
-      _sectionHdr('PIPE / BARREL') +
-      _selectRow('Material',   'material',   a.material || '', materials.map(function(m){return {v:m,l:m};})) +
-      _selectRow('Shape',      'shape',      a.shape    || '', shapes.map(function(s){return {v:s,l:s};})) +
-      _inputRow ('Width / Dia (in)', 'diameter_in', a.diameter_in, 'number') +
-      _inputRow ('Height (in)',       'height_in',   a.height_in,  'number') +
-      _readonlyRow('Length (ft)',     a.length_ft != null ? Math.round(a.length_ft) + ' ft (' + (a.length_source||'—') + ')' : '—') +
-      _inputRow ('Skew angle (°)',    'skew_deg',    a.skew_deg,   'number') +
-      _sectionHdr('ENDPOINTS') +
-      _selectRow('Inlet type',  'ep_inlet_type',  a.ep_inlet_type  || '', epTypes.map(function(e){return {v:e,l:e};})) +
-      _condRow  ('Inlet cond',  'ep_inlet_cond',  a.ep_inlet_cond,  conditions, 'data-cond') +
-      _selectRow('Outlet type', 'ep_outlet_type', a.ep_outlet_type || '', epTypes.map(function(e){return {v:e,l:e};})) +
-      _condRow  ('Outlet cond', 'ep_outlet_cond', a.ep_outlet_cond, conditions, 'data-cond') +
-      _sectionHdr('CONDITION') +
-      _condRow  ('Overall',     'condition',       a.condition,       conditions, 'data-cond') +
-      _selectRow('Drainage',    'drainage_issue',  a.drainage_issue || '', drainage.map(function(d){return {v:d,l:d};})) +
-      _inputRow ('Rating (0–100)', 'rating',       a.rating, 'number') +
-      _textareaRow('Repair action', 'repair_action', a.repair_action) +
-      _textareaRow('Notes',         'notes',          a.notes) +
+    if (sub === 'identity') {
+      var SIDES = ['L','R','C','N/A'];
+      var sideBtns = SIDES.map(function (s) {
+        var on = (a.side || '') === s;
+        return '<button class="df-cond-btn" data-cond="' + s + '" data-field="side"' +
+          (on ? ' style="background:var(--blue);color:#fff;border-color:var(--blue)"' : '') + '>' + s + '</button>';
+      }).join('');
+      return _sectionHdr('IDENTITY') +
+        _readonlyRow('Pin ID',   pin.id) +
+        _readonlyRow('Section',  sec ? sec.name : '—') +
+        _readonlyRow('STA',      pin.sta || '—') +
+        _readonlyRow('Asset ID', a.asset_id || a.fmss_asset || '—') +
+        _readonlyRow('Length (ft)', a.length_ft != null ? Math.round(a.length_ft) + ' ft (' + (a.length_source || '—') + ')' : '—') +
+        '<div class="df-row"><span class="df-lbl">Side</span>' +
+          '<span class="df-ctrl"><div class="df-cond">' + sideBtns + '</div></span></div>' +
+        _inputRow('Road name / description', 'road', a.road, 'text') +
+        _inputRow('EOP Offset (ft)', 'eop_offset', a.eop_offset, 'number') +
+        _textareaRow('Notes', 'notes', a.notes);
+    }
+
+    if (sub === 'barrel') {
+      return _sectionHdr('PIPE / BARREL') +
+        _selectRow('Material',       'material',    a.material   || '', materials.map(function(m){return {v:m,l:m};})) +
+        _selectRow('Shape',          'shape',       a.shape      || '', shapes.map(function(s){return {v:s,l:s};})) +
+        _inputRow ('Width / Dia (in)','diameter_in', a.diameter_in, 'number') +
+        _inputRow ('Height (in)',     'height_in',   a.height_in,  'number') +
+        _inputRow ('Span (in)',       'span_in',     a.span_in,    'number') +
+        _inputRow ('Skew angle (°)',  'skew_deg',    a.skew_deg,   'number') +
+        _inputRow ('No. of barrels',  'barrel_count',a.barrel_count,'number') +
+        _customFieldsSection(pin);
+    }
+
+    if (sub === 'endpoints') {
+      return _sectionHdr('INLET') +
+        _selectRow('Inlet type',     'ep_inlet_type',  a.ep_inlet_type  || '', epTypes.map(function(e){return {v:e,l:e};})) +
+        _condRow  ('Inlet condition','ep_inlet_cond',   a.ep_inlet_cond,  conditions, 'data-cond') +
+        _inputRow ('Inlet offset (ft)','ep_inlet_offset',a.ep_inlet_offset,'number') +
+        _sectionHdr('OUTLET') +
+        _selectRow('Outlet type',    'ep_outlet_type', a.ep_outlet_type || '', epTypes.map(function(e){return {v:e,l:e};})) +
+        _condRow  ('Outlet condition','ep_outlet_cond', a.ep_outlet_cond, conditions, 'data-cond') +
+        _inputRow ('Outlet offset (ft)','ep_outlet_offset',a.ep_outlet_offset,'number') +
+        _sectionHdr('CHANNEL') +
+        _inputRow ('Channel width (ft)', 'channel_width_ft', a.channel_width_ft, 'number') +
+        _selectRow('Drainage issue','drainage_issue', a.drainage_issue || '', drainage.map(function(d){return {v:d,l:d};}));
+    }
+
+    // condition tab (default / fallback)
+    return _sectionHdr('CONDITION') +
+      _condRow  ('Overall',        'condition',      a.condition,      conditions, 'data-cond') +
+      _condRow  ('Structural',     'struct_cond',    a.struct_cond,    conditions, 'data-cond') +
+      _condRow  ('Inlet',          'ep_inlet_cond',  a.ep_inlet_cond,  conditions, 'data-cond') +
+      _condRow  ('Outlet',         'ep_outlet_cond', a.ep_outlet_cond, conditions, 'data-cond') +
+      _inputRow ('Rating (0–100)', 'rating',         a.rating, 'number') +
+      _selectRow('Repair action',  'repair_action',  a.repair_action  || '', rpTypes) +
+      _textareaRow('Repair notes', 'repair_notes',   a.repair_notes) +
       _customFieldsSection(pin);
   }
 
