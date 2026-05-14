@@ -5652,6 +5652,96 @@ input.fs-slider::-webkit-slider-thumb {
   cursor: pointer;
   border-radius: 2px;
 }
+/* ── Misc / point / polygon 2-column form ─────────────────────────────────── */
+/* Condensed read-only metadata strip across the top */
+.df-misc-meta {
+  padding: 5px 14px 5px;
+  background: var(--paper-2);
+  border-bottom: 1px solid var(--rule);
+  font: 600 9px/1.6 'IBM Plex Mono',monospace;
+  color: var(--ink-3);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 10px;
+}
+.df-misc-meta b { color: var(--ink-2); font-weight: 700; }
+/* Two-column body: fields left, photos right */
+.df-misc-cols {
+  display: flex;
+  align-items: flex-start;
+  min-height: 200px;
+}
+.df-misc-left {
+  flex: 1 1 0;
+  border-right: 1px solid var(--rule-soft);
+  min-width: 0;
+}
+.df-misc-right {
+  flex: 0 0 175px;
+  width: 175px;
+  padding: 10px 10px 10px;
+  position: sticky;
+  top: 0;
+  max-height: calc(100vh - 260px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-left: 1px solid var(--rule-soft);
+}
+/* Photo grid in right column */
+.df-photo-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  min-height: 40px;
+}
+.df-photo-wrap { position: relative; }
+.df-photo-thumb {
+  width: 72px; height: 72px;
+  object-fit: cover;
+  border-radius: 3px;
+  border: 1px solid var(--rule);
+  display: block;
+  cursor: pointer;
+}
+.df-photo-del {
+  position: absolute; top: 2px; right: 2px;
+  width: 16px; height: 16px; padding: 0;
+  background: rgba(0,0,0,.55); color: #fff; border: none;
+  border-radius: 50%; font-size: 9px; line-height: 1;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+.df-photo-del:hover { background: #c0392b; }
+.df-photo-empty {
+  font: 400 9px/1.4 'IBM Plex Mono',monospace;
+  color: var(--ink-3); font-style: italic;
+}
+/* Photo action buttons */
+.df-photo-btns { display: flex; flex-direction: column; gap: 5px; }
+.df-photo-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 10px; background: var(--paper-2);
+  border: 1px solid var(--rule); border-radius: 3px;
+  cursor: pointer; font: 600 9.5px/1 'IBM Plex Mono',monospace;
+  color: var(--ink); text-align: left; width: 100%;
+}
+.df-photo-btn:hover { background: var(--paper); border-color: var(--blue); color: var(--blue); }
+/* Collapsible Dimensions section */
+.df-dim-toggle {
+  display: flex; align-items: center; gap: 6px;
+  width: 100%; padding: 7px 14px;
+  background: var(--paper-2); border: none;
+  border-bottom: 1px solid var(--rule-soft);
+  font: 700 9px/1 'IBM Plex Mono',monospace;
+  text-transform: uppercase; letter-spacing: 1px;
+  color: var(--ink-3); cursor: pointer; text-align: left;
+}
+.df-dim-toggle:hover { color: var(--blue); }
+.df-dim-arrow { font-size: 8px; transition: transform 150ms; display: inline-block; }
+.df-dim-toggle.open .df-dim-arrow { transform: rotate(90deg); }
+.df-dim-body { display: none; }
+.df-dim-body.open { display: block; }
 /* Damage / flag toggle pills */
 .df-flags { display: flex; flex-wrap: wrap; gap: 4px; padding-top: 4px; }
 .df-flag {
@@ -9352,12 +9442,12 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   function openPinSheet(pin, sec) {
     if (pin.kind === 'pt_sign') { openSignSheet(pin, sec); return; }
     if (pin.kind === 'ln_guardrail' || pin.kind === 'ln_retaining_wall' || pin.kind === 'ln_barrier') { openBarrierSheet(pin, sec); return; }
-    // Bundle short-kinds → Data module rich forms (sign, culvert, guardrail, wall, etc.)
-    // These kinds come from the pre-walk bundle (NPS GIS / GIP / WIP) and have purpose-built
-    // form renderers in the Data module (_renderGuardrailForm, _renderCulvertForm, etc.).
-    // Route them there rather than showing the bare-bones generic pin sheet.
+    // Bundle short-kinds + all pt_* / pg_* field-placed features → Data module forms.
     const _BUNDLE_DATA_KINDS = new Set(['sign','culvert','guardrail','wall','pavement','overlook','ngs_monument']);
-    if (_BUNDLE_DATA_KINDS.has(pin.kind)) {
+    const _goToData = _BUNDLE_DATA_KINDS.has(pin.kind)
+                   || pin.kind.startsWith('pt_')
+                   || pin.kind.startsWith('pg_');
+    if (_goToData) {
       console.log('[RoadWalk] openPinSheet routing', pin.kind, '→ Data module. openDataForm type:', typeof window.openDataForm);
       if (typeof window.openDataForm === 'function') {
         if (typeof window.showModule === 'function') window.showModule('data');
@@ -19774,7 +19864,13 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       case 'pavement':     scrollEl.innerHTML = _renderPavementForm(pin, sec); break;
       case 'overlook':     scrollEl.innerHTML = _renderOverlookForm(pin, sec); break;
       case 'ngs_monument': scrollEl.innerHTML = _renderMonumentForm(pin, sec); break;
-      default:             scrollEl.innerHTML = _renderOtherForm(pin, sec);    break;
+      default:
+        if (pin.kind.startsWith('pt_') || pin.kind.startsWith('pg_')) {
+          scrollEl.innerHTML = _renderMiscForm(pin, sec);
+        } else {
+          scrollEl.innerHTML = _renderOtherForm(pin, sec);
+        }
+        break;
     }
 
     // Wire interactive elements inside the form
@@ -20057,6 +20153,113 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   }
 
   // ── Other / generic form ───────────────────────────────────────────────────
+  // ── Misc/field-placed point & polygon form — 2-column layout ────────────────
+  function _renderMiscForm(pin, sec) {
+    var a = pin.attrs || {};
+    var kindLabel = (pin.kind || '')
+      .replace(/^pt_|^pg_/, '')
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, function(c){ return c.toUpperCase(); });
+
+    // ── Condensed metadata strip ─────────────────────────────────────────────
+    var metaParts = [];
+    if (pin.id)       metaParts.push('<b>ID:</b> '      + _esc(pin.id));
+    if (pin.sta)      metaParts.push('<b>STA:</b> '     + _esc(pin.sta));
+    if (sec && sec.name) metaParts.push('<b>Sec:</b> '  + _esc(sec.name));
+    if (a.side)       metaParts.push('<b>Side:</b> '    + _esc(a.side));
+    if (a.road)       metaParts.push('<b>Road:</b> '    + _esc(a.road));
+    if (a.asset_id)   metaParts.push('<b>Asset:</b> '   + _esc(a.asset_id));
+
+    var meta = '<div class="df-misc-meta">' +
+      metaParts.join('<span style="color:var(--rule);margin:0 2px">·</span>') +
+      '</div>';
+
+    // ── Condition buttons E / G / F / P / X ──────────────────────────────────
+    var MISC_CONDS = [
+      { v:'E', col:'#15803d', tip:'Excellent' },
+      { v:'G', col:'#4d7c0f', tip:'Good'      },
+      { v:'F', col:'#d97706', tip:'Fair'       },
+      { v:'P', col:'#c2410c', tip:'Poor'       },
+      { v:'X', col:'#7f1d1d', tip:'Failed'     },
+    ];
+    var condBtns = MISC_CONDS.map(function(c) {
+      var on = a.condition === c.v;
+      return '<button class="df-cond-btn" data-cond="' + c.v + '" data-field="condition"' +
+        ' title="' + c.tip + '"' +
+        (on ? ' style="background:' + c.col + ';color:#fff;border-color:' + c.col + '"' : '') +
+        '>' + c.v + '</button>';
+    }).join('');
+
+    // ── Side selector (reuses cond-btn style) ────────────────────────────────
+    var SIDES = ['L','R','C','N/A'];
+    var sideBtns = SIDES.map(function(s) {
+      var on = (a.side || '') === s;
+      return '<button class="df-cond-btn" data-cond="' + s + '" data-field="side"' +
+        (on ? ' style="background:var(--blue);color:#fff;border-color:var(--blue)"' : '') +
+        '>' + s + '</button>';
+    }).join('');
+
+    // ── Repair recommendation select ─────────────────────────────────────────
+    var repairOpts = [
+      { v:'',           l:'— select —'          },
+      { v:'do_nothing', l:'Do Nothing'           },
+      { v:'adjust',     l:'Adjust'               },
+      { v:'protect',    l:'Protect'              },
+      { v:'rr',         l:'R&R — Remove & Replace' },
+      { v:'rs',         l:'R&S — Remove & Stack'   },
+      { v:'rd',         l:'R&D — Remove & Discard' },
+    ];
+
+    // ── Left column: fields ──────────────────────────────────────────────────
+    var leftCol =
+      '<div class="df-row"><span class="df-lbl">Side</span>' +
+        '<span class="df-ctrl"><div class="df-cond">' + sideBtns + '</div></span></div>' +
+      _inputRow('EOP Offset (ft)', 'eop_offset',   a.eop_offset,  'number') +
+      _inputRow('Description',     'description',   a.description, 'text') +
+      '<div class="df-row"><span class="df-lbl">Condition</span>' +
+        '<span class="df-ctrl"><div class="df-cond">' + condBtns + '</div></span></div>' +
+      _inputRow('Material', 'material', a.material, 'text') +
+      _selectRow('Repair Rec', 'repair_rec', a.repair_rec || '', repairOpts) +
+      '<button class="df-dim-toggle" id="df-dim-toggle" type="button">' +
+        '<span class="df-dim-arrow">▶</span> Dimensions' +
+      '</button>' +
+      '<div class="df-dim-body" id="df-dim-body">' +
+        _inputRow('Length',      'dim_length', a.dim_length,  'number') +
+        _inputRow('Width',       'dim_width',  a.dim_width,   'number') +
+        _inputRow('Height',      'dim_height', a.dim_height,  'number') +
+        _inputRow('Area',        'dim_area',   a.dim_area,    'number') +
+        _inputRow('Orientation', 'dim_orient', a.dim_orient,  'text') +
+      '</div>' +
+      _textareaRow('Notes', 'notes', a.notes) +
+      _customFieldsSection(pin);
+
+    // ── Right column: photos ─────────────────────────────────────────────────
+    var photos = Array.isArray(a.photos) ? a.photos : [];
+    var photoHtml = photos.length
+      ? photos.map(function(p, i) {
+          return '<div class="df-photo-wrap" data-photo-idx="' + i + '">' +
+            '<img class="df-photo-thumb" src="' + _esc(p.dataUrl) + '" title="' + _esc(p.captured_at || '') + '">' +
+            '<button class="df-photo-del" data-photo-idx="' + i + '" type="button" title="Remove">✕</button>' +
+          '</div>';
+        }).join('')
+      : '<span class="df-photo-empty">No photos yet</span>';
+
+    var rightCol =
+      '<div class="df-photo-grid" id="df-photo-grid">' + photoHtml + '</div>' +
+      '<div class="df-photo-btns">' +
+        '<button type="button" class="df-photo-btn" id="df-misc-take-photo">📷 Take Photo</button>' +
+        '<button type="button" class="df-photo-btn" id="df-misc-upload-photo">↑ Upload</button>' +
+        '<input type="file" id="df-misc-photo-input"  accept="image/*" capture="environment" style="display:none">' +
+        '<input type="file" id="df-misc-upload-input" accept="image/*" style="display:none">' +
+      '</div>';
+
+    return meta +
+      '<div class="df-misc-cols">' +
+        '<div class="df-misc-left">'  + leftCol  + '</div>' +
+        '<div class="df-misc-right">' + rightCol + '</div>' +
+      '</div>';
+  }
+
   function _renderOtherForm(pin, sec) {
     var a = pin.attrs || {};
     var conditions = window._RW.SIGN_CONDITIONS || [];
@@ -20369,6 +20572,65 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         var i = parseInt(btn.dataset.customIdx, 10);
         if (i >= 0 && i < arr.length) {
           arr.splice(i, 1);
+          _dataState.dirty = true;
+          _renderFormBody();
+        }
+      });
+    });
+
+    // ── Misc form: Dimensions collapsible toggle ──────────────────────────────
+    var dimToggle = document.getElementById('df-dim-toggle');
+    var dimBody   = document.getElementById('df-dim-body');
+    if (dimToggle && dimBody) {
+      dimToggle.addEventListener('click', function () {
+        var isOpen = dimBody.classList.contains('open');
+        dimBody.classList.toggle('open', !isOpen);
+        dimToggle.classList.toggle('open', !isOpen);
+      });
+    }
+
+    // ── Misc form: photo capture / upload / delete ────────────────────────────
+    function _ensurePhotos() {
+      if (!Array.isArray(a.photos)) a.photos = [];
+      return a.photos;
+    }
+    function _readAndAddPhoto(file) {
+      var reader = new FileReader();
+      reader.onload = function (e) {
+        _ensurePhotos().push({ dataUrl: e.target.result, captured_at: new Date().toISOString() });
+        _dataState.dirty = true;
+        _renderFormBody();
+      };
+      reader.readAsDataURL(file);
+    }
+
+    var takeBtn    = document.getElementById('df-misc-take-photo');
+    var takeInput  = document.getElementById('df-misc-photo-input');
+    var uploadBtn  = document.getElementById('df-misc-upload-photo');
+    var uploadInput = document.getElementById('df-misc-upload-input');
+
+    if (takeBtn && takeInput) {
+      takeBtn.addEventListener('click', function () { takeInput.click(); });
+      takeInput.addEventListener('change', function () {
+        if (takeInput.files && takeInput.files[0]) _readAndAddPhoto(takeInput.files[0]);
+        takeInput.value = '';
+      });
+    }
+    if (uploadBtn && uploadInput) {
+      uploadBtn.addEventListener('click', function () { uploadInput.click(); });
+      uploadInput.addEventListener('change', function () {
+        if (uploadInput.files && uploadInput.files[0]) _readAndAddPhoto(uploadInput.files[0]);
+        uploadInput.value = '';
+      });
+    }
+
+    // Delete a photo thumbnail (✕ button)
+    scroll.querySelectorAll('button.df-photo-del[data-photo-idx]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var idx = parseInt(btn.dataset.photoIdx, 10);
+        var photos = _ensurePhotos();
+        if (idx >= 0 && idx < photos.length) {
+          photos.splice(idx, 1);
           _dataState.dirty = true;
           _renderFormBody();
         }
