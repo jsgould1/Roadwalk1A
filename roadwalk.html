@@ -4009,27 +4009,52 @@ input.fs-slider::-webkit-slider-thumb {
 .header-styleguide-btn:hover { background: var(--hover); }
 
 /* Phase 2 — Point Feature Styles */
-.fs-sym-picker { display: flex; gap: 4px; flex-wrap: wrap; max-width: 148px; }
-.fs-sym-btn {
-  width: 26px; height: 26px;
-  border: 1.5px solid var(--rule); border-radius: 4px;
+/* Glyph trigger button (in style guide table) */
+.fs-glyph-trigger {
+  width: 34px; height: 34px;
+  border: 1.5px solid var(--rule); border-radius: 5px;
   display: flex; align-items: center; justify-content: center;
-  cursor: pointer; background: transparent; padding: 0;
+  cursor: pointer; background: var(--paper-2);
+  font-size: 18px; line-height: 1; padding: 0;
   transition: border-color .1s; }
-.fs-sym-btn.fs-active { border-color: var(--blue); background: rgba(10,42,93,.08); }
-.fs-sym-btn:hover { border-color: var(--blue); }
+.fs-glyph-trigger:hover { border-color: var(--blue); background: var(--hover); }
+/* Glyph picker popup */
+#fs-glyph-popup {
+  position: fixed; z-index: 9999;
+  background: var(--paper); border: 1px solid var(--rule);
+  border-radius: 8px; box-shadow: 0 8px 32px rgba(0,0,0,.2);
+  padding: 10px 12px 12px; width: 296px;
+  max-height: 420px; overflow-y: auto;
+  -webkit-overflow-scrolling: touch; }
+.fs-glyph-cat-label {
+  font: 600 9px/1 'IBM Plex Mono', monospace;
+  text-transform: uppercase; letter-spacing: .08em;
+  color: var(--ink-3); margin: 8px 0 4px; }
+.fs-glyph-cat-label:first-child { margin-top: 0; }
+.fs-glyph-grid { display: flex; flex-wrap: wrap; gap: 3px; }
+.fs-glyph-btn {
+  width: 30px; height: 30px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px; line-height: 1;
+  border: 1.5px solid transparent; border-radius: 4px;
+  cursor: pointer; background: transparent; padding: 0;
+  transition: border-color .1s, background .1s; }
+.fs-glyph-btn:hover { border-color: var(--blue); background: var(--hover); }
+.fs-glyph-btn.fs-active { border-color: var(--blue); background: rgba(10,42,93,.08); }
+/* Size input */
 .fs-pt-size {
   font: 400 12px/1 'IBM Plex Mono', monospace;
   color: var(--ink); background: var(--paper-2);
   border: 1px solid var(--rule); border-radius: 3px;
   padding: 5px 4px; width: 42px; text-align: center; }
+/* Group sub-header row */
 .fs-group-hdr td {
   font: 600 9px/1 'IBM Plex Mono', monospace;
   text-transform: uppercase; letter-spacing: .08em;
   color: var(--blue); padding: 12px 0 4px !important;
   border-bottom: 1px solid var(--rule) !important; }
-.fs-pt-preview { min-width: 32px; }
-.fs-pt-preview svg { display: block; }
+/* Point preview cell */
+.fs-pt-preview { min-width: 36px; vertical-align: middle; }
 
 /* ============================================================
    PHASE 1: Multi-module shell
@@ -8925,7 +8950,24 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       // Default rectangular chip; sign and monument override with shape glyphs
       // so map and strip use identical iconography.
       let html, iconSize, iconAnchor;
-      if (style.shape === 'circle') {
+      if (style.glyph && pin.kind !== 'pt_sign') {
+        // Unicode glyph pin (set via Style Guide glyph picker)
+        const _sz = Math.round(style.size || 22);
+        const _fs = Math.round(_sz * 0.55);
+        html = `<div class="rw-pin-code" style="
+          background: ${style.color};
+          color: #ffffff;
+          border-radius: 50%;
+          width: ${_sz}px; height: ${_sz}px;
+          display: flex; align-items: center; justify-content: center;
+          font-size: ${_fs}px; line-height: 1;
+          border: 1.5px solid ${status.ring};
+          box-shadow: 0 1px 3px rgba(0,0,0,.3);
+          opacity: ${status.opacity};
+        ">${style.glyph}</div>`;
+        iconSize   = [_sz, _sz];
+        iconAnchor = [Math.round(_sz / 2), Math.round(_sz / 2)];
+      } else if (style.shape === 'circle') {
         // For pt_sign: show primary sign code + colored background from catalog
         let circleLabel = style.code;
         let circleBg = style.color;
@@ -16847,53 +16889,56 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
 
   // ── Phase 2: Point Feature Styles ─────────────────────────────────────────
 
-  var PT_SYMBOLS = [
-    { v: 'circle',   l: 'Circle',   p: '<circle cx="10" cy="10" r="7" fill="{c}"/>' },
-    { v: 'square',   l: 'Square',   p: '<rect x="3" y="3" width="14" height="14" rx="2" fill="{c}"/>' },
-    { v: 'diamond',  l: 'Diamond',  p: '<polygon points="10,2 18,10 10,18 2,10" fill="{c}"/>' },
-    { v: 'triangle', l: 'Triangle', p: '<polygon points="10,2 19,18 1,18" fill="{c}"/>' },
-    { v: 'cross',    l: 'Cross',    p: '<path d="M7,1 h6 v6 h6 v6 h-6 v6 h-6 v-6 h-6 v-6 h6z" fill="{c}"/>' },
-    { v: 'hexagon',  l: 'Hexagon',  p: '<polygon points="10,2 17,6 17,14 10,18 3,14 3,6" fill="{c}"/>' },
-    { v: 'pentagon', l: 'Pentagon', p: '<polygon points="10,1 18,7 15,17 5,17 2,7" fill="{c}"/>' },
+  // Unicode glyph palette — categories shown in the picker popup
+  var GLYPH_PALETTE = [
+    { label: 'Circles',    glyphs: ['●','○','◉','⊕','⊗','◎','⊙','◌','◍','⊛','⬤','◔'] },
+    { label: 'Squares',    glyphs: ['■','□','◼','◻','▪','▫','⊞','⊟','⊠','▣','⬛','⬜'] },
+    { label: 'Diamonds',   glyphs: ['◆','◇','◈','❖','⬧','⬦','⬥','⬨','⬩','◊'] },
+    { label: 'Triangles',  glyphs: ['▲','△','▼','▽','◀','▶','◂','▸','◣','◤','◥','◢'] },
+    { label: 'Stars',      glyphs: ['★','☆','✦','✧','✶','✷','✸','✹','✴','✵','⭐'] },
+    { label: 'Cross/Plus', glyphs: ['✚','✛','✜','✕','✗','✖','➕','⊕','⊘','⊝','⊛'] },
+    { label: 'Hex/Other',  glyphs: ['⬡','⬢','⬣','⬟','⬠','⎔','⬤','⬯','⍟','◬','⌘'] },
+    { label: 'Utility',    glyphs: ['⚡','💧','⛽','🔌','💡','♿','🚩','⚠','⛔','🔔','⚙','🔧'] },
+    { label: 'Arrows',     glyphs: ['⬆','⬇','⬅','➡','↑','↓','←','→','↖','↗','↘','↙'] },
   ];
 
   var FS_POINT_FEATURES = [
     // ── Misc ─────────────────────────────────────────────────────────────────
-    { kind: 'pt_sign',        label: 'Sign',        defColor: '#C85A2B', defShape: 'circle',   defSize: 22, group: 'Misc' },
-    { kind: 'pt_swing_gate',  label: 'Swing Gate',  defColor: '#C85A2B', defShape: 'square',   defSize: 20, group: 'Misc' },
-    { kind: 'pt_man_gate',    label: 'Man Gate',    defColor: '#C85A2B', defShape: 'square',   defSize: 20, group: 'Misc' },
-    { kind: 'pt_monument',    label: 'Monument',    defColor: '#0B3D66', defShape: 'triangle', defSize: 22, group: 'Misc' },
-    { kind: 'pt_light_pole',  label: 'Light Pole',  defColor: '#C85A2B', defShape: 'circle',   defSize: 20, group: 'Misc' },
-    { kind: 'pt_guy_wire',    label: 'Guy Wire',    defColor: '#C85A2B', defShape: 'cross',    defSize: 20, group: 'Misc' },
-    { kind: 'pt_delineator',  label: 'Delineator',  defColor: '#C85A2B', defShape: 'diamond',  defSize: 20, group: 'Misc' },
-    { kind: 'pt_mailbox',     label: 'Mailbox',     defColor: '#C85A2B', defShape: 'square',   defSize: 20, group: 'Misc' },
-    { kind: 'pt_flagpole',    label: 'Flagpole',    defColor: '#C85A2B', defShape: 'pentagon', defSize: 20, group: 'Misc' },
-    { kind: 'pt_ada_ramp',    label: 'ADA Ramp',    defColor: '#C85A2B', defShape: 'hexagon',  defSize: 20, group: 'Misc' },
+    { kind: 'pt_sign',        label: 'Sign',        defColor: '#C85A2B', defGlyph: '⬛', defSize: 22, group: 'Misc' },
+    { kind: 'pt_swing_gate',  label: 'Swing Gate',  defColor: '#C85A2B', defGlyph: '⊞', defSize: 20, group: 'Misc' },
+    { kind: 'pt_man_gate',    label: 'Man Gate',    defColor: '#C85A2B', defGlyph: '⊟', defSize: 20, group: 'Misc' },
+    { kind: 'pt_monument',    label: 'Monument',    defColor: '#0B3D66', defGlyph: '▲', defSize: 22, group: 'Misc' },
+    { kind: 'pt_light_pole',  label: 'Light Pole',  defColor: '#C85A2B', defGlyph: '✦', defSize: 20, group: 'Misc' },
+    { kind: 'pt_guy_wire',    label: 'Guy Wire',    defColor: '#C85A2B', defGlyph: '✕', defSize: 20, group: 'Misc' },
+    { kind: 'pt_delineator',  label: 'Delineator',  defColor: '#C85A2B', defGlyph: '◆', defSize: 20, group: 'Misc' },
+    { kind: 'pt_mailbox',     label: 'Mailbox',     defColor: '#C85A2B', defGlyph: '▪', defSize: 20, group: 'Misc' },
+    { kind: 'pt_flagpole',    label: 'Flagpole',    defColor: '#C85A2B', defGlyph: '🚩', defSize: 20, group: 'Misc' },
+    { kind: 'pt_ada_ramp',    label: 'ADA Ramp',    defColor: '#C85A2B', defGlyph: '♿', defSize: 20, group: 'Misc' },
     // ── Utilities ────────────────────────────────────────────────────────────
-    { kind: 'pt_cb',          label: 'CB',          defColor: '#0B3D66', defShape: 'square',   defSize: 20, group: 'Utilities' },
-    { kind: 'pt_di',          label: 'DI',          defColor: '#0B3D66', defShape: 'square',   defSize: 20, group: 'Utilities' },
-    { kind: 'pt_dmh',         label: 'DMH',         defColor: '#0B3D66', defShape: 'circle',   defSize: 20, group: 'Utilities' },
-    { kind: 'pt_smh',         label: 'SMH',         defColor: '#0B3D66', defShape: 'circle',   defSize: 20, group: 'Utilities' },
-    { kind: 'pt_emh',         label: 'EMH',         defColor: '#0B3D66', defShape: 'circle',   defSize: 20, group: 'Utilities' },
-    { kind: 'pt_pb',          label: 'PB',          defColor: '#0B3D66', defShape: 'hexagon',  defSize: 20, group: 'Utilities' },
-    { kind: 'pt_gg',          label: 'GG',          defColor: '#0B3D66', defShape: 'pentagon', defSize: 20, group: 'Utilities' },
-    { kind: 'pt_wg',          label: 'WG',          defColor: '#0B3D66', defShape: 'pentagon', defSize: 20, group: 'Utilities' },
-    { kind: 'pt_hyd',         label: 'HYD',         defColor: '#CC3333', defShape: 'cross',    defSize: 20, group: 'Utilities' },
-    { kind: 'pt_transformer', label: 'Transformer', defColor: '#0B3D66', defShape: 'diamond',  defSize: 20, group: 'Utilities' },
+    { kind: 'pt_cb',          label: 'CB',          defColor: '#0B3D66', defGlyph: '⊕', defSize: 20, group: 'Utilities' },
+    { kind: 'pt_di',          label: 'DI',          defColor: '#0B3D66', defGlyph: '◎', defSize: 20, group: 'Utilities' },
+    { kind: 'pt_dmh',         label: 'DMH',         defColor: '#0B3D66', defGlyph: '⊗', defSize: 20, group: 'Utilities' },
+    { kind: 'pt_smh',         label: 'SMH',         defColor: '#0B3D66', defGlyph: '⊙', defSize: 20, group: 'Utilities' },
+    { kind: 'pt_emh',         label: 'EMH',         defColor: '#0B3D66', defGlyph: '⚡', defSize: 20, group: 'Utilities' },
+    { kind: 'pt_pb',          label: 'PB',          defColor: '#0B3D66', defGlyph: '⬡', defSize: 20, group: 'Utilities' },
+    { kind: 'pt_gg',          label: 'GG',          defColor: '#0B3D66', defGlyph: '◈', defSize: 20, group: 'Utilities' },
+    { kind: 'pt_wg',          label: 'WG',          defColor: '#0B3D66', defGlyph: '◉', defSize: 20, group: 'Utilities' },
+    { kind: 'pt_hyd',         label: 'HYD',         defColor: '#CC3333', defGlyph: '✚', defSize: 20, group: 'Utilities' },
+    { kind: 'pt_transformer', label: 'Transformer', defColor: '#0B3D66', defGlyph: '⚡', defSize: 20, group: 'Utilities' },
     // ── Markings ─────────────────────────────────────────────────────────────
-    { kind: 'pt_hc_marking',  label: 'HC Marking',  defColor: '#D4A943', defShape: 'hexagon',  defSize: 20, group: 'Markings' },
-    { kind: 'pt_arrow',       label: 'Arrow',       defColor: '#D4A943', defShape: 'diamond',  defSize: 20, group: 'Markings' },
-    { kind: 'pt_fire_lane',   label: 'Fire Lane',   defColor: '#D4A943', defShape: 'square',   defSize: 20, group: 'Markings' },
-    { kind: 'pt_text',        label: 'TEXT',        defColor: '#D4A943', defShape: 'square',   defSize: 20, group: 'Markings' },
+    { kind: 'pt_hc_marking',  label: 'HC Marking',  defColor: '#D4A943', defGlyph: '♿', defSize: 20, group: 'Markings' },
+    { kind: 'pt_arrow',       label: 'Arrow',       defColor: '#D4A943', defGlyph: '➡', defSize: 20, group: 'Markings' },
+    { kind: 'pt_fire_lane',   label: 'Fire Lane',   defColor: '#D4A943', defGlyph: '⛔', defSize: 20, group: 'Markings' },
+    { kind: 'pt_text',        label: 'TEXT',        defColor: '#D4A943', defGlyph: '▪', defSize: 20, group: 'Markings' },
   ];
 
   function ptGet(kind) {
     var f    = FS_POINT_FEATURES.find(function (x) { return x.kind === kind; });
-    if (!f) return { color: '#888888', shape: 'circle', size: 20 };
+    if (!f) return { color: '#888888', glyph: '●', size: 20 };
     var saved = fsLoadAll()[kind] || {};
     return {
       color: saved.color !== undefined ? saved.color : f.defColor,
-      shape: saved.shape !== undefined ? saved.shape : f.defShape,
+      glyph: saved.glyph !== undefined ? saved.glyph : f.defGlyph,
       size:  saved.size  !== undefined ? saved.size  : f.defSize,
     };
   }
@@ -16903,7 +16948,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     if (!rw || !rw.PIN_STYLE) return;
     if (rw.PIN_STYLE[kind]) {
       rw.PIN_STYLE[kind].color = s.color;
-      rw.PIN_STYLE[kind].shape = s.shape;
+      rw.PIN_STYLE[kind].glyph = s.glyph;
       rw.PIN_STYLE[kind].size  = s.size;
     }
     if (typeof rw.rerender === 'function') rw.rerender();
@@ -16913,48 +16958,62 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     FS_POINT_FEATURES.forEach(function (f) { applyPtKindStyle(f.kind, ptGet(f.kind)); });
   }
 
-  // Point marker preview (28×28 SVG)
-  function previewMarker(color, shape, size) {
-    var r  = Math.round((size || 20) * 0.36);
-    var cx = 14, cy = 14;
-    var inner;
-    switch (shape) {
-      case 'square':
-        inner = '<rect x="' + (cx - r) + '" y="' + (cy - r) + '" width="' + (2 * r) + '" height="' + (2 * r) + '" rx="2" fill="' + color + '"/>';
-        break;
-      case 'diamond':
-        inner = '<polygon points="' + cx + ',' + (cy - r) + ' ' + (cx + r) + ',' + cy + ' ' + cx + ',' + (cy + r) + ' ' + (cx - r) + ',' + cy + '" fill="' + color + '"/>';
-        break;
-      case 'triangle':
-        inner = '<polygon points="' + cx + ',' + (cy - r) + ' ' + (cx + r) + ',' + (cy + r) + ' ' + (cx - r) + ',' + (cy + r) + '" fill="' + color + '"/>';
-        break;
-      case 'cross': {
-        var t = Math.max(2, Math.round(r * 0.38));
-        inner = '<path d="M' + (cx - t) + ',' + (cy - r) + ' h' + (2 * t) + ' v' + (r - t) + ' h' + (r - t) + ' v' + (2 * t) + ' h-' + (r - t) + ' v' + (r - t) + ' h-' + (2 * t) + ' v-' + (r - t) + ' h-' + (r - t) + ' v-' + (2 * t) + ' h' + (r - t) + 'z" fill="' + color + '"/>';
-        break;
-      }
-      case 'hexagon': {
-        var hpts = [];
-        for (var hi = 0; hi < 6; hi++) {
-          var ha = Math.PI / 180 * (60 * hi - 30);
-          hpts.push((cx + r * Math.cos(ha)).toFixed(1) + ',' + (cy + r * Math.sin(ha)).toFixed(1));
+  // Point marker preview — glyph in a colored circle
+  function previewMarker(color, glyph, size) {
+    var sz = Math.max(20, Math.min(30, size || 20));
+    var fs = Math.round(sz * 0.58);
+    return '<div style="width:' + sz + 'px;height:' + sz + 'px;border-radius:50%;' +
+      'background:' + color + ';display:flex;align-items:center;justify-content:center;' +
+      'font-size:' + fs + 'px;line-height:1;border:1.5px solid rgba(0,0,0,.18);">' +
+      (glyph || '●') + '</div>';
+  }
+
+  // ── Glyph picker popup ─────────────────────────────────────────────────────
+  var _glyphActive = null;   // kind currently open, for toggle-off
+
+  function openGlyphPicker(kind, triggerEl, currentGlyph, onSelect) {
+    var existing = document.getElementById('fs-glyph-popup');
+    if (existing) { existing.remove(); if (_glyphActive === kind) { _glyphActive = null; return; } }
+    _glyphActive = kind;
+
+    var popup = document.createElement('div');
+    popup.id   = 'fs-glyph-popup';
+
+    var html = '';
+    GLYPH_PALETTE.forEach(function (cat) {
+      html += '<div class="fs-glyph-cat-label">' + cat.label + '</div><div class="fs-glyph-grid">';
+      cat.glyphs.forEach(function (g) {
+        html += '<button class="fs-glyph-btn' + (g === currentGlyph ? ' fs-active' : '') + '" data-g="' + g + '">' + g + '</button>';
+      });
+      html += '</div>';
+    });
+    popup.innerHTML = html;
+
+    // Position below trigger (fixed so it clears overflow:hidden parents)
+    var rect = triggerEl.getBoundingClientRect();
+    popup.style.top  = Math.min(rect.bottom + 6, window.innerHeight - 430) + 'px';
+    popup.style.left = Math.min(rect.left,        window.innerWidth  - 310) + 'px';
+    document.body.appendChild(popup);
+
+    popup.addEventListener('click', function (e) {
+      var btn = e.target.closest('.fs-glyph-btn');
+      if (!btn) return;
+      popup.remove(); _glyphActive = null;
+      if (onSelect) onSelect(btn.dataset.g);
+    });
+
+    // Dismiss on outside click (deferred so the opening click doesn't immediately close)
+    setTimeout(function () {
+      function dismiss(e) {
+        var p = document.getElementById('fs-glyph-popup');
+        if (!p) { document.removeEventListener('click', dismiss); return; }
+        if (!p.contains(e.target) && e.target !== triggerEl) {
+          p.remove(); _glyphActive = null;
+          document.removeEventListener('click', dismiss);
         }
-        inner = '<polygon points="' + hpts.join(' ') + '" fill="' + color + '"/>';
-        break;
       }
-      case 'pentagon': {
-        var ppts = [];
-        for (var pi = 0; pi < 5; pi++) {
-          var pa = Math.PI / 180 * (72 * pi - 90);
-          ppts.push((cx + r * Math.cos(pa)).toFixed(1) + ',' + (cy + r * Math.sin(pa)).toFixed(1));
-        }
-        inner = '<polygon points="' + ppts.join(' ') + '" fill="' + color + '"/>';
-        break;
-      }
-      default:  // circle
-        inner = '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="' + color + '"/>';
-    }
-    return '<svg width="28" height="28" viewBox="0 0 28 28">' + inner + '</svg>';
+      document.addEventListener('click', dismiss);
+    }, 0);
   }
 
   // Apply all saved styles (called at boot and on panel open)
@@ -17022,20 +17081,14 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         prevGroup = f.group;
         groupHdr = '<tr class="fs-group-hdr"><td colspan="5">' + f.group + '</td></tr>';
       }
-      var symBtns = PT_SYMBOLS.map(function (sym) {
-        var active = sym.v === s.shape ? ' fs-active' : '';
-        return '<button class="fs-sym-btn' + active + '" data-kind="' + f.kind + '" data-sym="' + sym.v + '" title="' + sym.l + '">' +
-          '<svg width="16" height="16" viewBox="0 0 20 20">' + sym.p.replace(/\{c\}/g, s.color) + '</svg>' +
-          '</button>';
-      }).join('');
       return groupHdr + [
         '<tr class="fs-row" data-kind="' + f.kind + '">',
         '<td><span class="fs-kind-label">' + f.label + '</span></td>',
         '<td><div class="fs-swatch" id="fs-sw-' + f.kind + '" style="background:' + s.color + '">',
         '<input type="color" id="fs-color-' + f.kind + '" value="' + s.color + '"></div></td>',
-        '<td><div class="fs-sym-picker" id="fs-sp-' + f.kind + '">' + symBtns + '</div></td>',
+        '<td><button class="fs-glyph-trigger" id="fs-gt-' + f.kind + '" title="Click to pick symbol">' + (s.glyph || '●') + '</button></td>',
         '<td><input type="number" class="fs-pt-size" id="fs-sz-' + f.kind + '" value="' + s.size + '" min="12" max="30" step="1"></td>',
-        '<td class="fs-pt-preview" id="fs-pv-' + f.kind + '">' + previewMarker(s.color, s.shape, s.size) + '</td>',
+        '<td class="fs-pt-preview" id="fs-pv-' + f.kind + '">' + previewMarker(s.color, s.glyph, s.size) + '</td>',
         '</tr>',
       ].join('');
     }).join('');
@@ -17049,9 +17102,9 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       '</tr></thead><tbody>' + lineRows + '</tbody></table></div>' +
       '<div class="sg-section">' +
       '<div class="sg-section-title">Point Feature Styles</div>' +
-      '<p class="sg-section-note">Shape and color apply live to map pins.</p>' +
+      '<p class="sg-section-note">Click the symbol cell to open the glyph picker. Changes apply live to map pins.</p>' +
       '<table class="fs-table"><thead><tr class="fs-thead">' +
-      '<th>Feature</th><th>Color</th><th>Shape</th><th>Size</th><th>Preview</th>' +
+      '<th>Feature</th><th>Color</th><th>Symbol</th><th>Size</th><th>Preview</th>' +
       '</tr></thead><tbody>' + ptRows + '</tbody></table></div>';
 
     // ── Wire line controls ───────────────────────────────────────────────────
@@ -17097,7 +17150,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         var all = fsLoadAll(); all[f.kind] = s; fsSaveAll(all);
         applyPtKindStyle(f.kind, s);
         var pv = document.getElementById('fs-pv-' + f.kind);
-        if (pv) pv.innerHTML = previewMarker(s.color, s.shape, s.size);
+        if (pv) pv.innerHTML = previewMarker(s.color, s.glyph, s.size);
       }
 
       var colorEl = document.getElementById('fs-color-' + f.kind);
@@ -17105,14 +17158,6 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         var sw = document.getElementById('fs-sw-' + f.kind);
         if (sw) sw.style.background = e.target.value;
         ptStyles[f.kind].color = e.target.value;
-        // Update symbol SVG fills in the picker live
-        var picker = document.getElementById('fs-sp-' + f.kind);
-        if (picker) {
-          picker.querySelectorAll('.fs-sym-btn').forEach(function (btn, i) {
-            var sym = PT_SYMBOLS[i];
-            if (sym) btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 20 20">' + sym.p.replace(/\{c\}/g, e.target.value) + '</svg>';
-          });
-        }
         commitPt();
       };
 
@@ -17122,15 +17167,13 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         commitPt();
       };
 
-      var picker = document.getElementById('fs-sp-' + f.kind);
-      if (picker) picker.addEventListener('click', function (e) {
-        var btn = e.target.closest('.fs-sym-btn');
-        if (!btn) return;
-        ptStyles[f.kind].shape = btn.dataset.sym;
-        picker.querySelectorAll('.fs-sym-btn').forEach(function (b) {
-          b.classList.toggle('fs-active', b.dataset.sym === ptStyles[f.kind].shape);
+      var triggerEl = document.getElementById('fs-gt-' + f.kind);
+      if (triggerEl) triggerEl.addEventListener('click', function () {
+        openGlyphPicker(f.kind, triggerEl, ptStyles[f.kind].glyph, function (g) {
+          ptStyles[f.kind].glyph = g;
+          triggerEl.textContent = g;
+          commitPt();
         });
-        commitPt();
       });
     });
   };
