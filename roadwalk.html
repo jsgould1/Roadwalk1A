@@ -21104,11 +21104,29 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         _btnRow('Priority', 'priority', a.priority, ['Low','Medium','High','Urgent']);
     }
 
-    // ── PHOTOS (Phase B) ──────────────────────────────────────────────────────
+    // ── PHOTOS ────────────────────────────────────────────────────────────────
+    // Reuses the misc-form photo element ids so the existing capture / upload /
+    // delete / annotate wiring in _wireFormInteractions picks them up.
     if (sub === 'photos') {
+      var photos = Array.isArray(a.photos) ? a.photos : [];
+      var photoHtml = photos.length
+        ? photos.map(function (p, i) {
+            return '<div class="df-photo-wrap" data-photo-idx="' + i + '">' +
+              '<img class="df-photo-thumb" src="' + _esc(p.dataUrl) + '" title="' + _esc(p.captured_at || '') + '">' +
+              '<button class="df-photo-del" data-photo-idx="' + i + '" type="button" title="Remove">✕</button>' +
+            '</div>';
+          }).join('')
+        : '<span class="df-photo-empty">No photos yet</span>';
       return _sectionHdr('PHOTOS') +
-        '<div class="df-row" style="color:var(--ink-3);font:11px/1.5 \'IBM Plex Mono\',monospace;padding:14px 12px;">' +
-        'Photo capture for culverts is being wired in next — Phase B.</div>';
+        '<div style="padding:10px 12px;">' +
+          '<button type="button" class="df-photo-btn df-photo-btn-take" id="df-misc-take-photo">📷 Take Photo</button>' +
+          '<input type="file" id="df-misc-photo-input" accept="image/*" capture="environment" style="display:none">' +
+          '<div class="df-photo-btns" style="margin-top:6px;">' +
+            '<button type="button" class="df-photo-btn" id="df-misc-upload-photo">↑ Upload</button>' +
+          '</div>' +
+          '<input type="file" id="df-misc-upload-input" accept="image/*" style="display:none">' +
+          '<div class="df-photo-grid" id="df-photo-grid" style="margin-top:10px;">' + photoHtml + '</div>' +
+        '</div>';
     }
 
     // ── DETAIL — QC DIAGRAM (Phase C) ─────────────────────────────────────────
