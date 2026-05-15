@@ -15061,6 +15061,9 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
 
   // Back button (context-aware)
   els.backBtn.addEventListener('click', () => {
+    // Guard: an open + dirty data form must be confirmed before leaving
+    if (window._RW && typeof window._RW.confirmLeaveDataForm === 'function'
+        && !window._RW.confirmLeaveDataForm()) return;
     if (state.view === 'field')          showView('list');
     else if (state.view === 'trace')     cancelAlignmentTrace();
     else if (state.view === 'kickoff')   { state.draftKickoff = null; showView('list'); }
@@ -18399,6 +18402,15 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       return;
     }
 
+    // Guard: leaving the Data module with an open + dirty form — confirm first.
+    // _activeModule is still the previous module at this point, so the tab's
+    // .active class (toggled below) is not wrongly switched if the user cancels.
+    if (_activeModule === 'data' && name !== 'data'
+        && window._RW && typeof window._RW.confirmLeaveDataForm === 'function'
+        && !window._RW.confirmLeaveDataForm()) {
+      return;
+    }
+
     _activeModule = name;
 
     // ── Hide all module panels ──────────────────────────────────
@@ -20450,6 +20462,21 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   }
   window.openDataForm = openDataForm;
 
+  // ── Cross-IIFE unsaved-changes checker ─────────────────────────────────────
+  // True only when the data form is OPEN and has unsaved edits. Used by the
+  // header back arrow, module tab switches, and the beforeunload handler.
+  window._RW = window._RW || {};
+  window._RW.isDataFormDirty = function () {
+    if (!_dataState.dirty) return false;
+    var pane = document.getElementById('data-form-pane');
+    return !!(pane && pane.classList.contains('visible'));
+  };
+  // Returns true if it is safe to navigate away (not dirty, or user confirmed).
+  window._RW.confirmLeaveDataForm = function () {
+    if (!window._RW.isDataFormDirty()) return true;
+    return window.confirm('You have unsaved changes in the data form.\nLeave without saving?');
+  };
+
   /** Close form pane and return to list */
   function _closeDataForm() {
     var formPane = document.getElementById('data-form-pane');
@@ -22023,6 +22050,17 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
 
     // e) Daily log reminder (async IDB check — doesn't block UI)
     initDailyLogModal();
+
+    // f) Guard browser tab close / refresh / navigate-away when the data form
+    //    has unsaved edits. The browser shows its own generic confirm dialog.
+    window.addEventListener('beforeunload', function (e) {
+      if (window._RW && typeof window._RW.isDataFormDirty === 'function'
+          && window._RW.isDataFormDirty()) {
+        e.preventDefault();
+        e.returnValue = '';   // required for the prompt to appear in Chrome/Edge
+        return '';
+      }
+    });
   }
 
   // Run startup after DOM is fully parsed (this script is deferred to end of body).
