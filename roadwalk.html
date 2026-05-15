@@ -20654,6 +20654,55 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
            '<span class="df-ctrl"><span class="df-readonly">' + _esc(val == null ? '—' : val) + '</span></span></div>';
   }
 
+  // ── Condition roll-up ──────────────────────────────────────────────────────
+  // Lower rank = better. NA / blank / unknown codes are excluded from the
+  // worst-case roll-up. Covers both the E/G/F/P/X and the G/F/P/NA scales.
+  var _CONDITION_RANK = { E: 0, G: 1, F: 2, P: 3, X: 4 };
+  function _worstCondition(codes) {
+    var worst = null, worstRank = -1;
+    (codes || []).forEach(function (c) {
+      if (!c) return;
+      var r = _CONDITION_RANK[String(c).toUpperCase()];
+      if (r == null) return;                       // NA / unknown — skip
+      if (r > worstRank) { worstRank = r; worst = String(c).toUpperCase(); }
+    });
+    return worst;
+  }
+  // Roll a sign's or culvert's sub-tab conditions up into one overall code.
+  // Sign  = worst of post + every panel (panel + sheeting) condition.
+  // Culvert = worst of structural / inlet / outlet condition.
+  function _deriveOverallCondition(pin) {
+    if (!pin || !pin.attrs) return null;
+    var a = pin.attrs, codes = [];
+    if (pin.kind === 'sign' || pin.kind === 'pt_sign') {
+      codes.push(a.post_condition);
+      (Array.isArray(a.panels) ? a.panels : []).forEach(function (p) {
+        if (p) { codes.push(p.panel_condition); codes.push(p.sheeting_condition); }
+      });
+    } else if (pin.kind === 'culvert') {
+      codes.push(a.struct_cond, a.ep_inlet_cond, a.ep_outlet_cond);
+    }
+    return _worstCondition(codes);
+  }
+  // Read-only condition display: a colored code chip + its label.
+  function _condReadonlyRow(label, code, hint) {
+    var conds = (window._RW && window._RW.SIGN_CONDITIONS) || [];
+    var meta  = conds.find(function (c) { return c.v === code; });
+    var disp;
+    if (code) {
+      disp = '<span style="display:inline-block;min-width:26px;text-align:center;' +
+             'padding:3px 8px;border-radius:3px;color:#fff;font:700 11px/1 ' +
+             '\'IBM Plex Mono\',monospace;background:' + (meta ? meta.col : '#6b7280') + '">' +
+             _esc(code) + '</span>' +
+             (meta ? ' <span style="color:var(--ink-3);font-size:11px">' + _esc(meta.l) + '</span>' : '');
+    } else {
+      disp = '<span class="df-readonly">—</span>';
+    }
+    if (hint) disp += ' <span style="color:var(--ink-4);font-size:10px">' + _esc(hint) + '</span>';
+    return '<div class="df-row"><span class="df-lbl">' + _esc(label) + '</span>' +
+           '<span class="df-ctrl">' + disp + '</span></div>';
+  }
+
   function _textareaRow(label, field, val) {
     return '<div class="df-row" style="flex-direction:column;gap:4px;align-items:stretch;">' +
            '<span class="df-lbl" style="padding-top:0">' + _esc(label) + '</span>' +
@@ -20765,7 +20814,8 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         _selectRow('Foundation',     'post_foundation', a.post_foundation || '', foundOpts) +
         _selectRow('Finish',         'post_finish',     a.post_finish     || '', finishOpts) +
         _selectRow('Breakaway',      'post_breakaway',  a.post_breakaway  || '', breakOpts) +
-        _condRow  ('Condition',      'post_condition',  a.post_condition,  conditions, 'data-post-field') +
+        _condRow  ('Post cond',      'post_condition',  a.post_condition,  conditions, 'data-post-field') +
+        _condReadonlyRow('Overall',  _deriveOverallCondition(pin), 'worst of post + all panels') +
         _flagRow  ('Damage',         'post_damage',     a.post_damage,     postDmg) +
         _textareaRow('Notes',        'notes',           a.notes) +
         _customFieldsSection(pin);
@@ -20881,8 +20931,10 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     }
 
     // condition tab (default / fallback)
+    // Overall condition is DERIVED — the worst of structural / inlet / outlet —
+    // and rolls up into attrs.condition on save (the unified DB column).
     return _sectionHdr('CONDITION') +
-      _condRow  ('Overall',        'condition',      a.condition,      conditions, 'data-cond') +
+      _condReadonlyRow('Overall',  _deriveOverallCondition(pin), 'worst of structural / inlet / outlet') +
       _condRow  ('Structural',     'struct_cond',    a.struct_cond,    conditions, 'data-cond') +
       _condRow  ('Inlet',          'ep_inlet_cond',  a.ep_inlet_cond,  conditions, 'data-cond') +
       _condRow  ('Outlet',         'ep_outlet_cond', a.ep_outlet_cond, conditions, 'data-cond') +
@@ -21709,6 +21761,16 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     // pin.ulid may already be set from the bundle migration or a prior save;
     // mint a fresh one for legacy records that pre-date the ULID rollout.
     if (!pin.ulid) pin.ulid = makeULID();
+
+    // Roll sign/culvert sub-tab conditions up into the unified `condition`
+    // field so the exported database has one overall condition per feature.
+    if (pin.kind === 'sign' || pin.kind === 'pt_sign' || pin.kind === 'culvert') {
+      var _derivedCond = _deriveOverallCondition(pin);
+      if (_derivedCond) {
+        if (!pin.attrs) pin.attrs = {};
+        pin.attrs.condition = _derivedCond;
+      }
+    }
 
     var record = {
       pin_id:   pin.id,             // human-readable label (mutable: renumbered on insert)
