@@ -5647,7 +5647,7 @@ input.fs-slider::-webkit-slider-thumb {
   flex: 1;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding-bottom: 104px;  /* clear the unified footer (status row + action row) */
+  padding-bottom: 64px;  /* clear the single-row form footer */
 }
 /* Form sections */
 .df-sec { }
@@ -5954,7 +5954,7 @@ input.fs-slider::-webkit-slider-thumb {
   font-size: 10px;
   color: var(--ink-3);
 }
-/* ── Unified form footer: review-status toggle + Save / Cancel ───────────── */
+/* ── Form footer: Save / Cancel ──────────────────────────────────────────── */
 .data-footer {
   position: absolute;
   bottom: 0; left: 0; right: 0;
@@ -5962,56 +5962,9 @@ input.fs-slider::-webkit-slider-thumb {
   background: var(--paper);
   border-top: 1px solid var(--rule);
   display: flex;
-  flex-direction: column;
-}
-/* Row 1 — review status */
-.data-footer-status {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 16px;
-  background: var(--paper-2);
-  border-bottom: 1px solid var(--rule-soft);
-}
-.data-footer-lbl {
-  font: 700 9px/1.2 'IBM Plex Mono', monospace;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: var(--ink-3);
-  white-space: nowrap;
-}
-/* Segmented 3-way status control */
-.data-status-seg {
-  display: flex;
-  flex: 1;
-  border: 1px solid var(--rule);
-  border-radius: 5px;
-  overflow: hidden;
-}
-.data-status-btn {
-  flex: 1;
-  font: 700 10px/1 'IBM Plex Mono', monospace;
-  padding: 8px 4px;
-  border: none;
-  border-right: 1px solid var(--rule);
-  background: var(--paper);
-  color: var(--ink-3);
-  cursor: pointer;
-  letter-spacing: 0.3px;
-  transition: background 0.1s, color 0.1s;
-}
-.data-status-btn:last-child { border-right: none; }
-.data-status-btn:hover { background: var(--paper-2); }
-/* Active (selected) status — solid fill */
-.data-status-btn.pending.active   { background: #64748b; color: #fff; }
-.data-status-btn.confirmed.active { background: #15803d; color: #fff; }
-.data-status-btn.discarded.active { background: #b91c1c; color: #fff; }
-/* Row 2 — Save / Cancel actions */
-.data-footer-actions {
-  display: flex;
   align-items: center;
   gap: 8px;
-  padding: 9px 16px;
+  padding: 10px 16px;
 }
 .data-save-flash {
   font: 600 10px/1 'IBM Plex Mono', monospace;
@@ -6968,23 +6921,11 @@ body.mobile-mode #app {
           <!-- Form fields injected by openDataForm() -->
           <div class="data-form-scroll" id="data-form-scroll"></div>
 
-          <!-- Unified footer: Review-status segmented toggle + Save / Cancel.
-               The status toggle only sets state + marks the form dirty; the
-               single Save button commits field edits AND status together. -->
+          <!-- Form footer: Cancel / Save -->
           <div class="data-footer">
-            <div class="data-footer-status">
-              <span class="data-footer-lbl">Review Status</span>
-              <div class="data-status-seg" id="data-status-seg">
-                <button class="data-status-btn pending"   id="data-reset-btn"  >↺ Pending</button>
-                <button class="data-status-btn confirmed" id="data-confirm-btn">✓ Confirmed</button>
-                <button class="data-status-btn discarded" id="data-dismiss-btn">✕ Discarded</button>
-              </div>
-            </div>
-            <div class="data-footer-actions">
-              <span   class="data-save-flash"  id="data-save-flash"></span>
-              <button class="data-discard-btn" id="data-discard-btn">Cancel</button>
-              <button class="data-save-btn"    id="data-save-btn">Save</button>
-            </div>
+            <span   class="data-save-flash"  id="data-save-flash"></span>
+            <button class="data-discard-btn" id="data-discard-btn">Cancel</button>
+            <button class="data-save-btn"    id="data-save-btn">Save</button>
           </div>
 
         </div><!-- /#data-form-pane -->
@@ -20371,15 +20312,6 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       chipEl.textContent = (merged.status || 'pending').toUpperCase();
       chipEl.className   = 'data-stat-chip ' + (merged.status || 'pending');
     }
-    // Highlight the matching status button
-    var _odfStatBtnIds = ['data-confirm-btn', 'data-reset-btn', 'data-dismiss-btn'];
-    _odfStatBtnIds.forEach(function (id) {
-      var b = document.getElementById(id);
-      if (b) b.classList.remove('active');
-    });
-    var _odfStatBtnMap = { confirmed: 'data-confirm-btn', pending: 'data-reset-btn', discarded: 'data-dismiss-btn' };
-    var _odfActiveId = _odfStatBtnMap[merged.status || 'pending'];
-    if (_odfActiveId) { var _odfAb = document.getElementById(_odfActiveId); if (_odfAb) _odfAb.classList.add('active'); }
 
     // Show / hide sub-nav; dispatch to the correct sub-tab builder
     var subNav = document.getElementById('data-sub-nav');
@@ -21980,33 +21912,6 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     // Save button
     document.getElementById('data-save-btn')?.addEventListener('click', _saveDataForm);
 
-    // Status segmented toggle — Pending / Confirmed / Discarded.
-    // Sets the in-memory status + marks the form dirty. It does NOT save on
-    // its own: the single "Save" button commits field edits AND status
-    // together, so there is exactly one save action in the form.
-    function _setStatus(newStatus) {
-      if (!_dataState.pin) return;
-      _dataState.pin.status = newStatus;
-      _dataState.dirty = true;   // status change is an unsaved edit until Save
-      // Update the stat chip in the form header
-      var chipEl = document.getElementById('data-stat-chip');
-      if (chipEl) {
-        chipEl.textContent = newStatus.toUpperCase();
-        chipEl.className   = 'data-stat-chip ' + newStatus;
-      }
-      // Highlight the active status segment
-      var _statBtnIds = ['data-confirm-btn', 'data-reset-btn', 'data-dismiss-btn'];
-      _statBtnIds.forEach(function (id) {
-        var b = document.getElementById(id);
-        if (b) b.classList.remove('active');
-      });
-      var _statBtnMap = { confirmed: 'data-confirm-btn', pending: 'data-reset-btn', discarded: 'data-dismiss-btn' };
-      var _activeId = _statBtnMap[newStatus];
-      if (_activeId) { var _ab = document.getElementById(_activeId); if (_ab) _ab.classList.add('active'); }
-    }
-    document.getElementById('data-confirm-btn')?.addEventListener('click', function () { _setStatus('confirmed'); });
-    document.getElementById('data-reset-btn')  ?.addEventListener('click', function () { _setStatus('pending'); });
-    document.getElementById('data-dismiss-btn') ?.addEventListener('click', function () { _setStatus('discarded'); });
 
     // ── Preview pane buttons ────────────────────────────────────────────────
     document.getElementById('dpp-close-btn')?.addEventListener('click', _closePreviewPane);
