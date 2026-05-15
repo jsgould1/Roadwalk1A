@@ -5887,6 +5887,45 @@ input.fs-slider::-webkit-slider-thumb {
   border-radius: 2px;
 }
 .df-flag.on { background: var(--blue); color: #fff; border-color: var(--blue); }
+/* ── Culvert observed-issues grid (checkbox + L/M/H severity) ─────────────── */
+.cv-obs-grid { padding: 4px 12px 8px; }
+.cv-obs-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--rule-soft);
+}
+.cv-obs-row:last-child { border-bottom: none; }
+.cv-obs-chk {
+  flex: 0 0 22px;
+  width: 22px; height: 22px;
+  border: 1.5px solid var(--rule);
+  background: var(--paper);
+  border-radius: 3px;
+  cursor: pointer;
+  font: 700 12px/1 'IBM Plex Mono', monospace;
+  color: #fff;
+}
+.cv-obs-chk.on { background: var(--blue); border-color: var(--blue); }
+.cv-obs-lbl {
+  flex: 1;
+  font: 500 12px/1.3 'IBM Plex Sans', sans-serif;
+  color: var(--ink-2);
+}
+.cv-obs-sev { display: flex; gap: 3px; flex: 0 0 auto; }
+.cv-sev {
+  width: 24px; height: 24px;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  color: var(--ink-3);
+  border-radius: 3px;
+  cursor: pointer;
+  font: 700 11px/1 'IBM Plex Mono', monospace;
+}
+.cv-sev-L { background: #15803d; color: #fff; border-color: #15803d; }
+.cv-sev-M { background: #d97706; color: #fff; border-color: #d97706; }
+.cv-sev-H { background: #b91c1c; color: #fff; border-color: #b91c1c; }
 /* Sign code display button */
 .df-sign-code {
   font-family: 'IBM Plex Mono', monospace;
@@ -9482,17 +9521,19 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       const _isCulvertLine = (pin.kind === 'culvert' || pin.kind === 'ln_culvert' || pin.kind === 'ln_box_culvert');
       if (_isCulvertLine && latlngs.length >= 2) {
         const _n = latlngs.length;
-        const _inletType  = ((pin.attrs?.ep_inlet_type  || pin.attrs?.ep1_type || '') + '').toLowerCase();
-        const _outletType = ((pin.attrs?.ep_outlet_type || pin.attrs?.ep2_type || '') + '').toLowerCase();
+        const _inletType  = ((pin.attrs?.hw_upstream   || pin.attrs?.ep_inlet_type  || pin.attrs?.ep1_type || '') + '').toLowerCase();
+        const _outletType = ((pin.attrs?.hw_downstream || pin.attrs?.ep_outlet_type || pin.attrs?.ep2_type || '') + '').toLowerCase();
         // CSS rotation in degrees (clockwise from "north" / up) = atan2(dlng, dlat)
         const _brg = (a, b) => Math.atan2(b[1] - a[1], b[0] - a[0]) * 180 / Math.PI;
         const _inBrg  = _brg(latlngs[0],    latlngs[1]);
         const _outBrg = _brg(latlngs[_n-2], latlngs[_n-1]);
         const _epIcon = (type, brg) => {
           let inner;
-          if (type.includes('headwall')) {
+          const _flange = type.includes('flange') || type.includes('miter');
+          const _headwall = !!type && !_flange && !/^(none|natural|open|n\/a|—)/.test(type);
+          if (_headwall) {
             inner = `<rect x="-9" y="-3.5" width="18" height="7" fill="${style.color}" rx="1" stroke="rgba(255,255,255,0.7)" stroke-width="0.8"/>`;
-          } else if (type.includes('flange') || type.includes('miter')) {
+          } else if (_flange) {
             inner = `<polyline points="-9,7 0,-4 9,7" fill="none" stroke="${style.color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`;
           } else {
             return null;
@@ -12088,16 +12129,17 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       }
       if (staFt == null) continue;
       const pSta = axisPct(staFt);
-      // Read new endpoint field names (ep_inlet_type/ep_outlet_type) with
-      // fallback to legacy field names (ep1_type/ep2_type) for older saved data.
-      const ep1 = (pin.attrs?.ep_inlet_type  || pin.attrs?.ep1_type || '').toLowerCase();
-      const ep2 = (pin.attrs?.ep_outlet_type || pin.attrs?.ep2_type || '').toLowerCase();
+      // Endpoint headwall types — current culvert form fields (hw_upstream /
+      // hw_downstream), with fallback to legacy field names for older data.
+      const ep1 = (pin.attrs?.hw_upstream   || pin.attrs?.ep_inlet_type  || pin.attrs?.ep1_type || '').toLowerCase();
+      const ep2 = (pin.attrs?.hw_downstream || pin.attrs?.ep_outlet_type || pin.attrs?.ep2_type || '').toLowerCase();
       // Pull the culvert color from PIN_STYLE so the SLD stays unified with the
       // map and reflects any Style Guide customization.
       const C = (PIN_STYLE.culvert && PIN_STYLE.culvert.color) || '#0B3D66';
-      // Use .includes() so values like "Headwall — concrete" or "Flange/mitered" still match
-      const _isHeadwall = (t) => t.includes('headwall');
+      // A set headwall type (anything other than none/natural/open) draws a
+      // headwall cap; legacy "flange/mitered" still draws the flange cap.
       const _isFlange   = (t) => t.includes('flange') || t.includes('miter');
+      const _isHeadwall = (t) => !!t && !_isFlange(t) && !/^(none|natural|open|n\/a|—)/.test(t);
       let svgMarkup, wStyle;
       if (horiz) {
         const capV = (y, isTop, type) => {
@@ -19635,7 +19677,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     sec:           null,        // section the pin belongs to
     dirty:         false,       // unsaved changes flag
     signSubTab:    'post',      // 'post' | 0 | 1 | 2 | ... (panel index)
-    culvertSubTab: 'identity',  // 'identity' | 'barrel' | 'endpoints' | 'condition'
+    culvertSubTab: 'location',  // location | physical | condition | hydrology | photos | detail | notes
     idbCache:       {},         // { pin_id → inspectionRecord } — lazy-loaded
     idbCacheByUlid: {},         // { ulid   → inspectionRecord } — parallel index for renumber-safe lookup
   };
@@ -20351,7 +20393,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     _dataState.sec     = sec;
     _dataState.dirty   = false;
     _dataState.signSubTab    = 'post';
-    _dataState.culvertSubTab = 'identity';
+    _dataState.culvertSubTab = 'location';
 
     // Ensure sign attrs defaults — applies to both bundle 'sign' and field-placed 'pt_sign'
     if (merged.kind === 'sign' || merged.kind === 'pt_sign') {
@@ -20565,12 +20607,15 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   function _buildCulvertSubTabs() {
     var subNav = document.getElementById('data-sub-nav');
     if (!subNav) return;
-    var active = _dataState.culvertSubTab || 'identity';
+    var active = _dataState.culvertSubTab || 'location';
     var TABS = [
-      { id: 'identity',  lbl: 'Identity'    },
-      { id: 'barrel',    lbl: 'Pipe / Barrel' },
-      { id: 'endpoints', lbl: 'Endpoints'   },
-      { id: 'condition', lbl: 'Condition'   },
+      { id: 'location',  lbl: '📍 Location'  },
+      { id: 'physical',  lbl: '🔧 Physical'  },
+      { id: 'condition', lbl: '⚠️ Condition' },
+      { id: 'hydrology', lbl: '💧 Hydrology' },
+      { id: 'photos',    lbl: '📷 Photos'    },
+      { id: 'detail',    lbl: '📐 Detail'    },
+      { id: 'notes',     lbl: '📝 Notes'     },
     ];
     subNav.innerHTML = TABS.map(function (t) {
       return '<button class="data-sub-tab' + (active === t.id ? ' active' : '') +
@@ -20633,14 +20678,17 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
            '<span class="df-ctrl"><div class="df-cond">' + btns + '</div></span></div>';
   }
 
-  function _selectRow(label, field, val, options) {
+  // rerender (optional): when true, changing the select re-renders the form —
+  // used so a dependent field (an "Other" input, a shape-dependent row) appears.
+  function _selectRow(label, field, val, options, rerender) {
     var opts = options.map(function (o) {
       var v = typeof o === 'object' ? o.v : o;
       var l = typeof o === 'object' ? o.l : o;
       return '<option value="' + _esc(v) + '"' + (val === v ? ' selected' : '') + '>' + _esc(l) + '</option>';
     }).join('');
     return '<div class="df-row"><span class="df-lbl">' + _esc(label) + '</span>' +
-           '<span class="df-ctrl"><select class="df-select" data-field="' + _esc(field) + '">' + opts + '</select></span></div>';
+           '<span class="df-ctrl"><select class="df-select" data-field="' + _esc(field) + '"' +
+           (rerender ? ' data-rerender="1"' : '') + '>' + opts + '</select></span></div>';
   }
 
   function _inputRow(label, field, val, type) {
@@ -20656,21 +20704,35 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
 
   // ── Condition roll-up ──────────────────────────────────────────────────────
   // Lower rank = better. NA / blank / unknown codes are excluded from the
-  // worst-case roll-up. Covers both the E/G/F/P/X and the G/F/P/NA scales.
+  // worst-case roll-up. Handles three scales: letter E/G/F/P/X, letter G/F/P/NA,
+  // and the culvert's numeric "1 – Excellent" … "5 – Critical".
   var _CONDITION_RANK = { E: 0, G: 1, F: 2, P: 3, X: 4 };
+  function _condRank(code) {
+    if (!code) return null;
+    var s = String(code).trim();
+    var m = s.match(/^([1-5])/);             // "4 – Poor" → 3
+    if (m) return parseInt(m[1], 10) - 1;
+    var r = _CONDITION_RANK[s.charAt(0).toUpperCase()];
+    return r == null ? null : r;
+  }
   function _worstCondition(codes) {
     var worst = null, worstRank = -1;
     (codes || []).forEach(function (c) {
-      if (!c) return;
-      var r = _CONDITION_RANK[String(c).toUpperCase()];
-      if (r == null) return;                       // NA / unknown — skip
-      if (r > worstRank) { worstRank = r; worst = String(c).toUpperCase(); }
+      var r = _condRank(c);
+      if (r == null) return;                  // NA / unknown — skip
+      if (r > worstRank) { worstRank = r; worst = c; }
     });
     return worst;
   }
+  // Color for a condition code on any of the supported scales.
+  function _condColorFor(code) {
+    var r = _condRank(code);
+    if (r == null) return '#6b7280';
+    return r <= 1 ? '#15803d' : r === 2 ? '#d97706' : r === 3 ? '#b91c1c' : '#111111';
+  }
   // Roll a sign's or culvert's sub-tab conditions up into one overall code.
   // Sign  = worst of post + every panel (panel + sheeting) condition.
-  // Culvert = worst of structural / inlet / outlet condition.
+  // Culvert = worst of inlet / barrel / outlet / headwall conditions.
   function _deriveOverallCondition(pin) {
     if (!pin || !pin.attrs) return null;
     var a = pin.attrs, codes = [];
@@ -20680,11 +20742,12 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         if (p) { codes.push(p.panel_condition); codes.push(p.sheeting_condition); }
       });
     } else if (pin.kind === 'culvert') {
-      codes.push(a.struct_cond, a.ep_inlet_cond, a.ep_outlet_cond);
+      codes.push(a.inlet_condition, a.barrel_condition, a.outlet_condition,
+                 a.hw_upstream_cond, a.hw_downstream_cond);
     }
     return _worstCondition(codes);
   }
-  // Read-only condition display: a colored code chip + its label.
+  // Read-only condition display: a colored code chip.
   function _condReadonlyRow(label, code, hint) {
     var conds = (window._RW && window._RW.SIGN_CONDITIONS) || [];
     var meta  = conds.find(function (c) { return c.v === code; });
@@ -20692,7 +20755,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     if (code) {
       disp = '<span style="display:inline-block;min-width:26px;text-align:center;' +
              'padding:3px 8px;border-radius:3px;color:#fff;font:700 11px/1 ' +
-             '\'IBM Plex Mono\',monospace;background:' + (meta ? meta.col : '#6b7280') + '">' +
+             '\'IBM Plex Mono\',monospace;background:' + _condColorFor(code) + '">' +
              _esc(code) + '</span>' +
              (meta ? ' <span style="color:var(--ink-3);font-size:11px">' + _esc(meta.l) + '</span>' : '');
     } else {
@@ -20866,81 +20929,198 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       '</div>';
   }
 
-  // ── Culvert form ───────────────────────────────────────────────────────────
+  // ── Culvert form — full inspection sub-tabs ────────────────────────────────
+  // Ported from the NPS Culvert Assessment tool. Sub-tabs:
+  // Location · Physical · Condition · Hydrology · Photos · Detail · Notes.
+  var _CULV_COND = ['1 – Excellent','2 – Good','3 – Fair','4 – Poor','5 – Critical','N/A'];
+  var _CULV_OBS  = {
+    inlet:  ['Debris','Scour','Joint Separation','Sediment','Undermining','Corrosion','Vegetation','Headwall Damage','Deformation','Other'],
+    outlet: ['Debris','Scour','Joint Separation','Sediment','Undermining','Corrosion','Vegetation','Headwall Damage','Deformation','Other'],
+    barrel: ['Debris','Joint Separation','Cracking','Sediment','Corrosion','Vegetation','Deformation','Other'],
+  };
+  // Observed-issues grid — checkbox + L/M/H severity per issue.
+  function _culvObsGrid(a, secKey) {
+    var stored = a[secKey + '_issues'] || {};
+    return '<div class="cv-obs-grid">' + (_CULV_OBS[secKey] || []).map(function (issue) {
+      var rec = stored[issue] || {}, on = !!rec.on, sev = rec.sev || '';
+      var chips = ['L','M','H'].map(function (s) {
+        return '<button class="cv-sev' + (sev === s ? ' cv-sev-' + s : '') +
+          '" data-obs-sec="' + secKey + '" data-obs-issue="' + _esc(issue) +
+          '" data-obs-sev="' + s + '">' + s + '</button>';
+      }).join('');
+      return '<div class="cv-obs-row">' +
+        '<button class="cv-obs-chk' + (on ? ' on' : '') + '" data-obs-sec="' + secKey +
+          '" data-obs-issue="' + _esc(issue) + '">' + (on ? '✓' : '') + '</button>' +
+        '<span class="cv-obs-lbl">' + _esc(issue) + '</span>' +
+        '<span class="cv-obs-sev">' + chips + '</span></div>';
+    }).join('') + '</div>';
+  }
+
   function _renderCulvertForm(pin, sec) {
-    var a          = pin.attrs || {};
-    var conditions = window._RW.SIGN_CONDITIONS || [];
-    var sub        = _dataState.culvertSubTab || 'identity';
+    var a   = pin.attrs || {};
+    var sub = _dataState.culvertSubTab || 'location';
+    var _o  = function (arr) { return arr.map(function (x) { return { v: x, l: x || '— select —' }; }); };
+    // Conditional "Other — specify" text row, shown when a select === Other.
+    var _otherRow = function (label, field, selVal, val) {
+      return selVal === 'Other / Add Manually'
+        ? _inputRow(label + ' — specify', field, val, 'text') : '';
+    };
+    // Single-select button row (reuses the wired df-cond-btn pattern).
+    var _btnRow = function (label, field, val, options) {
+      var btns = options.map(function (o) {
+        var on = val === o;
+        return '<button class="df-cond-btn" data-cond="' + _esc(o) + '" data-field="' + _esc(field) + '"' +
+          (on ? ' style="background:var(--blue);color:#fff;border-color:var(--blue)"' : '') +
+          '>' + _esc(o) + '</button>';
+      }).join('');
+      return '<div class="df-row"><span class="df-lbl">' + _esc(label) + '</span>' +
+             '<span class="df-ctrl"><div class="df-cond" style="flex-wrap:wrap">' + btns + '</div></span></div>';
+    };
 
-    var materials = ['—','RCP','CMP','HDPE','Box Culvert','Stone Masonry','Concrete Box','Arch Pipe','Other'];
-    var shapes    = ['—','Round','Elliptical','Arch','Box/Rectangular','Other'];
-    var epTypes   = ['—','Headwall — concrete','Headwall — stone','Flange/mitered','Open / none','Other'];
-    var drainage  = ['—','None noted','Partial blockage','Full blockage','Sediment build-up','Debris jam'];
-    var rpTypes   = [
-      {v:'',l:'— select —'},{v:'clean',l:'Clean / flush'},
-      {v:'repair_inlet',l:'Repair inlet'},{v:'repair_outlet',l:'Repair outlet'},
-      {v:'repair_barrel',l:'Repair barrel'},{v:'replace',l:'Full replacement'},
-      {v:'extend',l:'Extend pipe'},{v:'regrade',l:'Regrade channel'},
-      {v:'monitor',l:'Monitor — no action'},{v:'other',l:'Other'},
-    ];
-
-    if (sub === 'identity') {
-      var SIDES = ['L','R','C','N/A'];
-      var sideBtns = SIDES.map(function (s) {
+    // ── LOCATION ──────────────────────────────────────────────────────────────
+    if (sub === 'location') {
+      var sideBtns = ['L','R','C','N/A'].map(function (s) {
         var on = (a.side || '') === s;
         return '<button class="df-cond-btn" data-cond="' + s + '" data-field="side"' +
           (on ? ' style="background:var(--blue);color:#fff;border-color:var(--blue)"' : '') + '>' + s + '</button>';
       }).join('');
-      return _sectionHdr('IDENTITY') +
-        _readonlyRow('Pin ID',   pin.id) +
-        _readonlyRow('Section',  sec ? sec.name : '—') +
-        _readonlyRow('STA',      pin.sta || '—') +
-        _readonlyRow('Asset ID', a.asset_id || a.fmss_asset || '—') +
-        _readonlyRow('Length (ft)', a.length_ft != null ? Math.round(a.length_ft) + ' ft (' + (a.length_source || '—') + ')' : '—') +
+      var g = pin.geometry && pin.geometry.coordinates, lat = '—', lng = '—';
+      if (g) {
+        var c = Array.isArray(g[0]) ? g[Math.floor(g.length / 2)] : g;
+        if (c) { lng = (+c[0]).toFixed(6); lat = (+c[1]).toFixed(6); }
+      }
+      return _sectionHdr('RECORD') +
+        _selectRow('Record type', 'record_type', a.record_type || 'Culvert Pipe',
+                   _o(['Culvert Pipe','Slot Drain Pipe'])) +
+        _inputRow ('Serial No.',  'serial_no', a.serial_no, 'number') +
+        _readonlyRow('Record ID', pin.id) +
+        _readonlyRow('Section',   sec ? sec.name : '—') +
+        _sectionHdr('LOCATION') +
+        _readonlyRow('STA', pin.sta || '—') +
         '<div class="df-row"><span class="df-lbl">Side</span>' +
           '<span class="df-ctrl"><div class="df-cond">' + sideBtns + '</div></span></div>' +
-        _inputRow('Road name / description', 'road', a.road, 'text') +
-        _inputRow('EOP Offset (ft)', 'eop_offset', a.eop_offset, 'number') +
-        _textareaRow('Notes', 'notes', a.notes);
+        _inputRow ('EOP Offset (ft)', 'eop_offset', a.eop_offset, 'number') +
+        _readonlyRow('Latitude',  lat) +
+        _readonlyRow('Longitude', lng);
     }
 
-    if (sub === 'barrel') {
-      return _sectionHdr('PIPE / BARREL') +
-        _selectRow('Material',       'material',    a.material   || '', materials.map(function(m){return {v:m,l:m};})) +
-        _selectRow('Shape',          'shape',       a.shape      || '', shapes.map(function(s){return {v:s,l:s};})) +
-        _inputRow ('Width / Dia (in)','diameter_in', a.diameter_in, 'number') +
-        _inputRow ('Height (in)',     'height_in',   a.height_in,  'number') +
-        _inputRow ('Span (in)',       'span_in',     a.span_in,    'number') +
-        _inputRow ('Skew angle (°)',  'skew_deg',    a.skew_deg,   'number') +
-        _inputRow ('No. of barrels',  'barrel_count',a.barrel_count,'number') +
-        _customFieldsSection(pin);
+    // ── PHYSICAL ──────────────────────────────────────────────────────────────
+    if (sub === 'physical') {
+      var isBox = /Box|Rectangular/.test(a.shape || '');
+      var sizes = ['','12"','15"','18"','24"','30"','36"','42"','48"','54"','60"','66"','72"','84"','96"','Other / Add Manually'];
+      var hwTypes = ['None / Natural','Concrete','Corrugated Metal','Architectural Stone','Rip Rap','Gabion','Timber','Wingwalls','Other / Add Manually'];
+      var riprap = ['N/A – None Present','Good','Displaced','Missing'];
+      return _sectionHdr('BARREL') +
+        _selectRow('Material', 'material', a.material || 'Corrugated Metal (CMP)',
+                   _o(['Corrugated Metal (CMP)','Reinforced Concrete (RCP)','HDPE (High-Density Polyethylene)','Plastic (PVC)','Aluminum','Steel','Cast Iron','Stone / Masonry / Brick','Precast Concrete Arch w/ Stone Veneer','Other / Add Manually']), true) +
+        _otherRow('Material', 'material_other', a.material, a.material_other) +
+        _selectRow('Shape', 'shape', a.shape || 'Circular',
+                   _o(['Circular','Oval / Elliptical','Rectangular / Box','Arch','Pipe-Arch','Other / Add Manually']), true) +
+        _otherRow('Shape', 'shape_other', a.shape, a.shape_other) +
+        _inputRow ('No. of barrels', 'num_barrels', a.num_barrels, 'number') +
+        _selectRow(isBox ? 'Width' : 'Diameter', 'size_width', a.size_width || '', _o(sizes), true) +
+        (isBox ? _selectRow('Height', 'size_height', a.size_height || '', _o(sizes), true) : '') +
+        ((a.size_width === 'Other / Add Manually' || a.size_height === 'Other / Add Manually')
+          ? _inputRow('Custom size', 'custom_size', a.custom_size, 'text') : '') +
+        _selectRow('Slope (%)', 'slope', a.slope || '',
+                   _o(['','0.5%','1.0%','1.5%','2.0%','2.5%','3.0%','4.0%','5.0%','6.0%','8.0%','10.0%','>10%','Other / Add Manually']), true) +
+        _otherRow('Slope', 'slope_other', a.slope, a.slope_other) +
+        _inputRow ('Length (ft)', 'length_ft', a.length_ft, 'number') +
+        _sectionHdr('HEADWALLS') +
+        _selectRow('Upstream headwall',   'hw_upstream',   a.hw_upstream   || 'None / Natural', _o(hwTypes), true) +
+        _otherRow('Upstream headwall', 'hw_upstream_other', a.hw_upstream, a.hw_upstream_other) +
+        _selectRow('Downstream headwall', 'hw_downstream', a.hw_downstream || 'None / Natural', _o(hwTypes), true) +
+        _otherRow('Downstream headwall', 'hw_downstream_other', a.hw_downstream, a.hw_downstream_other) +
+        _sectionHdr('UPSTREAM HEADWALL / WINGWALL DIMENSIONS') +
+        _inputRow('HW height (ft)',      'hw_us_height',      a.hw_us_height,      'number') +
+        _inputRow('HW width (ft)',       'hw_us_width',       a.hw_us_width,       'number') +
+        _inputRow('HW thickness (in)',   'hw_us_thickness',   a.hw_us_thickness,   'number') +
+        _inputRow('HW skew (°)',         'hw_us_skew',        a.hw_us_skew,        'number') +
+        _inputRow('Wingwall L (ft)',     'hw_us_wing_left',   a.hw_us_wing_left,   'number') +
+        _inputRow('Wingwall R (ft)',     'hw_us_wing_right',  a.hw_us_wing_right,  'number') +
+        _inputRow('Wingwall angle (°)',  'hw_us_wing_angle',  a.hw_us_wing_angle,  'number') +
+        _inputRow('Wingwall height (ft)','hw_us_wing_height', a.hw_us_wing_height, 'number') +
+        _sectionHdr('DOWNSTREAM HEADWALL / WINGWALL DIMENSIONS') +
+        _inputRow('HW height (ft)',      'hw_ds_height',      a.hw_ds_height,      'number') +
+        _inputRow('HW width (ft)',       'hw_ds_width',       a.hw_ds_width,       'number') +
+        _inputRow('HW thickness (in)',   'hw_ds_thickness',   a.hw_ds_thickness,   'number') +
+        _inputRow('HW skew (°)',         'hw_ds_skew',        a.hw_ds_skew,        'number') +
+        _inputRow('Wingwall L (ft)',     'hw_ds_wing_left',   a.hw_ds_wing_left,   'number') +
+        _inputRow('Wingwall R (ft)',     'hw_ds_wing_right',  a.hw_ds_wing_right,  'number') +
+        _inputRow('Wingwall angle (°)',  'hw_ds_wing_angle',  a.hw_ds_wing_angle,  'number') +
+        _inputRow('Wingwall height (ft)','hw_ds_wing_height', a.hw_ds_wing_height, 'number') +
+        _sectionHdr('RIPRAP / APRON') +
+        _selectRow('Inlet riprap',  'riprap_inlet',  a.riprap_inlet  || 'N/A – None Present', _o(riprap)) +
+        _selectRow('Outlet riprap', 'riprap_outlet', a.riprap_outlet || 'N/A – None Present', _o(riprap));
     }
 
-    if (sub === 'endpoints') {
-      return _sectionHdr('INLET') +
-        _selectRow('Inlet type',     'ep_inlet_type',  a.ep_inlet_type  || '', epTypes.map(function(e){return {v:e,l:e};})) +
-        _condRow  ('Inlet condition','ep_inlet_cond',   a.ep_inlet_cond,  conditions, 'data-cond') +
-        _inputRow ('Inlet offset (ft)','ep_inlet_offset',a.ep_inlet_offset,'number') +
-        _sectionHdr('OUTLET') +
-        _selectRow('Outlet type',    'ep_outlet_type', a.ep_outlet_type || '', epTypes.map(function(e){return {v:e,l:e};})) +
-        _condRow  ('Outlet condition','ep_outlet_cond', a.ep_outlet_cond, conditions, 'data-cond') +
-        _inputRow ('Outlet offset (ft)','ep_outlet_offset',a.ep_outlet_offset,'number') +
-        _sectionHdr('CHANNEL') +
-        _inputRow ('Channel width (ft)', 'channel_width_ft', a.channel_width_ft, 'number') +
-        _selectRow('Drainage issue','drainage_issue', a.drainage_issue || '', drainage.map(function(d){return {v:d,l:d};}));
+    // ── CONDITION ─────────────────────────────────────────────────────────────
+    if (sub === 'condition') {
+      return _sectionHdr('CONDITION RATINGS') +
+        _condReadonlyRow('Overall', _deriveOverallCondition(pin), 'worst of all ratings below') +
+        _selectRow('Inlet condition',     'inlet_condition',     a.inlet_condition     || '2 – Good', _o(_CULV_COND)) +
+        _selectRow('Barrel condition',    'barrel_condition',    a.barrel_condition    || '2 – Good', _o(_CULV_COND)) +
+        _selectRow('Outlet condition',    'outlet_condition',    a.outlet_condition    || '2 – Good', _o(_CULV_COND)) +
+        _selectRow('Upstream headwall',   'hw_upstream_cond',    a.hw_upstream_cond    || '2 – Good', _o(_CULV_COND)) +
+        _selectRow('Downstream headwall', 'hw_downstream_cond',  a.hw_downstream_cond  || '2 – Good', _o(_CULV_COND)) +
+        _sectionHdr('INLET — OBSERVED ISSUES')  + _culvObsGrid(a, 'inlet') +
+        _sectionHdr('OUTLET — OBSERVED ISSUES') + _culvObsGrid(a, 'outlet') +
+        _sectionHdr('BARREL — OBSERVED ISSUES') + _culvObsGrid(a, 'barrel');
     }
 
-    // condition tab (default / fallback)
-    // Overall condition is DERIVED — the worst of structural / inlet / outlet —
-    // and rolls up into attrs.condition on save (the unified DB column).
-    return _sectionHdr('CONDITION') +
-      _condReadonlyRow('Overall',  _deriveOverallCondition(pin), 'worst of structural / inlet / outlet') +
-      _condRow  ('Structural',     'struct_cond',    a.struct_cond,    conditions, 'data-cond') +
-      _condRow  ('Inlet',          'ep_inlet_cond',  a.ep_inlet_cond,  conditions, 'data-cond') +
-      _condRow  ('Outlet',         'ep_outlet_cond', a.ep_outlet_cond, conditions, 'data-cond') +
-      _inputRow ('Rating (0–100)', 'rating',         a.rating, 'number') +
-      _selectRow('Repair action',  'repair_action',  a.repair_action  || '', rpTypes) +
-      _textareaRow('Repair notes', 'repair_notes',   a.repair_notes) +
+    // ── HYDROLOGY ─────────────────────────────────────────────────────────────
+    if (sub === 'hydrology') {
+      var swale = ['Good – Stable','Fair – Minor Erosion','Poor – Active Erosion','Silted / Blocked','Vegetated','Bare Soil','Armored','N/A','Other / Add Manually'];
+      var hydObs = [
+        {v:'overtopping',  l:'Evidence of Overtopping'},
+        {v:'sedimentFlow', l:'Sediment Restricting Flow'},
+        {v:'backwater',    l:'Backwater Conditions'},
+        {v:'capacityIssue',l:'Suspected Capacity Issue'},
+        {v:'misalignment', l:'Channel Misalignment'},
+        {v:'other',        l:'Other'},
+      ];
+      return _sectionHdr('FLOW') +
+        _selectRow('Flow condition', 'flow', a.flow || 'Dry / No Flow',
+                   _o(['Dry / No Flow','Low','Moderate','High','Perennial','Intermittent','Ephemeral','Unknown','Other / Add Manually']), true) +
+        _otherRow('Flow', 'flow_other', a.flow, a.flow_other) +
+        _selectRow('Flow direction', 'flow_direction', a.flow_direction || '',
+                   _o(['','North to South','South to North','East to West','West to East','Other / Add Manually']), true) +
+        _otherRow('Flow direction', 'flow_direction_other', a.flow_direction, a.flow_direction_other) +
+        _inputRow ('Waterbody name', 'waterbody', a.waterbody, 'text') +
+        _selectRow('Capacity concern', 'capacity_concern', a.capacity_concern || 'None',
+                   _o(['None','Undersized','Partial Blockage','Full Blockage','Headwater Overtopping','Outlet Scour','Inlet Erosion','Slope Failure','Other / Add Manually']), true) +
+        _otherRow('Capacity concern', 'capacity_concern_other', a.capacity_concern, a.capacity_concern_other) +
+        _sectionHdr('HYDRAULIC / DRAINAGE OBSERVATIONS') +
+        _flagRow('Observations', 'hydraulic_obs', a.hydraulic_obs, hydObs) +
+        _sectionHdr('SWALE CONDITIONS') +
+        _selectRow('Upstream — Left',    'swale_us_left',  a.swale_us_left  || 'N/A', _o(swale)) +
+        _selectRow('Upstream — Right',   'swale_us_right', a.swale_us_right || 'N/A', _o(swale)) +
+        _selectRow('Downstream — Left',  'swale_ds_left',  a.swale_ds_left  || 'N/A', _o(swale)) +
+        _selectRow('Downstream — Right', 'swale_ds_right', a.swale_ds_right || 'N/A', _o(swale)) +
+        _sectionHdr('RECOMMENDED ACTION') +
+        _btnRow('Action', 'recommended_action', a.recommended_action,
+                ['No Action','Routine Maintenance','Minor Repair','Major Repair','Replacement','Further Investigation']) +
+        _sectionHdr('PRIORITY') +
+        _btnRow('Priority', 'priority', a.priority, ['Low','Medium','High','Urgent']);
+    }
+
+    // ── PHOTOS (Phase B) ──────────────────────────────────────────────────────
+    if (sub === 'photos') {
+      return _sectionHdr('PHOTOS') +
+        '<div class="df-row" style="color:var(--ink-3);font:11px/1.5 \'IBM Plex Mono\',monospace;padding:14px 12px;">' +
+        'Photo capture for culverts is being wired in next — Phase B.</div>';
+    }
+
+    // ── DETAIL — QC DIAGRAM (Phase C) ─────────────────────────────────────────
+    if (sub === 'detail') {
+      return _sectionHdr('DETAIL — QC DIAGRAM') +
+        '<div class="df-row" style="color:var(--ink-3);font:11px/1.5 \'IBM Plex Mono\',monospace;padding:14px 12px;">' +
+        'The auto-generated culvert cross-section QC diagram is coming next — Phase C.</div>';
+    }
+
+    // ── NOTES ─────────────────────────────────────────────────────────────────
+    return _sectionHdr('FIELD OBSERVATIONS & NOTES') +
+      _textareaRow('Notes', 'notes', a.notes) +
       _customFieldsSection(pin);
   }
 
@@ -21483,6 +21663,32 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       sel.addEventListener('change', function () {
         _targetObj(sel)[sel.dataset.field] = sel.value;
         _dataState.dirty = true;
+        // data-rerender selects re-render the form (e.g. to reveal an "Other"
+        // input or a shape-dependent field).
+        if (sel.dataset.rerender) _renderFormBody();
+      });
+    });
+
+    // ── Culvert observed-issues grid (checkbox + L/M/H severity) ─────────────
+    scroll.querySelectorAll('.cv-obs-chk[data-obs-sec]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var fld = btn.dataset.obsSec + '_issues', issue = btn.dataset.obsIssue;
+        if (!a[fld]) a[fld] = {};
+        if (!a[fld][issue]) a[fld][issue] = {};
+        a[fld][issue].on = !a[fld][issue].on;
+        _dataState.dirty = true;
+        _renderFormBody();
+      });
+    });
+    scroll.querySelectorAll('.cv-sev[data-obs-sec]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var fld = btn.dataset.obsSec + '_issues', issue = btn.dataset.obsIssue;
+        if (!a[fld]) a[fld] = {};
+        if (!a[fld][issue]) a[fld][issue] = {};
+        a[fld][issue].sev = a[fld][issue].sev === btn.dataset.obsSev ? '' : btn.dataset.obsSev;
+        if (a[fld][issue].sev) a[fld][issue].on = true;  // picking a severity checks the issue
+        _dataState.dirty = true;
+        _renderFormBody();
       });
     });
     // Generic input → update attrs or panel
