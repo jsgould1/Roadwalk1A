@@ -20339,67 +20339,83 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     }
 
     // ── Asset quick-action buttons (Confirm / Move / Delete) ─────────────────
-    // Only shown for field-placed pt_* and pg_* features.
-    var _isMiscAsset = merged.kind.startsWith('pt_') || merged.kind.startsWith('pg_');
+    // Available for every feature kind. Confirm toggles the verified state,
+    // Move hands off to map relocate mode, Delete removes the asset entirely.
     var assetBtnsEl = document.getElementById('dfa-asset-btns');
-    if (assetBtnsEl) {
-      if (_isMiscAsset) assetBtnsEl.removeAttribute('hidden');
-      else               assetBtnsEl.setAttribute('hidden', '');
+    if (assetBtnsEl) assetBtnsEl.removeAttribute('hidden');
+
+    var _dfaConfirmBtn = document.getElementById('dfa-confirm-btn');
+    var _dfaMoveBtn    = document.getElementById('dfa-move-btn');
+    var _dfaDeleteBtn  = document.getElementById('dfa-delete-btn');
+    var _dfaChipEl     = document.getElementById('data-stat-chip');
+
+    // Confirm — toggle confirmed/pending, then save
+    if (_dfaConfirmBtn) {
+      _dfaConfirmBtn.classList.toggle('active', (merged.status || '') === 'confirmed');
+      _dfaConfirmBtn.onclick = function () {
+        merged.status = merged.status === 'confirmed' ? 'pending' : 'confirmed';
+        _dfaConfirmBtn.classList.toggle('active', merged.status === 'confirmed');
+        if (_dfaChipEl) {
+          _dfaChipEl.textContent = merged.status.toUpperCase();
+          _dfaChipEl.className   = 'data-stat-chip ' + merged.status;
+        }
+        _saveDataForm();
+      };
     }
-    if (_isMiscAsset) {
-      var _dfaConfirmBtn = document.getElementById('dfa-confirm-btn');
-      var _dfaMoveBtn    = document.getElementById('dfa-move-btn');
-      var _dfaDeleteBtn  = document.getElementById('dfa-delete-btn');
-      var _dfaChipEl     = document.getElementById('data-stat-chip');
 
-      // Highlight confirm button if already confirmed
-      if (_dfaConfirmBtn) {
-        _dfaConfirmBtn.classList.toggle('active', (merged.status || '') === 'confirmed');
-        _dfaConfirmBtn.onclick = function () {
-          merged.status = merged.status === 'confirmed' ? 'pending' : 'confirmed';
-          _dfaConfirmBtn.classList.toggle('active', merged.status === 'confirmed');
-          if (_dfaChipEl) {
-            _dfaChipEl.textContent = merged.status.toUpperCase();
-            _dfaChipEl.className   = 'data-stat-chip ' + merged.status;
+    // Move — hand off to map relocate mode (the next map tap sets the location)
+    if (_dfaMoveBtn) {
+      _dfaMoveBtn.onclick = function () {
+        if (_dataState.dirty &&
+            !window.confirm('You have unsaved changes. Discard them and move the asset?')) return;
+        // _rwStartRelocate mutates pin.geometry directly — pass the live
+        // bundle pin, not the merged copy.
+        var _mvPin = merged;
+        if (sec && Array.isArray(sec.pins)) {
+          for (var _mi = 0; _mi < sec.pins.length; _mi++) {
+            if (sec.pins[_mi].id === merged.id ||
+                (merged.ulid && sec.pins[_mi].ulid === merged.ulid)) { _mvPin = sec.pins[_mi]; break; }
           }
-          _saveDataForm();
-        };
-      }
+        }
+        _dataState.dirty = false;
+        _closeDataForm();
+        if (typeof window.showModule === 'function') window.showModule('map');
+        if (typeof window._rwStartRelocate === 'function') {
+          window._rwStartRelocate(_mvPin, sec);
+        } else {
+          window.alert('Relocate mode is unavailable.');
+        }
+      };
+    }
 
-      // Move: engage map relocation mode and close form
-      if (_dfaMoveBtn) {
-        _dfaMoveBtn.onclick = function () {
-          if (window._RW && typeof window._RW.beginPinMove === 'function') {
-            window._RW.beginPinMove(merged);
-          }
-          _closeDataForm();
-        };
-      }
-
-      // Delete: remove from section + IDB, close form, re-render map
-      if (_dfaDeleteBtn) {
-        _dfaDeleteBtn.onclick = function () {
-          if (!window.confirm('Delete "' + (merged.id || 'this asset') + '"?\nThis cannot be undone.')) return;
-          // Remove from in-memory section pins array
-          if (sec && Array.isArray(sec.pins)) {
-            var _dIdx = -1;
-            for (var _di = 0; _di < sec.pins.length; _di++) {
-              if (sec.pins[_di].id === merged.id) { _dIdx = _di; break; }
+    // Delete — remove from section + IDB, redraw map/SLD + data list
+    if (_dfaDeleteBtn) {
+      _dfaDeleteBtn.onclick = function () {
+        if (!window.confirm('Delete "' + (merged.id || 'this asset') +
+            '"?\nThis removes it from the dataset and cannot be undone.')) return;
+        // Remove from in-memory section pins array
+        if (sec && Array.isArray(sec.pins)) {
+          for (var _di = 0; _di < sec.pins.length; _di++) {
+            if (sec.pins[_di].id === merged.id ||
+                (merged.ulid && sec.pins[_di].ulid === merged.ulid)) {
+              sec.pins.splice(_di, 1); break;
             }
-            if (_dIdx !== -1) sec.pins.splice(_dIdx, 1);
           }
-          // Remove from IDB if it was ever saved
-          if (merged.ulid) {
-            window.RWIdb.openDB().then(function (db) {
-              var tx = db.transaction('inspections', 'readwrite');
-              tx.objectStore('inspections').delete(merged.ulid);
-            });
-          }
-          // Close the form and redraw the strip / map
-          _closeDataForm();
-          if (window._RW && typeof window._RW.rerender === 'function') window._RW.rerender();
-        };
-      }
+        }
+        // Remove from IDB if it was ever saved
+        if (merged.ulid) {
+          window.RWIdb.openDB().then(function (db) {
+            var tx = db.transaction('inspections', 'readwrite');
+            tx.objectStore('inspections').delete(merged.ulid);
+          }).catch(function () { /* not previously saved — nothing to delete */ });
+        }
+        // Close the form, redraw map/SLD, refresh the data list + badges
+        _dataState.dirty = false;
+        _closeDataForm();
+        if (window._RW && typeof window._RW.rerender === 'function') window._RW.rerender();
+        if (typeof _updateTypeBadges === 'function') _updateTypeBadges();
+        if (typeof renderDataList === 'function') renderDataList(_dataState.type);
+      };
     }
 
     // Make the form pane visible.  We add the class synchronously so the pane
