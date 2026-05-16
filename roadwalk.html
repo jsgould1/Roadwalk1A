@@ -24316,6 +24316,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     tab.addEventListener('click', function () {
       panel.classList.add('open'); tab.classList.add('hidden');
       if (stage) stage.classList.add('ed-open');   // slides the Leaflet stack clear
+      applyStackOffset();   // recompute now that the panel has a real width
     });
     $('ed-close').addEventListener('click', function () {
       panel.classList.remove('open'); tab.classList.remove('hidden'); hidePopup();
@@ -24425,7 +24426,11 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     // ── Drag-resize handle on the panel's right edge ──
     var MIN_W = 240, MAX_W = 640;
     function applyStackOffset() {
-      if (stage) stage.style.setProperty('--ed-w', (panel.offsetWidth + 8) + 'px');
+      // panel.offsetWidth is 0 while the Map module is hidden — skip then so
+      // the CSS fallback (308px) stays in effect until we have a real width.
+      if (stage && panel.offsetWidth > 0) {
+        stage.style.setProperty('--ed-w', (panel.offsetWidth + 8) + 'px');
+      }
     }
     var savedW = parseInt(localStorage.getItem('rw_ed_panel_w') || '', 10);
     if (!isNaN(savedW)) {
