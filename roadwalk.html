@@ -6824,7 +6824,7 @@ body.mobile-mode #app {
               <div class="ed-field">
                 <label>Station</label>
                 <div class="ed-sta-row">
-                  <input type="text" id="ed-sta" placeholder="0+00" autocomplete="off">
+                  <input type="text" id="ed-sta" placeholder="00+00" autocomplete="off">
                   <label class="ed-auto"><input type="checkbox" id="ed-auto-sta"> Auto GPS</label>
                 </div>
                 <div class="ed-hint">Leave blank to use the live map / SLD station. Type to override, or use Auto GPS.</div>
@@ -24013,7 +24013,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   }
 
   function blankRow(staTxt) {
-    return { id: genId(), sta: (staTxt || '').trim(),
+    return { id: genId(), sta: normSta(staTxt),
              sta_ft: parseSta(staTxt), L: null, W: null, R: null };
   }
 
@@ -24109,9 +24109,17 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     var a = Math.sin(dl/2)*Math.sin(dl/2) + Math.cos(d1)*Math.cos(d2)*Math.sin(dn/2)*Math.sin(dn/2);
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   }
+  // Always render stations in ##+## form (both halves zero-padded to 2 digits).
   function fmtSta(ft) {
+    if (ft == null || isNaN(ft)) return '';
     var h = Math.floor(ft / 100), r = Math.round(ft % 100);
-    return h + '+' + String(r).padStart(2, '0');
+    if (r >= 100) { h += 1; r -= 100; }   // guard the rounding edge
+    return String(h).padStart(2, '0') + '+' + String(r).padStart(2, '0');
+  }
+  // Normalise any user-typed station to ##+##; pass through if unparseable.
+  function normSta(txt) {
+    var ft = parseSta(txt);
+    return ft != null ? fmtSta(ft) : (txt == null ? '' : String(txt).trim());
   }
   function startGPS() {
     if (!navigator.geolocation) return;
@@ -24321,8 +24329,9 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       return;
     }
     body.innerHTML = ROWS.map(function (r) {
+      var staTxt = r.sta_ft != null ? fmtSta(r.sta_ft) : (r.sta || '—');
       var staCell = '<div class="ed-cell ed-sta-cell" data-row="' + r.id +
-        '" data-ch="sta">' + _esc(r.sta || '—') +
+        '" data-ch="sta">' + _esc(staTxt) +
         '<button class="ed-rowdel" data-rowdel="' + r.id + '" title="Delete row">✕</button></div>';
 
       function dropCell(side) {
@@ -24369,7 +24378,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     inp.type = ch === 'sta' ? 'text' : 'number';
     if (ch !== 'sta') inp.step = '0.1';
     inp.value = cur;
-    if (ch === 'sta') inp.placeholder = '0+00';
+    if (ch === 'sta') inp.placeholder = '00+00';
     var keep = cell.querySelector('.ed-rowdel');
     cell.textContent = '';
     cell.appendChild(inp);
@@ -24393,8 +24402,8 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   function applyEdit(row, ch, raw) {
     raw = (raw == null ? '' : String(raw)).trim();
     if (ch === 'sta') {
-      row.sta = raw;
       row.sta_ft = parseSta(raw);
+      row.sta = normSta(raw);
       return;
     }
     if (raw === '') { row[ch] = null; return; }
@@ -24557,7 +24566,12 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     $('ed-take-W').addEventListener('click', function () { takeReading('W'); });
     $('ed-take-R').addEventListener('click', function () { takeReading('R'); });
     $('ed-auto-sta').addEventListener('change', function () {
-      if (this.checked) { _staFt = 0; _gpsLastLat = _lat; _gpsLastLng = _lng; $('ed-sta').value = '0+00'; }
+      if (this.checked) { _staFt = 0; _gpsLastLat = _lat; _gpsLastLng = _lng; $('ed-sta').value = '00+00'; }
+    });
+    // Reformat a hand-typed station to ##+## when the field loses focus.
+    $('ed-sta').addEventListener('blur', function () {
+      var v = (this.value || '').trim();
+      if (v) this.value = normSta(v);
     });
     var addRowBtn = $('ed-add-row');
     if (addRowBtn) addRowBtn.addEventListener('click', addBlankRow);
