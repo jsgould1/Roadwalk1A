@@ -652,7 +652,7 @@ a { color: inherit; text-decoration: none; }
 /* ── Edge Drop measurement panel ─────────────────────────────────────────── */
 .ed-tab {
   position: absolute;
-  left: 0; top: 96px;
+  left: 0; bottom: 74px; top: auto;
   z-index: 620;
   background: var(--blue);
   color: #fff;
@@ -666,6 +666,9 @@ a { color: inherit; text-decoration: none; }
 .ed-tab-icon { font-size: 15px; }
 .ed-tab-lbl { font: 700 8px/1.15 'IBM Plex Mono', monospace; letter-spacing: 0.5px; text-align: center; }
 .ed-tab.hidden { display: none; }
+/* Leaflet top-left control stack slides clear of the open Edge Drop panel */
+.leaflet-top.leaflet-left { transition: transform 0.22s ease; }
+.map-stage.ed-open .leaflet-top.leaflet-left { transform: translateX(308px); }
 .ed-panel {
   position: absolute;
   left: 0; top: 0; bottom: 0;
@@ -755,7 +758,7 @@ a { color: inherit; text-decoration: none; }
 .ed-take:disabled { opacity: 0.45; pointer-events: none; }
 .ed-track { flex: 1 1 auto; display: flex; flex-direction: column; overflow: hidden; }
 .ed-track-hdr {
-  display: grid; grid-template-columns: 1fr 50px 1fr 1fr;
+  display: grid; grid-template-columns: 52px 1fr 1fr 1fr;
   background: var(--blue); color: #fff;
   font: 700 8px/1.1 'IBM Plex Mono', monospace;
   text-transform: uppercase; letter-spacing: 0.04em;
@@ -764,7 +767,7 @@ a { color: inherit; text-decoration: none; }
 .ed-track-body { flex: 1; overflow-y: auto; }
 .ed-empty { padding: 20px 12px; text-align: center; color: var(--ink-4); font: 400 11px/1.5 'IBM Plex Sans', sans-serif; }
 .ed-row {
-  display: grid; grid-template-columns: 1fr 50px 1fr 1fr;
+  display: grid; grid-template-columns: 52px 1fr 1fr 1fr;
   border-bottom: 1px solid var(--rule-soft);
 }
 .ed-row:nth-child(even) { background: var(--paper-2); }
@@ -779,8 +782,9 @@ a { color: inherit; text-decoration: none; }
   display: flex; align-items: center; justify-content: center;
 }
 .ed-cell.ed-empty-cell { color: var(--ink-4); }
-.ed-val.ed-pos   { color: #b45309; }   /* positive = a drop */
-.ed-val.ed-neg   { color: #0e7490; }   /* negative = a rise */
+.ed-val.ed-d0    { color: #111111; }   /* edge drop 0–2 in */
+.ed-val.ed-d2    { color: #d97706; }   /* edge drop 2–4 in */
+.ed-val.ed-d4    { color: #b91c1c; }   /* edge drop > 4 in */
 .ed-val.ed-width { color: #15803d; }   /* roadway width */
 .ed-del {
   position: absolute; top: 1px; right: 2px;
@@ -799,6 +803,122 @@ a { color: inherit; text-decoration: none; }
   pointer-events: none; white-space: nowrap;
 }
 .ed-popup b { color: #f59e0b; }
+
+/* ── Distance Measures tally panel ───────────────────────────────────────── */
+.dm-panel {
+  position: absolute;
+  left: 58px; top: 56px;
+  width: 286px; max-width: 90%;
+  max-height: calc(100% - 90px);
+  z-index: 630;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  box-shadow: 0 6px 22px rgba(0,0,0,0.28);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.dm-panel[hidden] { display: none; }
+.dm-head {
+  flex: 0 0 auto;
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px;
+  background: var(--blue); color: #fff;
+}
+.dm-title { flex: 1; font: 700 12px/1 'IBM Plex Mono', monospace; }
+.dm-unit {
+  font: 700 10px/1 'IBM Plex Mono', monospace;
+  background: rgba(255,255,255,0.15); color: #fff;
+  border: 1px solid rgba(255,255,255,0.3); border-radius: 4px;
+  padding: 2px 4px; cursor: pointer;
+}
+.dm-close { background: none; border: none; color: #fff; font-size: 14px; cursor: pointer; }
+.dm-body { padding: 10px; overflow-y: auto; }
+.dm-note { font: 400 9.5px/1.4 'IBM Plex Sans', sans-serif; color: var(--ink-4); margin-bottom: 8px; }
+.dm-sec {
+  font: 700 9px/1 'IBM Plex Mono', monospace;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--blue); margin: 10px 0 6px;
+}
+.dm-take-row { display: flex; gap: 5px; }
+.dm-take {
+  flex: 0 0 auto;
+  font: 800 11px/1 'IBM Plex Mono', monospace;
+  padding: 8px 10px; border: none; border-radius: 6px;
+  background: #b91c1c; color: #fff; cursor: pointer;
+}
+.dm-take:disabled { opacity: 0.5; pointer-events: none; }
+.dm-take-row input {
+  flex: 1; min-width: 0;
+  font: 400 13px/1.2 'IBM Plex Sans', sans-serif;
+  padding: 7px 8px;
+  border: 1px solid var(--rule); border-radius: 6px;
+  background: var(--paper); color: var(--ink-1); outline: none;
+}
+.dm-add {
+  font: 700 11px/1 'IBM Plex Mono', monospace;
+  padding: 8px 10px; border: none; border-radius: 6px;
+  background: var(--blue); color: #fff; cursor: pointer;
+}
+.dm-list {
+  margin-top: 6px;
+  max-height: 168px; overflow-y: auto;
+  border: 1px solid var(--rule); border-radius: 6px;
+}
+.dm-empty { padding: 14px 10px; text-align: center; color: var(--ink-4);
+  font: 400 11px/1.4 'IBM Plex Sans', sans-serif; }
+.dm-row {
+  display: flex; align-items: center; gap: 7px;
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--rule-soft);
+}
+.dm-row:last-child { border-bottom: none; }
+.dm-row input[type=checkbox] { width: 15px; height: 15px; accent-color: var(--blue); cursor: pointer; flex-shrink: 0; }
+.dm-row .dm-v { flex: 1; font: 700 13px/1 'IBM Plex Mono', monospace; color: var(--ink-1); }
+.dm-row .dm-v small { font-weight: 500; color: var(--ink-3); }
+.dm-row .dm-x { background: none; border: none; color: var(--ink-4); font-size: 11px; cursor: pointer; }
+.dm-row .dm-x:hover { color: #b91c1c; }
+.dm-actions { display: flex; gap: 6px; margin-top: 7px; }
+.dm-btn {
+  flex: 1;
+  font: 700 10px/1 'IBM Plex Mono', monospace;
+  padding: 7px 6px; border: 1px solid var(--rule); border-radius: 6px;
+  background: var(--paper); color: var(--ink-2); cursor: pointer;
+}
+.dm-btn:hover { border-color: var(--blue); color: var(--blue); }
+.dm-stats {
+  margin-top: 7px; padding: 8px 10px;
+  background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px;
+  font: 600 11px/1.7 'IBM Plex Mono', monospace; color: var(--ink-2);
+}
+.dm-stats[hidden] { display: none; }
+.dm-stats b { color: var(--blue); }
+.dm-lwh { display: flex; gap: 6px; }
+.dm-lwh label {
+  flex: 1;
+  display: flex; flex-direction: column; gap: 3px;
+  font: 700 9px/1 'IBM Plex Mono', monospace; color: var(--ink-3);
+}
+.dm-lwh-in { display: flex; gap: 2px; }
+.dm-lwh-in input {
+  width: 100%; min-width: 0;
+  font: 400 12px/1.2 'IBM Plex Sans', sans-serif;
+  padding: 6px 4px;
+  border: 1px solid var(--rule); border-radius: 5px 0 0 5px;
+  background: var(--paper); color: var(--ink-1); outline: none;
+}
+.dm-mini {
+  flex: 0 0 auto;
+  border: 1px solid var(--rule); border-left: none; border-radius: 0 5px 5px 0;
+  background: var(--paper-2); cursor: pointer; font-size: 11px; padding: 0 5px;
+}
+.dm-mini:disabled { opacity: 0.5; pointer-events: none; }
+.dm-result {
+  margin-top: 8px; padding: 8px 10px;
+  background: var(--paper-2); border: 1px solid var(--rule); border-radius: 6px;
+  font: 700 11.5px/1.5 'IBM Plex Mono', monospace; color: var(--ink-1);
+  text-align: center;
+}
 
 /* ── Offline Map Cache modal ─────────────────────────────────────────────── */
 #tile-cache-modal {
@@ -6655,12 +6775,52 @@ body.mobile-mode #app {
 
           <!-- Tracker: Left edge-drop · STA · Width · Right edge-drop -->
           <div class="ed-track">
-            <div class="ed-track-hdr"><span>LEFT (in)</span><span>STA</span><span>WIDTH (ft)</span><span>RIGHT (in)</span></div>
+            <div class="ed-track-hdr"><span>STA</span><span>LEFT (in)</span><span>WIDTH (ft)</span><span>RIGHT (in)</span></div>
             <div class="ed-track-body" id="ed-track-body">
               <div class="ed-empty" id="ed-empty">No readings yet.</div>
             </div>
           </div>
         </aside>
+
+        <!-- ── Distance Measures tally panel ──────────────────────────────── -->
+        <div class="dm-panel" id="dm-panel" hidden aria-label="Distance measures">
+          <div class="dm-head">
+            <span class="dm-title">📏 Distance Measures</span>
+            <select class="dm-unit" id="dm-unit" title="Display unit">
+              <option value="ft">ft</option>
+              <option value="in">in</option>
+              <option value="m">m</option>
+            </select>
+            <button class="dm-close" id="dm-close" type="button" aria-label="Close">✕</button>
+          </div>
+          <div class="dm-body">
+            <div class="dm-note">DISTO connection is shared with the Edge Drop panel.</div>
+
+            <div class="dm-sec">Single measurements</div>
+            <div class="dm-take-row">
+              <button class="dm-take" id="dm-measure" type="button">🎯 Measure</button>
+              <input type="number" id="dm-manual" step="0.01" placeholder="Manual…">
+              <button class="dm-add" id="dm-add" type="button">+ Add</button>
+            </div>
+            <div class="dm-list" id="dm-list"><div class="dm-empty">No measurements yet.</div></div>
+            <div class="dm-actions">
+              <button class="dm-btn" id="dm-group" type="button">📊 Stats of selected</button>
+              <button class="dm-btn" id="dm-clearsel" type="button">Clear ✓</button>
+            </div>
+            <div class="dm-stats" id="dm-stats" hidden></div>
+
+            <div class="dm-sec">Area / Volume — L · W · H</div>
+            <div class="dm-lwh">
+              <label>L<span class="dm-lwh-in"><input type="number" id="dm-L" step="0.01">
+                <button class="dm-mini" data-lwh="L" type="button" title="Measure L">🎯</button></span></label>
+              <label>W<span class="dm-lwh-in"><input type="number" id="dm-W" step="0.01">
+                <button class="dm-mini" data-lwh="W" type="button" title="Measure W">🎯</button></span></label>
+              <label>H<span class="dm-lwh-in"><input type="number" id="dm-H" step="0.01">
+                <button class="dm-mini" data-lwh="H" type="button" title="Measure H">🎯</button></span></label>
+            </div>
+            <div class="dm-result" id="dm-result">Area —  ·  Volume —</div>
+          </div>
+        </div>
 
         <!-- Relocate mode banner (hidden unless in relocate mode) -->
         <div class="relocate-banner" id="relocate-banner">
@@ -6718,6 +6878,11 @@ body.mobile-mode #app {
                     fill="none" stroke="currentColor" stroke-width="1.6"
                     stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
+          </button>
+
+          <!-- Distance Measures — opens the measurement tally panel -->
+          <button class="map-ctl-btn" id="dm-toggle-btn" title="Distance measures">
+            <span style="font-size:15px;line-height:1;">📏</span>
           </button>
 
           <!-- Layers panel — floats to the right of the left stack when open -->
@@ -23905,7 +24070,9 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       var emptyCell = '<div class="ed-cell ed-empty-cell">·</div>';
 
       var dropCell = function () {
-        var cls = r.drop_in >= 0 ? 'ed-pos' : 'ed-neg';
+        // Color by magnitude: 0–2" black, 2–4" orange, >4" red.
+        var ad = Math.abs(r.drop_in);
+        var cls = ad < 2 ? 'ed-d0' : (ad <= 4 ? 'ed-d2' : 'ed-d4');
         var calc = r.manual ? 'manual entry'
           : (r.b_in != null ? r.b_in.toFixed(2) + ' − ' + r.a_in.toFixed(2) + ' = ' +
              r.drop_in.toFixed(2) + ' in' : '');
@@ -23930,8 +24097,8 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       };
 
       return '<div class="ed-row">' +
-        (r.side === 'L' ? dropCell() : emptyCell) +
         '<div class="ed-cell ed-sta-cell">' + _esc(r.sta || '—') + '</div>' +
+        (r.side === 'L' ? dropCell() : emptyCell) +
         (r.side === 'W' ? widthCell() : emptyCell) +
         (r.side === 'R' ? dropCell() : emptyCell) +
         '</div>';
@@ -23963,13 +24130,89 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   }
   function hidePopup() { if (_popup) { _popup.remove(); _popup = null; } }
 
+  // ── Distance Measures tally (shares the DISTO connection above) ──
+  var DM = [];                       // [{id, m, sel}] — value stored in metres
+  var DM_LS = 'rw_dist_meas';
+  function dmLoad() { try { var d = JSON.parse(localStorage.getItem(DM_LS)); if (Array.isArray(d)) DM = d; } catch (e) {} }
+  function dmSave() { try { localStorage.setItem(DM_LS, JSON.stringify(DM)); } catch (e) {} }
+  function dmUnit() { var el = $('dm-unit'); return el ? el.value : 'ft'; }
+  function dmConv(m) { var u = dmUnit(); return u === 'in' ? m * 39.3701 : u === 'm' ? m : m * 3.28084; }
+  function dmToM(v)  { var u = dmUnit(); return u === 'in' ? v / 39.3701 : u === 'm' ? v : v / 3.28084; }
+  function dmRender() {
+    var list = $('dm-list');
+    if (!list) return;
+    if (!DM.length) { list.innerHTML = '<div class="dm-empty">No measurements yet.</div>'; return; }
+    var u = dmUnit();
+    list.innerHTML = DM.map(function (m) {
+      return '<div class="dm-row">' +
+        '<input type="checkbox" data-dm-sel="' + m.id + '"' + (m.sel ? ' checked' : '') + '>' +
+        '<span class="dm-v">' + dmConv(m.m).toFixed(2) + ' <small>' + u + '</small></span>' +
+        '<button class="dm-x" data-dm-del="' + m.id + '" title="Delete">✕</button>' +
+      '</div>';
+    }).join('');
+  }
+  function dmStats() {
+    var box = $('dm-stats');
+    if (!box) return;
+    var vals = DM.filter(function (m) { return m.sel; }).map(function (m) { return dmConv(m.m); });
+    if (!vals.length) { box.hidden = true; return; }
+    var n = vals.length, sum = 0, mn = Infinity, mx = -Infinity;
+    vals.forEach(function (v) { sum += v; if (v < mn) mn = v; if (v > mx) mx = v; });
+    var avg = sum / n, varc = 0;
+    vals.forEach(function (v) { varc += (v - avg) * (v - avg); });
+    var sd = n > 1 ? Math.sqrt(varc / (n - 1)) : 0;
+    var u = dmUnit();
+    box.hidden = false;
+    box.innerHTML =
+      '<div><b>n</b> = ' + n + '</div>' +
+      '<div><b>avg</b> = ' + avg.toFixed(2) + ' ' + u + '</div>' +
+      '<div><b>min</b> = ' + mn.toFixed(2) + ' &nbsp; <b>max</b> = ' + mx.toFixed(2) + ' ' + u + '</div>' +
+      '<div><b>st dev</b> = ' + sd.toFixed(3) + ' ' + u + '</div>';
+  }
+  function dmAreaVol() {
+    var L = parseFloat($('dm-L').value), W = parseFloat($('dm-W').value), H = parseFloat($('dm-H').value);
+    var u = dmUnit();
+    var area = (!isNaN(L) && !isNaN(W)) ? L * W : null;
+    var vol  = (area != null && !isNaN(H)) ? area * H : null;
+    $('dm-result').textContent =
+      'Area ' + (area != null ? area.toFixed(2) + ' ' + u + '²' : '—') +
+      '  ·  Volume ' + (vol != null ? vol.toFixed(2) + ' ' + u + '³' : '—');
+  }
+  async function dmMeasure() {
+    if (!_connected) { alert('Connect the DISTO in the Edge Drop panel, or use manual entry.'); return; }
+    var btn = $('dm-measure'), prev = btn.textContent;
+    btn.textContent = 'Aiming…'; btn.disabled = true;
+    try {
+      var dist = await captureDistance();
+      DM.push({ id: 'dm' + Date.now() + Math.random().toString(36).slice(2, 5), m: dist, sel: false });
+      dmSave(); dmRender();
+    } catch (e) { alert('Measure failed: ' + (e && e.message)); }
+    btn.textContent = prev; btn.disabled = false;
+  }
+  async function dmMeasureLWH(which) {
+    if (!_connected) { alert('Connect the DISTO in the Edge Drop panel first.'); return; }
+    var btn = document.querySelector('.dm-mini[data-lwh="' + which + '"]');
+    if (btn) btn.disabled = true;
+    try {
+      var dist = await captureDistance();
+      $('dm-' + which).value = dmConv(dist).toFixed(2);
+      dmAreaVol();
+    } catch (e) { alert('Measure failed: ' + (e && e.message)); }
+    if (btn) btn.disabled = false;
+  }
+
   // ── Wiring ──
   function wire() {
     var tab = $('ed-tab'), panel = $('ed-panel');
     if (!tab || !panel) return;
-    tab.addEventListener('click', function () { panel.classList.add('open'); tab.classList.add('hidden'); });
+    var stage = $('map-stage');
+    tab.addEventListener('click', function () {
+      panel.classList.add('open'); tab.classList.add('hidden');
+      if (stage) stage.classList.add('ed-open');   // slides the Leaflet stack clear
+    });
     $('ed-close').addEventListener('click', function () {
       panel.classList.remove('open'); tab.classList.remove('hidden'); hidePopup();
+      if (stage) stage.classList.remove('ed-open');
     });
     $('ed-set-hdr').addEventListener('click', function () { $('ed-settings').classList.toggle('collapsed'); });
     $('ed-connect').addEventListener('click', toggleConnect);
@@ -24005,9 +24248,53 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     body.addEventListener('mouseout', function (e) {
       if (e.target.closest('.ed-val')) hidePopup();
     });
+
+    // ── Distance Measures panel ──
+    var dmToggle = $('dm-toggle-btn'), dmPanel = $('dm-panel');
+    if (dmToggle && dmPanel) {
+      dmToggle.addEventListener('click', function () {
+        dmPanel.hidden = !dmPanel.hidden;
+        if (!dmPanel.hidden) { dmRender(); dmStats(); dmAreaVol(); }
+      });
+      $('dm-close').addEventListener('click', function () { dmPanel.hidden = true; });
+      $('dm-unit').addEventListener('change', function () { dmRender(); dmStats(); dmAreaVol(); });
+      $('dm-measure').addEventListener('click', dmMeasure);
+      $('dm-add').addEventListener('click', function () {
+        var v = parseFloat(($('dm-manual').value || '').trim());
+        if (isNaN(v)) { alert('Enter a number.'); return; }
+        DM.push({ id: 'dm' + Date.now() + Math.random().toString(36).slice(2, 5), m: dmToM(v), sel: false });
+        $('dm-manual').value = '';
+        dmSave(); dmRender();
+      });
+      $('dm-group').addEventListener('click', dmStats);
+      $('dm-clearsel').addEventListener('click', function () {
+        DM.forEach(function (m) { m.sel = false; });
+        dmSave(); dmRender(); $('dm-stats').hidden = true;
+      });
+      var dmList = $('dm-list');
+      dmList.addEventListener('click', function (e) {
+        var del = e.target.closest('[data-dm-del]');
+        if (!del) return;
+        DM = DM.filter(function (m) { return m.id !== del.dataset.dmDel; });
+        dmSave(); dmRender(); dmStats();
+      });
+      dmList.addEventListener('change', function (e) {
+        var chk = e.target.closest('[data-dm-sel]');
+        if (!chk) return;
+        var m = DM.find(function (x) { return x.id === chk.dataset.dmSel; });
+        if (m) { m.sel = chk.checked; dmSave(); dmStats(); }
+      });
+      ['dm-L', 'dm-W', 'dm-H'].forEach(function (id) {
+        $(id).addEventListener('input', dmAreaVol);
+      });
+      document.querySelectorAll('.dm-mini[data-lwh]').forEach(function (b) {
+        b.addEventListener('click', function () { dmMeasureLWH(b.dataset.lwh); });
+      });
+    }
   }
 
   load();
+  dmLoad();
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function () { wire(); render(); startGPS(); });
   } else {
