@@ -5599,7 +5599,7 @@ input.fs-slider::-webkit-slider-thumb {
 }
 .data-stat-chip.confirmed { background: #dcfce7; color: #15803d; }
 .data-stat-chip.discarded { background: #fee2e2; color: #b91c1c; }
-/* Sub-tab bar (inside form pane — used for Signs) */
+/* Sub-tab bar (inside form pane — used only for Signs + Culverts) */
 .data-sub-nav {
   flex: 0 0 36px;
   display: flex;
@@ -5609,6 +5609,8 @@ input.fs-slider::-webkit-slider-thumb {
   scrollbar-width: none;
   flex-shrink: 0;
 }
+/* Class selector beats the UA [hidden] rule — make hidden actually hide. */
+.data-sub-nav[hidden] { display: none; }
 .data-sub-nav::-webkit-scrollbar { display: none; }
 .data-sub-tab {
   padding: 0 14px;
@@ -8845,6 +8847,12 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     get GR_TREATMENTS()    { return _GR_TREATMENTS; },
     get RW_TREATMENTS()    { return _RW_TREATMENTS; },
     rerender() {
+      // Skip when the Map module is off-screen. initOrUpdateMap() into a hidden
+      // (zero-size) container leaves Leaflet sized wrong — only the top-left
+      // tile loads and invalidateSize alone can't fully recover it.
+      // showModule('map') re-renders the map once it is visible again.
+      var _mm = document.getElementById('mod-map');
+      if (_mm && !_mm.classList.contains('active')) return;
       // Prefer stripCurrentSec (set when an SLD strip is open and persists when
       // the user navigates to the Style Guide — showView resets state.sectionId).
       // Fall back to state.sectionId, then to state.mapLayers._lastSecId (the
@@ -18466,16 +18474,20 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         });
     }
 
-    // ── Leaflet invalidateSize on map module switch ─────────────
-    // Without this, switching away from the Map module and back
-    // leaves Leaflet thinking the container has zero size.
+    // ── Map module switch: resize + re-render once the panel is visible ──
+    // The map is only rendered while #mod-map is .active (rerender() bails
+    // otherwise), so when we switch TO the map we both invalidateSize (fixes
+    // the container dimensions) and rerender (rebuilds layers / picks up any
+    // edits made in the Data module while the map was hidden).
     if (name === 'map') {
       // Use requestAnimationFrame so the CSS display change settles first.
       requestAnimationFrame(function () {
-        // The main Leaflet instance is exposed as window._RW?.map or state.map.
         const leafletMap = window._RW?.map || window.state?.map;
         if (leafletMap && typeof leafletMap.invalidateSize === 'function') {
           leafletMap.invalidateSize();
+        }
+        if (window._RW && typeof window._RW.rerender === 'function') {
+          window._RW.rerender();
         }
       });
     }
