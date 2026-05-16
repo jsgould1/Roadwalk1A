@@ -2176,7 +2176,7 @@ a { color: inherit; text-decoration: none; }
   border: 1px solid var(--rule, #ddd);
   border-radius: 6px;
   box-shadow: 0 4px 18px rgba(0,0,0,0.20);
-  width: 192px;
+  width: 244px;
   overflow: hidden;
   display: none;
 }
@@ -2221,24 +2221,50 @@ a { color: inherit; text-decoration: none; }
   line-height: 1;
   flex-shrink: 0;
 }
-.fp-actions { padding: 4px 0; }
+.fp-actions {
+  padding: 8px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
 .fp-btn {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
   width: 100%;
-  background: none;
-  border: none;
-  text-align: left;
-  padding: 7px 12px;
+  min-height: 58px;
+  background: var(--paper-2, #f7f5f1);
+  border: 1px solid var(--rule, #ddd);
+  border-radius: 6px;
+  padding: 8px 6px;
   font-family: 'IBM Plex Mono', monospace;
   font-size: 11px;
   color: var(--ink-1, #222);
   cursor: pointer;
-  line-height: 1.2;
-  transition: background 0.1s;
+  line-height: 1.15;
+  transition: background 0.1s, border-color 0.1s, transform 0.05s;
 }
-.fp-btn:hover { background: var(--paper-3, #f4f2ee); }
-.fp-btn.fp-danger { color: #c0392b; }
-.fp-btn.fp-danger:hover { background: #fdf0ee; }
+.fp-btn .fp-ico { font-size: 19px; line-height: 1; }
+.fp-btn .fp-lbl { font-weight: 600; }
+.fp-btn:hover  { background: var(--paper-3, #f4f2ee); border-color: var(--ink-3, #999); }
+.fp-btn:active { transform: scale(0.96); }
+/* Take Photo — primary, full-width across both grid columns */
+.fp-btn.fp-primary {
+  grid-column: 1 / -1;
+  flex-direction: row;
+  min-height: 46px;
+  background: var(--blue, #103a8e);
+  border-color: var(--blue, #103a8e);
+  color: #fff;
+}
+.fp-btn.fp-primary .fp-ico { font-size: 17px; }
+.fp-btn.fp-primary:hover { background: #0a2d6e; border-color: #0a2d6e; }
+.fp-btn.fp-danger { color: #c0392b; border-color: #e7c4bf; }
+.fp-btn.fp-danger:hover { background: #fdf0ee; border-color: #c0392b; }
+/* When Edit Vertices is hidden (point features), Delete spans full width */
+.fp-btn.fp-span { grid-column: 1 / -1; }
 .fp-confirm {
   padding: 8px 12px;
   border-top: 1px solid var(--rule, #ddd);
@@ -7873,11 +7899,18 @@ body.mobile-mode #app {
     <button id="fp-close" type="button" title="Close">✕</button>
   </div>
   <div class="fp-actions">
-    <button class="fp-btn" id="fp-move"     type="button">⊹ Move</button>
-    <button class="fp-btn" id="fp-vertices" type="button">⬡ Edit Vertices</button>
-    <button class="fp-btn" id="fp-edit"     type="button">✎ Edit Data</button>
-    <button class="fp-btn fp-danger" id="fp-del" type="button">✕ Delete</button>
+    <button class="fp-btn fp-primary" id="fp-photo" type="button">
+      <span class="fp-ico">📷</span><span class="fp-lbl">Take Photo</span></button>
+    <button class="fp-btn" id="fp-edit"     type="button">
+      <span class="fp-ico">✎</span><span class="fp-lbl">Edit Data</span></button>
+    <button class="fp-btn" id="fp-move"     type="button">
+      <span class="fp-ico">⊹</span><span class="fp-lbl">Move</span></button>
+    <button class="fp-btn" id="fp-vertices" type="button">
+      <span class="fp-ico">⬡</span><span class="fp-lbl">Edit Vertices</span></button>
+    <button class="fp-btn fp-danger" id="fp-del" type="button">
+      <span class="fp-ico">✕</span><span class="fp-lbl">Delete</span></button>
   </div>
+  <input type="file" id="fp-photo-input" accept="image/*" capture="environment" style="display:none">
   <div class="fp-confirm" id="fp-confirm">
     <div class="fp-confirm-msg">Delete this feature?</div>
     <div class="fp-confirm-btns">
@@ -10502,6 +10535,9 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
        pin.geometry.type === 'MultiLineString');
     const vertBtn = $('#fp-vertices');
     if (vertBtn) vertBtn.style.display = isShape ? '' : 'none';
+    // With no Edit Vertices button, Delete sits alone on its row — span it wide.
+    const delBtn = $('#fp-del');
+    if (delBtn) delBtn.classList.toggle('fp-span', !isShape);
 
     // Reset any open inline-confirm row
     const conf = $('#fp-confirm');
@@ -10512,7 +10548,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       const raw = e.originalEvent || e;   // Leaflet wraps in .originalEvent
       const px  = raw.clientX != null ? raw.clientX : window.innerWidth  / 2;
       const py  = raw.clientY != null ? raw.clientY : window.innerHeight / 2;
-      const pw = 196, ph = 180;
+      const pw = 248, ph = 240;
       popup.style.left = Math.max(8, Math.min(px + 4, window.innerWidth  - pw - 8)) + 'px';
       popup.style.top  = Math.max(8, Math.min(py + 4, window.innerHeight - ph - 8)) + 'px';
     }
@@ -10562,6 +10598,33 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       if (!pin || !sec) return;
       openPinSheet(pin, sec);
     });
+
+    // Take Photo: snap a picture, attach it to the feature, then open the form.
+    {
+      const photoBtn   = $('#fp-photo');
+      const photoInput = $('#fp-photo-input');
+      // Pins captured at button-press time — closeFeaturePopup() clears _fpPin.
+      let _photoPin = null, _photoSec = null;
+      if (photoBtn && photoInput) {
+        photoBtn.addEventListener('click', () => {
+          _photoPin = _fpPin; _photoSec = _fpSec;
+          if (!_photoPin || !_photoSec) return;
+          photoInput.click();   // opens the device camera
+        });
+        photoInput.addEventListener('change', () => {
+          const file = photoInput.files && photoInput.files[0];
+          photoInput.value = '';
+          const pin = _photoPin, sec = _photoSec;
+          _photoPin = null; _photoSec = null;
+          closeFeaturePopup();
+          if (!file || !pin || !sec) return;
+          const addFn = window._RW && window._RW.captureAndAddPhoto;
+          const done  = () => openPinSheet(pin, sec);
+          if (addFn) { addFn(pin, sec, file).then(done).catch(done); }
+          else { done(); }
+        });
+      }
+    }
 
     // Delete: show inline confirmation row
     $('#fp-del').addEventListener('click', () => {
@@ -22682,6 +22745,28 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       img.src = dataUrl;
     });
   }
+
+  // ── Cross-IIFE helper: capture a photo straight onto a pin ─────────────────
+  // Used by the map/SLD feature-popup "Photo" quick action so a field user can
+  // snap a picture and have it land in pin.attrs.photos before the data form
+  // opens. Returns a Promise that resolves once the photo is stored.
+  window._RW = window._RW || {};
+  window._RW.captureAndAddPhoto = function (pin, sec, file) {
+    return new Promise(function (resolve, reject) {
+      if (!pin || !file) { reject(new Error('missing pin or file')); return; }
+      if (!pin.attrs) pin.attrs = {};
+      if (!Array.isArray(pin.attrs.photos)) pin.attrs.photos = [];
+      var reader = new FileReader();
+      reader.onload = function (ev) {
+        _applyWatermark(ev.target.result, pin, sec).then(function (finalUrl) {
+          pin.attrs.photos.push({ dataUrl: finalUrl, captured_at: new Date().toISOString() });
+          resolve(pin.attrs.photos.length);
+        });
+      };
+      reader.onerror = function () { reject(new Error('read failed')); };
+      reader.readAsDataURL(file);
+    });
+  };
 
   // ── Photo annotation modal ─────────────────────────────────────────────────
   /**
