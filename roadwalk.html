@@ -632,6 +632,137 @@ a { color: inherit; text-decoration: none; }
   cursor: pointer;
   pointer-events: auto;
 }
+/* On-map "Cache" button (next to the basemap select) */
+.basemap-cache-btn {
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  color: var(--ink);
+  padding: 4px 7px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.14);
+  cursor: pointer;
+  pointer-events: auto;
+  white-space: nowrap;
+}
+.basemap-cache-btn:hover { background: #fff; color: var(--blue); }
+
+/* ── Offline Map Cache modal ─────────────────────────────────────────────── */
+#tile-cache-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  background: rgba(10, 22, 40, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+#tile-cache-modal[hidden] { display: none; }
+.tcm-card {
+  width: 520px;
+  max-width: 100%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--paper);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+}
+.tcm-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: var(--blue);
+  color: #fff;
+  border-bottom: 2px solid #09335a;
+}
+.tcm-title { flex: 1; font: 700 14px/1 'IBM Plex Mono', monospace; letter-spacing: 0.3px; }
+.tcm-close {
+  background: none; border: none; color: #fff;
+  font-size: 16px; cursor: pointer; padding: 2px 6px;
+}
+.tcm-body { padding: 14px 16px; overflow-y: auto; }
+.tcm-status {
+  font: 600 11px/1.4 'IBM Plex Mono', monospace;
+  color: var(--ink-2);
+  background: var(--paper-2);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-bottom: 14px;
+}
+.tcm-sec {
+  font: 700 9px/1.2 'IBM Plex Mono', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--blue);
+  margin: 14px 0 8px;
+}
+.tcm-sec.tcm-danger { color: #b91c1c; }
+.tcm-row { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+.tcm-row label {
+  font: 700 9px/1.2 'IBM Plex Mono', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-3);
+}
+.tcm-row select {
+  font: 400 13px/1.3 'IBM Plex Sans', sans-serif;
+  padding: 7px 9px;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--paper);
+  color: var(--ink-1);
+  outline: none;
+}
+.tcm-grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+.tcm-note { font: 400 10.5px/1.5 'IBM Plex Sans', sans-serif; color: var(--ink-3); margin: 2px 0 6px; }
+.tcm-btn {
+  font: 700 11px/1 'IBM Plex Mono', monospace;
+  padding: 9px 14px;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--paper);
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.tcm-btn:hover { border-color: var(--blue); color: var(--blue); }
+.tcm-btn:disabled { opacity: 0.45; pointer-events: none; }
+.tcm-btn-primary { background: #15803d; border-color: #15803d; color: #fff; }
+.tcm-btn-primary:hover { background: #166534; border-color: #166534; color: #fff; }
+.tcm-btn-danger { background: #fff; border-color: #fca5a5; color: #b91c1c; }
+.tcm-btn-danger:hover { background: #fee2e2; border-color: #b91c1c; color: #b91c1c; }
+.tcm-estimate {
+  font: 600 11.5px/1.5 'IBM Plex Mono', monospace;
+  color: var(--ink-2);
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-top: 8px;
+}
+.tcm-estimate.tcm-warn { background: #fff7ed; border-color: #fed7aa; color: #9a3412; }
+.tcm-progress {
+  height: 8px;
+  background: var(--paper-2);
+  border: 1px solid var(--rule);
+  border-radius: 5px;
+  overflow: hidden;
+  margin-top: 12px;
+}
+.tcm-progress-bar { height: 100%; width: 0; background: #15803d; transition: width 0.15s; }
+.tcm-progress-text {
+  font: 600 10.5px/1.4 'IBM Plex Mono', monospace;
+  color: var(--ink-3);
+  margin-top: 4px;
+}
+.tcm-actions { display: flex; gap: 8px; margin-top: 12px; }
 /* Keyboard shortcut toast — brief confirmation shown bottom-center of map */
 .rw-ks-toast {
   position: absolute;
@@ -6607,6 +6738,8 @@ body.mobile-mode #app {
             <option value="google_hybrid">Google Hybrid 🔒</option>
             <option value="google_roadmap">Google Roadmap 🔒</option>
           </select>
+          <button class="basemap-cache-btn" id="basemap-cache-btn"
+                  type="button" title="Offline map cache — download tiles along the route">📦 Cache</button>
         </div>
 
         <!-- Alignment strip — always visible when a section is active -->
@@ -7433,6 +7566,68 @@ body.mobile-mode #app {
        ]
      }
      ============================================================ -->
+<!-- ============================================================
+     OFFLINE MAP CACHE MODAL (#tile-cache-modal)
+     Caches map tiles in a corridor along the route centerline.
+     ============================================================ -->
+<div id="tile-cache-modal" hidden role="dialog" aria-modal="true" aria-labelledby="tcm-title">
+  <div class="tcm-card">
+    <div class="tcm-header">
+      <span class="tcm-title" id="tcm-title">📦 Offline Map Cache</span>
+      <button class="tcm-close" id="tcm-close" aria-label="Close">✕</button>
+    </div>
+    <div class="tcm-body">
+      <div class="tcm-status" id="tcm-status">Cache: checking…</div>
+
+      <div class="tcm-sec">1 — Corridor along the route centerline</div>
+      <div class="tcm-row">
+        <label>Corridor width (each side of centerline)</label>
+        <select id="tcm-buffer">
+          <option value="75">75 m</option>
+          <option value="150" selected>150 m</option>
+          <option value="250">250 m</option>
+          <option value="500">500 m</option>
+        </select>
+      </div>
+      <p class="tcm-note">Tiles are cached only within this distance of the section
+        alignment(s) — a thin ribbon along the route, not a full rectangle.</p>
+
+      <div class="tcm-sec">2 — Layer &amp; zoom range</div>
+      <div class="tcm-grid3">
+        <div class="tcm-row"><label>Layer</label>
+          <select id="tcm-layer">
+            <option value="esri_aerial">Aerial (Esri)</option>
+            <option value="esri_street">Street (Esri)</option>
+            <option value="esri_topo">Topo (Esri)</option>
+            <option value="nearmap">Aerial (Nearmap)</option>
+          </select></div>
+        <div class="tcm-row"><label>Min zoom</label><select id="tcm-minz"></select></div>
+        <div class="tcm-row"><label>Max zoom</label><select id="tcm-maxz"></select></div>
+      </div>
+      <p class="tcm-note" id="tcm-zoom-note"></p>
+
+      <button class="tcm-btn" id="tcm-estimate" type="button">▦ Estimate Tiles</button>
+      <div class="tcm-estimate" id="tcm-estimate-out" hidden></div>
+
+      <div class="tcm-progress" id="tcm-progress" hidden>
+        <div class="tcm-progress-bar" id="tcm-progress-bar"></div>
+      </div>
+      <div class="tcm-progress-text" id="tcm-progress-text" hidden></div>
+
+      <div class="tcm-actions">
+        <button class="tcm-btn tcm-btn-primary" id="tcm-download" type="button">⬇ Download &amp; Cache</button>
+        <button class="tcm-btn" id="tcm-cancel" type="button">Close</button>
+      </div>
+
+      <div class="tcm-sec tcm-danger">Clear cache</div>
+      <div class="tcm-actions">
+        <button class="tcm-btn tcm-btn-danger" id="tcm-clear-all" type="button">Clear All Tiles</button>
+        <button class="tcm-btn" id="tcm-clear-layer" type="button">Clear Selected Layer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="export-modal" hidden role="dialog" aria-modal="true" aria-labelledby="exp-modal-title">
   <div class="exp-card">
 
@@ -8823,32 +9018,38 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     },
     esri_aerial: {
       label: 'Esri Aerial',
-      build: () => L.tileLayer(
+      // offlineTileLayer serves cached tiles first (see the offline tile cache
+      // engine); falls back to online fetch when a tile is not cached.
+      build: () => (window.offlineTileLayer || L.tileLayer)(
         'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-        { maxZoom: 19, attribution: 'Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics' }
+        { maxZoom: 19, attribution: 'Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics' },
+        'esri_aerial'
       ),
     },
     esri_street: {
       label: 'Esri Street',
-      build: () => L.tileLayer(
+      build: () => (window.offlineTileLayer || L.tileLayer)(
         'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
-        { maxZoom: 19, attribution: 'Tiles © Esri' }
+        { maxZoom: 19, attribution: 'Tiles © Esri' },
+        'esri_street'
       ),
     },
     esri_topo: {
       label: 'Esri Topo',
-      build: () => L.tileLayer(
+      build: () => (window.offlineTileLayer || L.tileLayer)(
         'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
-        { maxZoom: 19, attribution: 'Tiles © Esri' }
+        { maxZoom: 19, attribution: 'Tiles © Esri' },
+        'esri_topo'
       ),
     },
     nearmap: {
       label: 'Nearmap Aerial',
       requiresKey: true,
       keyHelp: 'Needs a Nearmap API key (enterprise subscription).',
-      build: (apiKey) => L.tileLayer(
+      build: (apiKey) => (window.offlineTileLayer || L.tileLayer)(
         `https://api.nearmap.com/tiles/v3/Vert/{z}/{x}/{y}.jpg?apikey=${encodeURIComponent(apiKey)}`,
-        { maxZoom: 24, attribution: '© Nearmap' }
+        { maxZoom: 24, attribution: '© Nearmap' },
+        'nearmap'
       ),
     },
     google_satellite: {
@@ -18386,10 +18587,345 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     });
   }
 
-  // Pre-open tile IDB eagerly (schema-only; OfflineTileLayer comes Phase 2).
+  // Pre-open tile IDB eagerly.
   openTileDB().catch(function (err) {
     console.warn('[RoadWalk] RoadWalkTiles_v1 open failed:', err);
   });
+
+  /* ── Offline tile cache engine ───────────────────────────────────────────
+     Caches map tiles in a CORRIDOR along the route centerline (not a
+     rectangle). Tile record: { k:'layer/z/x/y', v:dataURL, layer, bytes }. */
+  function _tileCacheGet(key) {
+    return openTileDB().then(function (db) {
+      return new Promise(function (res) {
+        var rq = db.transaction(TILE_STORE, 'readonly').objectStore(TILE_STORE).get(key);
+        rq.onsuccess = function () { res(rq.result ? rq.result.v : null); };
+        rq.onerror   = function () { res(null); };
+      });
+    }).catch(function () { return null; });
+  }
+  function _tileCachePut(rec) {
+    return openTileDB().then(function (db) {
+      return new Promise(function (res, rej) {
+        var tx = db.transaction(TILE_STORE, 'readwrite');
+        tx.objectStore(TILE_STORE).put(rec);
+        tx.oncomplete = function () { res(); };
+        tx.onerror    = function () { rej(tx.error); };
+      });
+    });
+  }
+  function _tileCacheStats(layerKey) {
+    return openTileDB().then(function (db) {
+      return new Promise(function (res) {
+        var count = 0, bytes = 0;
+        var cur = db.transaction(TILE_STORE, 'readonly').objectStore(TILE_STORE).openCursor();
+        cur.onsuccess = function (e) {
+          var c = e.target.result;
+          if (!c) { res({ count: count, bytes: bytes }); return; }
+          if (!layerKey || c.value.layer === layerKey) { count++; bytes += (c.value.bytes || 0); }
+          c.continue();
+        };
+        cur.onerror = function () { res({ count: count, bytes: bytes }); };
+      });
+    }).catch(function () { return { count: 0, bytes: 0 }; });
+  }
+  function _tileCacheClear(layerKey) {
+    return openTileDB().then(function (db) {
+      return new Promise(function (res, rej) {
+        var tx = db.transaction(TILE_STORE, 'readwrite');
+        var store = tx.objectStore(TILE_STORE);
+        if (!layerKey) {
+          store.clear();
+        } else {
+          var cur = store.openCursor();
+          cur.onsuccess = function (e) {
+            var c = e.target.result;
+            if (!c) return;
+            if (c.value.layer === layerKey) c.delete();
+            c.continue();
+          };
+        }
+        tx.oncomplete = function () { res(); };
+        tx.onerror    = function () { rej(tx.error); };
+      });
+    });
+  }
+
+  // Custom tile layer: serve a cached tile if present, else fetch online.
+  var OfflineTileLayer = L.TileLayer.extend({
+    createTile: function (coords, done) {
+      var img = document.createElement('img');
+      L.DomEvent.on(img, 'load',  L.Util.bind(this._tileOnLoad,  this, done, img));
+      L.DomEvent.on(img, 'error', L.Util.bind(this._tileOnError, this, done, img));
+      if (this.options.crossOrigin || this.options.crossOrigin === '') {
+        img.crossOrigin = this.options.crossOrigin === true ? '' : this.options.crossOrigin;
+      }
+      img.alt = '';
+      img.setAttribute('role', 'presentation');
+      var onlineUrl = this.getTileUrl(coords);
+      var key = this.options._cacheLayerKey + '/' + coords.z + '/' + coords.x + '/' + coords.y;
+      _tileCacheGet(key).then(function (cached) {
+        img.src = cached || onlineUrl;
+      }, function () { img.src = onlineUrl; });
+      return img;
+    },
+  });
+  function offlineTileLayer(url, opts, layerKey) {
+    return new OfflineTileLayer(url, L.extend({}, opts, { _cacheLayerKey: layerKey }));
+  }
+  // Exposed globally — BASEMAPS (in the map IIFE) builds its tile layers with it.
+  window.offlineTileLayer = offlineTileLayer;
+  // The map's `state` object lives in a different IIFE; reach it via window._RW.
+  function _rwState() { return (window._RW && window._RW.state) || {}; }
+  // Redraw the active basemap so freshly-cached tiles show immediately.
+  function _redrawBasemap() {
+    var bm = _rwState().currentBasemap;
+    if (bm && typeof bm.redraw === 'function') bm.redraw();
+  }
+
+  // Cacheable XYZ layers (Google is render-only — no tile URLs to cache).
+  var TILE_CACHE_LAYERS = {
+    esri_aerial: { label: 'Aerial (Esri)', maxZoom: 19,
+      url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}' },
+    esri_street: { label: 'Street (Esri)', maxZoom: 19,
+      url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}' },
+    esri_topo:   { label: 'Topo (Esri)', maxZoom: 19,
+      url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}' },
+    nearmap:     { label: 'Aerial (Nearmap)', maxZoom: 24, keyName: 'nearmap',
+      url: 'https://api.nearmap.com/tiles/v3/Vert/{z}/{x}/{y}.jpg?apikey={KEY}' },
+  };
+
+  // ── Web-mercator tile math ─────────────────────────────────────────────────
+  function _lng2tileX(lng, z) { return (lng + 180) / 360 * Math.pow(2, z); }
+  function _lat2tileY(lat, z) {
+    var r = lat * Math.PI / 180;
+    return (1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * Math.pow(2, z);
+  }
+  // Distance (m) from a point to a segment — equirectangular approx.
+  function _ptSegMeters(plat, plng, alat, alng, blat, blng) {
+    var mLat = 111320, mLng = 111320 * Math.cos(plat * Math.PI / 180);
+    var px = plng * mLng, py = plat * mLat;
+    var ax = alng * mLng, ay = alat * mLat;
+    var bx = blng * mLng, by = blat * mLat;
+    var dx = bx - ax, dy = by - ay, len2 = dx * dx + dy * dy;
+    var t = len2 ? ((px - ax) * dx + (py - ay) * dy) / len2 : 0;
+    t = Math.max(0, Math.min(1, t));
+    return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+  }
+  // Every alignment segment ([lat,lng] pairs) across loaded sections.
+  function _routeSegments() {
+    var segs = [];
+    (window.SECTIONS || []).forEach(function (s) {
+      var lines = [];
+      if (Array.isArray(s.alignment) && s.alignment.length > 1) lines.push(s.alignment);
+      (s.subAlignments || []).forEach(function (sa) {
+        if (Array.isArray(sa.coords) && sa.coords.length > 1) lines.push(sa.coords);
+      });
+      lines.forEach(function (ln) {
+        for (var i = 0; i < ln.length - 1; i++) segs.push([ln[i], ln[i + 1]]);
+      });
+    });
+    return segs;
+  }
+  // Tiles within bufferM of the route centerline, minZ..maxZ.
+  function _corridorTiles(minZ, maxZ, bufferM) {
+    var segs = _routeSegments();
+    if (!segs.length) return [];
+    var tiles = [];
+    for (var z = minZ; z <= maxZ; z++) {
+      var n = Math.pow(2, z);
+      var seen = {};
+      for (var si = 0; si < segs.length; si++) {
+        var a = segs[si][0], b = segs[si][1];
+        var latMin = Math.min(a[0], b[0]), latMax = Math.max(a[0], b[0]);
+        var lngMin = Math.min(a[1], b[1]), lngMax = Math.max(a[1], b[1]);
+        var midLat = (latMin + latMax) / 2;
+        var dLat = bufferM / 111320;
+        var dLng = bufferM / (111320 * Math.cos(midLat * Math.PI / 180));
+        var x0 = Math.floor(_lng2tileX(lngMin - dLng, z));
+        var x1 = Math.floor(_lng2tileX(lngMax + dLng, z));
+        var y0 = Math.floor(_lat2tileY(latMax + dLat, z));
+        var y1 = Math.floor(_lat2tileY(latMin - dLat, z));
+        for (var x = x0; x <= x1; x++) {
+          for (var y = y0; y <= y1; y++) {
+            var kk = x + '_' + y;
+            if (seen[kk]) continue;
+            var clng = (x + 0.5) / n * 360 - 180;
+            var nn = Math.PI - 2 * Math.PI * (y + 0.5) / n;
+            var clat = 180 / Math.PI * Math.atan(0.5 * (Math.exp(nn) - Math.exp(-nn)));
+            var tileW = 256 * 156543.03 * Math.cos(clat * Math.PI / 180) / n;
+            if (_ptSegMeters(clat, clng, a[0], a[1], b[0], b[1]) <= bufferM + tileW * 0.71) {
+              seen[kk] = 1;
+              tiles.push({ z: z, x: x, y: y });
+            }
+          }
+        }
+      }
+    }
+    return tiles;
+  }
+  // Fetch one tile → { dataUrl, bytes }.
+  function _fetchTile(url) {
+    return fetch(url, { mode: 'cors' }).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.blob();
+    }).then(function (blob) {
+      return new Promise(function (res, rej) {
+        var fr = new FileReader();
+        fr.onload  = function () { res({ dataUrl: fr.result, bytes: blob.size }); };
+        fr.onerror = function () { rej(fr.error); };
+        fr.readAsDataURL(blob);
+      });
+    });
+  }
+
+  // ── Cache modal ────────────────────────────────────────────────────────────
+  var _tcmTiles = null, _tcmBusy = false;
+  function _tcmCfg() { return TILE_CACHE_LAYERS[document.getElementById('tcm-layer').value]; }
+  function _tcmRefreshZoom() {
+    var cfg = _tcmCfg();
+    var minEl = document.getElementById('tcm-minz'), maxEl = document.getElementById('tcm-maxz');
+    var curMin = parseInt(minEl.value, 10) || 14, curMax = parseInt(maxEl.value, 10) || 18;
+    var opt = '';
+    for (var z = 8; z <= cfg.maxZoom; z++) opt += '<option value="' + z + '">' + z + '</option>';
+    minEl.innerHTML = opt; maxEl.innerHTML = opt;
+    minEl.value = Math.min(Math.max(curMin, 8), cfg.maxZoom);
+    maxEl.value = Math.min(Math.max(curMax, 8), cfg.maxZoom);
+    document.getElementById('tcm-zoom-note').textContent =
+      cfg.label + ' caches up to zoom ' + cfg.maxZoom +
+      ' (highest resolution). Higher zoom = many more tiles.';
+  }
+  function _tcmStatus() {
+    _tileCacheStats().then(function (st) {
+      document.getElementById('tcm-status').textContent =
+        'Cache: ' + st.count.toLocaleString() + ' tiles · ' +
+        (st.bytes / 1048576).toFixed(1) + ' MB stored';
+    });
+  }
+  function _tcmEstimate() {
+    var minZ = parseInt(document.getElementById('tcm-minz').value, 10);
+    var maxZ = parseInt(document.getElementById('tcm-maxz').value, 10);
+    var buf  = parseInt(document.getElementById('tcm-buffer').value, 10);
+    var out  = document.getElementById('tcm-estimate-out');
+    out.hidden = false;
+    if (minZ > maxZ) {
+      out.className = 'tcm-estimate tcm-warn';
+      out.textContent = 'Min zoom must be ≤ max zoom.'; _tcmTiles = null; return;
+    }
+    if (!_routeSegments().length) {
+      out.className = 'tcm-estimate tcm-warn';
+      out.textContent = 'No route loaded — open a project bundle first.'; _tcmTiles = null; return;
+    }
+    _tcmTiles = _corridorTiles(minZ, maxZ, buf);
+    var n = _tcmTiles.length;
+    var mb = (n * 20 / 1024).toFixed(1);  // ~20 KB avg per tile
+    out.className = 'tcm-estimate' + (n > 40000 ? ' tcm-warn' : '');
+    out.textContent = n.toLocaleString() + ' tiles · ≈ ' + mb + ' MB to download' +
+      (n > 40000 ? ' — large cache; consider a smaller zoom range or corridor width.' : '.');
+  }
+  function _tcmDownload() {
+    if (_tcmBusy) return;
+    if (!_tcmTiles) _tcmEstimate();
+    if (!_tcmTiles || !_tcmTiles.length) return;
+    var tiles = _tcmTiles;
+    if (tiles.length > 150000 &&
+        !window.confirm(tiles.length.toLocaleString() +
+          ' tiles is very large and may take a long time + a lot of storage. Continue?')) return;
+    var layerKey = document.getElementById('tcm-layer').value;
+    var cfg = TILE_CACHE_LAYERS[layerKey];
+    var urlTmpl = cfg.url;
+    if (cfg.keyName) {
+      var apiKeys = (_rwState().settings && _rwState().settings.apiKeys) || {};
+      var apiKey  = apiKeys[cfg.keyName] || '';
+      if (!apiKey) { window.alert(cfg.label + ' needs an API key (Settings → API keys).'); return; }
+      urlTmpl = urlTmpl.replace('{KEY}', encodeURIComponent(apiKey));
+    }
+    _tcmBusy = true;
+    var bar  = document.getElementById('tcm-progress-bar');
+    var prog = document.getElementById('tcm-progress');
+    var ptxt = document.getElementById('tcm-progress-text');
+    var dlBtn = document.getElementById('tcm-download');
+    prog.hidden = false; ptxt.hidden = false; bar.style.width = '0%'; dlBtn.disabled = true;
+    var i = 0, done = 0, failed = 0, CONC = 6;
+    function update() {
+      var p = done + failed;
+      bar.style.width = Math.round(p / tiles.length * 100) + '%';
+      ptxt.textContent = 'Caching ' + p.toLocaleString() + ' / ' + tiles.length.toLocaleString() +
+        (failed ? '  (' + failed + ' failed)' : '');
+    }
+    function finish() {
+      _tcmBusy = false; dlBtn.disabled = false;
+      ptxt.textContent = 'Done — cached ' + done.toLocaleString() + ' tiles' +
+        (failed ? ', ' + failed + ' failed (likely network)' : '') + '.';
+      _tcmStatus();
+      _redrawBasemap();
+    }
+    function next() {
+      if (i >= tiles.length) return;
+      var t = tiles[i++];
+      var url = urlTmpl.replace('{z}', t.z).replace('{x}', t.x).replace('{y}', t.y);
+      var k = layerKey + '/' + t.z + '/' + t.x + '/' + t.y;
+      _fetchTile(url).then(function (res) {
+        return _tileCachePut({ k: k, v: res.dataUrl, layer: layerKey, bytes: res.bytes });
+      }).then(function () { done++; }, function () { failed++; })
+        .then(function () {
+          update();
+          if (done + failed >= tiles.length) finish(); else next();
+        });
+    }
+    update();
+    for (var c = 0; c < Math.min(CONC, tiles.length); c++) next();
+  }
+  function _openTileCacheModal() {
+    var m = document.getElementById('tile-cache-modal');
+    if (!m) return;
+    _tcmRefreshZoom();
+    _tcmStatus();
+    _tcmTiles = null;
+    document.getElementById('tcm-estimate-out').hidden = true;
+    document.getElementById('tcm-progress').hidden = true;
+    document.getElementById('tcm-progress-text').hidden = true;
+    m.hidden = false;
+  }
+  function _closeTileCacheModal() {
+    if (_tcmBusy) { window.alert('Caching in progress — please wait for it to finish.'); return; }
+    var m = document.getElementById('tile-cache-modal');
+    if (m) m.hidden = true;
+  }
+  // Wire the modal (DOM exists — this script runs at end of body).
+  (function () {
+    var on = function (id, ev, fn) {
+      var el = document.getElementById(id);
+      if (el) el.addEventListener(ev, fn);
+    };
+    on('basemap-cache-btn', 'click', _openTileCacheModal);
+    on('tcm-close',  'click', _closeTileCacheModal);
+    on('tcm-cancel', 'click', _closeTileCacheModal);
+    on('tcm-layer',  'change', function () {
+      _tcmRefreshZoom();
+      _tcmTiles = null;
+      document.getElementById('tcm-estimate-out').hidden = true;
+    });
+    ['tcm-minz', 'tcm-maxz', 'tcm-buffer'].forEach(function (id) {
+      on(id, 'change', function () {
+        _tcmTiles = null;
+        document.getElementById('tcm-estimate-out').hidden = true;
+      });
+    });
+    on('tcm-estimate', 'click', _tcmEstimate);
+    on('tcm-download', 'click', _tcmDownload);
+    on('tcm-clear-all', 'click', function () {
+      if (_tcmBusy || !window.confirm('Clear ALL cached map tiles?')) return;
+      _tileCacheClear().then(function () { _tcmStatus(); _redrawBasemap(); });
+    });
+    on('tcm-clear-layer', 'click', function () {
+      if (_tcmBusy) return;
+      var lk  = document.getElementById('tcm-layer').value;
+      var cfg = TILE_CACHE_LAYERS[lk] || {};
+      if (!window.confirm('Clear cached tiles for ' + (cfg.label || lk) + '?')) return;
+      _tileCacheClear(lk).then(function () { _tcmStatus(); _redrawBasemap(); });
+    });
+  })();
 
 
   /* ---------------------------------------------------------------
