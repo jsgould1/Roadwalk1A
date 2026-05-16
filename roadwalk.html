@@ -775,9 +775,18 @@ a { color: inherit; text-decoration: none; }
 .ed-take-R { background: #b45309; }
 .ed-take:active { transform: scale(0.97); }
 .ed-take:disabled { opacity: 0.45; pointer-events: none; }
+.ed-addrow {
+  margin: 0 8px 6px; padding: 8px;
+  font: 700 10px/1 'IBM Plex Mono', monospace;
+  letter-spacing: 0.03em;
+  background: var(--paper-2); color: var(--ink-2);
+  border: 1px dashed var(--rule); border-radius: 6px; cursor: pointer;
+}
+.ed-addrow:hover { background: var(--paper-3); color: var(--blue); border-color: var(--blue); }
+.ed-addrow:active { transform: scale(0.98); }
 .ed-track { flex: 1 1 auto; display: flex; flex-direction: column; overflow: hidden; }
 .ed-track-hdr {
-  display: grid; grid-template-columns: 52px 1fr 1fr 1fr;
+  display: grid; grid-template-columns: 58px 1fr 1fr 1fr;
   background: var(--blue); color: #fff;
   font: 700 8px/1.1 'IBM Plex Mono', monospace;
   text-transform: uppercase; letter-spacing: 0.04em;
@@ -786,31 +795,42 @@ a { color: inherit; text-decoration: none; }
 .ed-track-body { flex: 1; overflow-y: auto; }
 .ed-empty { padding: 20px 12px; text-align: center; color: var(--ink-4); font: 400 11px/1.5 'IBM Plex Sans', sans-serif; }
 .ed-row {
-  display: grid; grid-template-columns: 52px 1fr 1fr 1fr;
+  display: grid; grid-template-columns: 58px 1fr 1fr 1fr;
   border-bottom: 1px solid var(--rule-soft);
 }
 .ed-row:nth-child(even) { background: var(--paper-2); }
 .ed-cell {
-  padding: 7px 4px; text-align: center;
+  padding: 9px 4px; text-align: center;
   font: 700 13px/1.2 'IBM Plex Mono', monospace;
   position: relative;
+  cursor: pointer;            /* every cell is tap-to-edit */
 }
-.ed-cell.ed-val { cursor: help; }
+.ed-cell[data-ch]:hover { box-shadow: inset 0 0 0 2px var(--blue); }
 .ed-cell.ed-sta-cell {
   background: var(--blue); color: #fff; font-size: 11px;
   display: flex; align-items: center; justify-content: center;
 }
+.ed-cell.ed-sta-cell:hover { box-shadow: inset 0 0 0 2px #fff; }
 .ed-cell.ed-empty-cell { color: var(--ink-4); }
 .ed-val.ed-d0    { color: #111111; }   /* edge drop 0–2 in */
 .ed-val.ed-d2    { color: #d97706; }   /* edge drop 2–4 in */
 .ed-val.ed-d4    { color: #b91c1c; }   /* edge drop > 4 in */
 .ed-val.ed-width { color: #15803d; }   /* roadway width */
-.ed-del {
-  position: absolute; top: 1px; right: 2px;
-  background: none; border: none; color: var(--ink-4);
-  font-size: 10px; cursor: pointer; display: none;
+.ed-cell-input {
+  width: 100%; box-sizing: border-box;
+  border: 1px solid var(--blue); border-radius: 3px;
+  padding: 4px 2px; text-align: center;
+  font: 700 12px 'IBM Plex Mono', monospace;
+  background: #fff; color: var(--ink-1);
 }
-.ed-row:hover .ed-del { display: block; }
+.ed-rowdel {
+  position: absolute; top: 0; right: 0;
+  width: 15px; height: 15px;
+  background: none; border: none; color: #fff;
+  font-size: 10px; line-height: 15px; cursor: pointer;
+  padding: 0; display: none;
+}
+.ed-row:hover .ed-rowdel { display: block; }
 .ed-popup {
   position: fixed;
   z-index: 9500;
@@ -6807,7 +6827,7 @@ body.mobile-mode #app {
                   <input type="text" id="ed-sta" placeholder="0+00" autocomplete="off">
                   <label class="ed-auto"><input type="checkbox" id="ed-auto-sta"> Auto GPS</label>
                 </div>
-                <div class="ed-hint">Type a station to override, or use Auto GPS.</div>
+                <div class="ed-hint">Leave blank to use the live map / SLD station. Type to override, or use Auto GPS.</div>
               </div>
             </div>
           </div>
@@ -6819,7 +6839,12 @@ body.mobile-mode #app {
             <button class="ed-take ed-take-R" id="ed-take-R" type="button">↓ Right</button>
           </div>
 
-          <!-- Tracker: Left edge-drop · STA · Width · Right edge-drop -->
+          <!-- Add a blank station row to fill in by hand -->
+          <button class="ed-addrow" id="ed-add-row" type="button">+ Add station row</button>
+
+          <!-- Tracker: STA · Left edge-drop · Width · Right edge-drop.
+               Every cell is tap-to-edit; readings merge onto the row that
+               matches the current station, sorted by station ascending. -->
           <div class="ed-track">
             <div class="ed-track-hdr"><span>STA</span><span>LEFT (in)</span><span>WIDTH (ft)</span><span>RIGHT (in)</span></div>
             <div class="ed-track-body" id="ed-track-body">
@@ -9740,6 +9765,12 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     get RW_TYPES()         { return _RW_TYPES; },
     get GR_TREATMENTS()    { return _GR_TREATMENTS; },
     get RW_TREATMENTS()    { return _RW_TREATMENTS; },
+    // SLD centre station (feet) while an alignment strip is open — consumed by
+    // the Edge Drop panel so manual readings inherit the current stationing.
+    get stripSta() {
+      return (typeof stripOpen !== 'undefined' && stripOpen &&
+              typeof stripCenterSta === 'number') ? stripCenterSta : null;
+    },
     rerender() {
       // Skip when the Map module is off-screen. initOrUpdateMap() into a hidden
       // (zero-size) container leaves Leaflet sized wrong — only the top-left
@@ -23936,7 +23967,14 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   var $ = function (id) { return document.getElementById(id); };
 
   var LS = 'rw_edge_drops';
-  var ROWS = [];                       // {id,side,drop_in,a_in,b_in,sta,lat,lng,manual,ts}
+  // Each ROW is keyed by station and carries up to three channels:
+  //   { id, sta, sta_ft,
+  //     L: {drop_in,a_in,b_in,manual,lat,lng,ts} | null,
+  //     W: {width_ft,manual,lat,lng,ts}          | null,
+  //     R: {drop_in,a_in,b_in,manual,lat,lng,ts} | null }
+  // Readings taken at the same station merge onto one row; rows sort by
+  // sta_ft ascending so walking one side then the other still lines up.
+  var ROWS = [];
   var refAngle = null;                 // shared reference angle (degrees)
   var refA = { L: null, R: null };     // per-side A datum height (metres) — independent
   var M_TO_IN = 39.3701;
@@ -23948,9 +23986,113 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   var _lat = null, _lng = null, _gpsLastLat = null, _gpsLastLng = null, _staFt = 0;
 
   function load() {
-    try { var d = JSON.parse(localStorage.getItem(LS)); if (Array.isArray(d)) ROWS = d; } catch (e) {}
+    try {
+      var d = JSON.parse(localStorage.getItem(LS));
+      if (Array.isArray(d)) ROWS = migrate(d);
+    } catch (e) {}
+    resort();
   }
   function save() { try { localStorage.setItem(LS, JSON.stringify(ROWS)); } catch (e) {} }
+
+  // ── Station-keyed row helpers ──────────────────────────────────────────────
+  function genId() { return 'ed' + Date.now() + Math.random().toString(36).slice(2, 5); }
+
+  // Parse a station label ("1+00", "STA 12+34.5", "250") to feet; null if blank.
+  function parseSta(txt) {
+    if (txt == null) return null;
+    var s = String(txt).trim().replace(/^sta\s*/i, '');
+    if (!s) return null;
+    if (s.indexOf('+') >= 0) {
+      var p = s.split('+');
+      var h = parseFloat(p[0]), r = parseFloat(p[1]);
+      if (isNaN(h) || isNaN(r)) return null;
+      return h * 100 + r;
+    }
+    var n = parseFloat(s);
+    return isNaN(n) ? null : n;
+  }
+
+  function blankRow(staTxt) {
+    return { id: genId(), sta: (staTxt || '').trim(),
+             sta_ft: parseSta(staTxt), L: null, W: null, R: null };
+  }
+
+  // Find a row in `arr` matching a station: within 0.5 ft when both numeric,
+  // else an exact (case-insensitive) text match.
+  function findRow(arr, staTxt) {
+    var ft = parseSta(staTxt);
+    var key = (staTxt || '').trim().toLowerCase();
+    for (var i = 0; i < arr.length; i++) {
+      var r = arr[i];
+      if (ft != null && r.sta_ft != null) {
+        if (Math.abs(r.sta_ft - ft) < 0.5) return r;
+      } else if (key && (r.sta || '').trim().toLowerCase() === key) {
+        return r;
+      }
+    }
+    return null;
+  }
+
+  // Find or create the ROWS entry for a station.
+  function rowForSta(staTxt) {
+    var row = findRow(ROWS, staTxt);
+    if (!row) { row = blankRow(staTxt); ROWS.push(row); }
+    return row;
+  }
+
+  // Sort ascending by station; unparseable stations sink to the bottom.
+  function resort() {
+    ROWS.sort(function (a, b) {
+      if (a.sta_ft == null && b.sta_ft == null) return 0;
+      if (a.sta_ft == null) return 1;
+      if (b.sta_ft == null) return -1;
+      return a.sta_ft - b.sta_ft;
+    });
+  }
+
+  // Upgrade legacy single-channel rows ({side,drop_in,…}) to station rows.
+  function migrate(arr) {
+    var hasLegacy = arr.some(function (r) { return r && r.side; });
+    if (!hasLegacy) {
+      arr.forEach(function (r) {
+        if (r && r.sta_ft == null) r.sta_ft = parseSta(r.sta);
+        if (r && r.L === undefined) r.L = null;
+        if (r && r.W === undefined) r.W = null;
+        if (r && r.R === undefined) r.R = null;
+      });
+      return arr;
+    }
+    var out = [];
+    // Oldest first so a later reading at the same station/channel wins.
+    arr.slice().sort(function (a, b) {
+      return (a && a.ts || '') < (b && b.ts || '') ? -1 : 1;
+    }).forEach(function (r) {
+      if (!r) return;
+      if (!r.side) { out.push(r); return; }
+      var row = findRow(out, r.sta);
+      if (!row) { row = blankRow(r.sta); out.push(row); }
+      var meta = { lat: r.lat, lng: r.lng, ts: r.ts, manual: !!r.manual };
+      if (r.side === 'W') {
+        row.W = { width_ft: r.width_ft, manual: meta.manual,
+                  lat: meta.lat, lng: meta.lng, ts: meta.ts };
+      } else if (r.side === 'L' || r.side === 'R') {
+        row[r.side] = { drop_in: r.drop_in, a_in: r.a_in, b_in: r.b_in,
+                        manual: meta.manual, lat: meta.lat, lng: meta.lng, ts: meta.ts };
+      }
+    });
+    return out;
+  }
+
+  // Current working station: the panel field, else the live SLD centre station.
+  function currentSta() {
+    var v = ($('ed-sta') && $('ed-sta').value || '').trim();
+    if (v) return v;
+    try {
+      var s = window._RW && window._RW.stripSta;
+      if (typeof s === 'number' && isFinite(s)) return fmtSta(s);
+    } catch (e) {}
+    return '';
+  }
   function _esc(s) {
     return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
       .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -24098,16 +24240,15 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   }
 
   // ── Take a reading — L / R = edge drop (B − A), W = raw roadway width ──
-  // All three channels are fully independent.
+  // Each channel is taken independently, but the result merges onto the row
+  // for the *current* station so L / W / R taken at different times line up.
   async function takeReading(side) {
-    var row = {
-      id: 'ed' + Date.now() + Math.random().toString(36).slice(2, 5),
-      side: side,
-      sta: ($('ed-sta').value || '').trim(),
+    var meta = {
       lat: _lat != null ? +_lat.toFixed(6) : null,
       lng: _lng != null ? +_lng.toFixed(6) : null,
       ts: new Date().toISOString(),
     };
+    var channel;
     if (side === 'W') {
       // Roadway width — the raw C distance, no reference, no calculation.
       if (_connected) {
@@ -24115,7 +24256,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         wbtn.textContent = 'Aiming…'; wbtn.disabled = true;
         try {
           var distW = await captureDistance();
-          row.width_ft = distW * 3.28084;
+          channel = { width_ft: distW * 3.28084, manual: false };
         } catch (e) {
           wbtn.textContent = wprev; wbtn.disabled = false;
           alert('Take Width failed: ' + (e && e.message)); return;
@@ -24126,7 +24267,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         if (rawW == null) return;
         var wv = parseFloat(rawW);
         if (isNaN(wv)) { alert('Not a number: ' + rawW); return; }
-        row.width_ft = wv; row.manual = true;
+        channel = { width_ft: wv, manual: true };
       }
     } else {
       // Left / Right edge drop — drop = B − A.
@@ -24136,9 +24277,9 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         tbtn.textContent = 'Aiming…'; tbtn.disabled = true;
         try {
           var dist = await captureDistance();
-          row.a_in = refA[side] * M_TO_IN;
-          row.b_in = heightM(dist) * M_TO_IN;
-          row.drop_in = row.b_in - row.a_in;
+          var a_in = refA[side] * M_TO_IN;
+          var b_in = heightM(dist) * M_TO_IN;
+          channel = { a_in: a_in, b_in: b_in, drop_in: b_in - a_in, manual: false };
         } catch (e) {
           tbtn.textContent = prev; tbtn.disabled = false;
           alert('Take ' + side + ' failed: ' + (e && e.message)); return;
@@ -24150,85 +24291,163 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         if (raw == null) return;
         var dv = parseFloat(raw);
         if (isNaN(dv)) { alert('Not a number: ' + raw); return; }
-        row.drop_in = dv; row.manual = true;
+        channel = { drop_in: dv, a_in: null, b_in: null, manual: true };
       }
     }
-    ROWS.push(row);
-    save();
-    render();
+    channel.lat = meta.lat; channel.lng = meta.lng; channel.ts = meta.ts;
+    var staTxt = currentSta();
+    var row = rowForSta(staTxt);
+    if (row.sta_ft == null) { row.sta = staTxt; row.sta_ft = parseSta(staTxt); }
+    row[side] = channel;
+    resort(); save(); render();
   }
 
-  // ── Tracker render — Left drop · STA · Width · Right drop, newest first ──
+  // ── Add a blank station row to fill in manually ──
+  function addBlankRow() {
+    var row = blankRow(currentSta());
+    ROWS.push(row);
+    resort(); save(); render();
+    // Jump straight into editing the new row's station cell.
+    var cell = document.querySelector('.ed-cell[data-row="' + row.id + '"][data-ch="sta"]');
+    if (cell) startEdit(cell);
+  }
+
+  // ── Tracker render — STA · Left drop · Width · Right drop, station ascending ──
   function render() {
     var body = $('ed-track-body');
+    if (!body) return;
     if (!ROWS.length) {
-      body.innerHTML = '<div class="ed-empty">No readings yet.</div>';
+      body.innerHTML = '<div class="ed-empty">No readings yet.<br>Tap “+ Add station row” or take a reading.</div>';
       return;
     }
-    var sorted = ROWS.slice().sort(function (a, b) { return a.ts < b.ts ? 1 : -1; });
-    body.innerHTML = sorted.map(function (r) {
-      var when = '';
-      try {
-        var d = new Date(r.ts);
-        when = d.toLocaleDateString() + ' ' +
-               d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-      } catch (e) {}
-      var del = '<button class="ed-del" data-del="' + r.id + '" title="Delete">✕</button>';
-      var emptyCell = '<div class="ed-cell ed-empty-cell">·</div>';
+    body.innerHTML = ROWS.map(function (r) {
+      var staCell = '<div class="ed-cell ed-sta-cell" data-row="' + r.id +
+        '" data-ch="sta">' + _esc(r.sta || '—') +
+        '<button class="ed-rowdel" data-rowdel="' + r.id + '" title="Delete row">✕</button></div>';
 
-      var dropCell = function () {
-        // Color by magnitude: 0–2" black, 2–4" orange, >4" red.
-        var ad = Math.abs(r.drop_in);
-        var cls = ad < 2 ? 'ed-d0' : (ad <= 4 ? 'ed-d2' : 'ed-d4');
-        var calc = r.manual ? 'manual entry'
-          : (r.b_in != null ? r.b_in.toFixed(2) + ' − ' + r.a_in.toFixed(2) + ' = ' +
-             r.drop_in.toFixed(2) + ' in' : '');
-        var attrs = ' data-type="drop" data-a="' + (r.a_in != null ? r.a_in.toFixed(2) : '—') +
-          '" data-b="' + (r.b_in != null ? r.b_in.toFixed(2) : '—') +
-          '" data-calc="' + _esc(calc) +
-          '" data-lat="' + (r.lat != null ? r.lat : '—') +
-          '" data-lng="' + (r.lng != null ? r.lng : '—') +
-          '" data-when="' + _esc(when) + '"';
-        return '<div class="ed-cell ed-val ' + cls + '"' + attrs + '>' +
-          r.drop_in.toFixed(2) + del + '</div>';
-      };
-      var widthCell = function () {
-        var attrs = ' data-type="width" data-c="' +
-          (r.width_ft != null ? r.width_ft.toFixed(2) : '—') +
-          '" data-manual="' + (r.manual ? '1' : '') +
-          '" data-lat="' + (r.lat != null ? r.lat : '—') +
-          '" data-lng="' + (r.lng != null ? r.lng : '—') +
-          '" data-when="' + _esc(when) + '"';
-        return '<div class="ed-cell ed-val ed-width"' + attrs + '>' +
-          (r.width_ft != null ? r.width_ft.toFixed(2) : '—') + del + '</div>';
-      };
-
-      return '<div class="ed-row">' +
-        '<div class="ed-cell ed-sta-cell">' + _esc(r.sta || '—') + '</div>' +
-        (r.side === 'L' ? dropCell() : emptyCell) +
-        (r.side === 'W' ? widthCell() : emptyCell) +
-        (r.side === 'R' ? dropCell() : emptyCell) +
-        '</div>';
+      function dropCell(side) {
+        var ch = r[side];
+        var has = ch && ch.drop_in != null;
+        var cls = 'ed-cell ed-val';
+        var txt = '·';
+        if (has) {
+          // Colour by magnitude: 0–2" black, 2–4" orange, >4" red.
+          var ad = Math.abs(ch.drop_in);
+          cls += ' ' + (ad < 2 ? 'ed-d0' : (ad <= 4 ? 'ed-d2' : 'ed-d4'));
+          txt = ch.drop_in.toFixed(2);
+        } else {
+          cls += ' ed-empty-cell';
+        }
+        return '<div class="' + cls + '" data-row="' + r.id +
+          '" data-ch="' + side + '">' + txt + '</div>';
+      }
+      function widthCell() {
+        var ch = r.W;
+        var has = ch && ch.width_ft != null;
+        return '<div class="ed-cell ed-val ' + (has ? 'ed-width' : 'ed-empty-cell') +
+          '" data-row="' + r.id + '" data-ch="W">' +
+          (has ? ch.width_ft.toFixed(2) : '·') + '</div>';
+      }
+      return '<div class="ed-row">' + staCell + dropCell('L') + widthCell() + dropCell('R') + '</div>';
     }).join('');
+  }
+
+  // ── Inline cell editing ──
+  function startEdit(cell) {
+    if (!cell || !document.body.contains(cell)) return;
+    if (cell.querySelector('input')) return;
+    hidePopup();
+    var rowId = cell.dataset.row, ch = cell.dataset.ch;
+    var row = ROWS.find(function (r) { return r.id === rowId; });
+    if (!row) return;
+    var cur = '';
+    if (ch === 'sta') cur = row.sta || '';
+    else if (ch === 'W') cur = (row.W && row.W.width_ft != null) ? +row.W.width_ft.toFixed(2) : '';
+    else cur = (row[ch] && row[ch].drop_in != null) ? +row[ch].drop_in.toFixed(2) : '';
+    var inp = document.createElement('input');
+    inp.className = 'ed-cell-input';
+    inp.type = ch === 'sta' ? 'text' : 'number';
+    if (ch !== 'sta') inp.step = '0.1';
+    inp.value = cur;
+    if (ch === 'sta') inp.placeholder = '0+00';
+    var keep = cell.querySelector('.ed-rowdel');
+    cell.textContent = '';
+    cell.appendChild(inp);
+    if (keep) cell.appendChild(keep);
+    inp.focus();
+    if (inp.select) try { inp.select(); } catch (e) {}
+    var done = false;
+    function commit() {
+      if (done) return;
+      done = true;
+      applyEdit(row, ch, inp.value);
+      resort(); save(); render();
+    }
+    inp.addEventListener('blur', commit);
+    inp.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); inp.blur(); }
+      else if (e.key === 'Escape') { done = true; render(); }
+    });
+  }
+
+  function applyEdit(row, ch, raw) {
+    raw = (raw == null ? '' : String(raw)).trim();
+    if (ch === 'sta') {
+      row.sta = raw;
+      row.sta_ft = parseSta(raw);
+      return;
+    }
+    if (raw === '') { row[ch] = null; return; }
+    var v = parseFloat(raw);
+    if (isNaN(v)) return;
+    var lat = _lat != null ? +_lat.toFixed(6) : null;
+    var lng = _lng != null ? +_lng.toFixed(6) : null;
+    var ts  = new Date().toISOString();
+    if (ch === 'W') {
+      if (row.W && row.W.width_ft === v) return;   // unchanged — keep original
+      row.W = { width_ft: v, manual: true, lat: lat, lng: lng, ts: ts };
+    } else {
+      if (row[ch] && row[ch].drop_in === v) return; // unchanged — keep original
+      row[ch] = { drop_in: v, a_in: null, b_in: null, manual: true,
+                  lat: lat, lng: lng, ts: ts };
+    }
   }
 
   // ── Hover popup ──
   var _popup = null;
+  function _fmtWhen(ts) {
+    try {
+      var d = new Date(ts);
+      return d.toLocaleDateString() + ' ' +
+             d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    } catch (e) { return '—'; }
+  }
   function showPopup(cell) {
     hidePopup();
+    var row = ROWS.find(function (r) { return r.id === cell.dataset.row; });
+    if (!row) return;
+    var ch = cell.dataset.ch;
+    if (ch === 'sta') return;
+    var data = row[ch];
+    var html;
+    if (ch === 'W') {
+      if (!data || data.width_ft == null) return;
+      html = '<div><b>Width (C distance):</b> ' + data.width_ft.toFixed(2) + ' ft' +
+             (data.manual ? ' (manual)' : '') + '</div>';
+    } else {
+      if (!data || data.drop_in == null) return;
+      var calc = data.manual ? 'manual entry'
+        : (data.b_in != null ? data.b_in.toFixed(2) + ' − ' + data.a_in.toFixed(2) +
+           ' = ' + data.drop_in.toFixed(2) + ' in' : data.drop_in.toFixed(2) + ' in');
+      html = '<div><b>A reading (ref):</b> ' + (data.a_in != null ? data.a_in.toFixed(2) : '—') + ' in</div>' +
+             '<div><b>B reading:</b> ' + (data.b_in != null ? data.b_in.toFixed(2) : '—') + ' in</div>' +
+             '<div><b>Edge drop:</b> ' + calc + '</div>';
+    }
+    html += '<div><b>GPS:</b> ' + (data.lat != null ? data.lat : '—') + ', ' +
+            (data.lng != null ? data.lng : '—') + '</div>' +
+            '<div><b>Logged:</b> ' + _fmtWhen(data.ts) + '</div>';
     _popup = document.createElement('div');
     _popup.className = 'ed-popup';
-    var html;
-    if (cell.dataset.type === 'width') {
-      html = '<div><b>Width (C distance):</b> ' + cell.dataset.c + ' ft' +
-             (cell.dataset.manual ? ' (manual)' : '') + '</div>';
-    } else {
-      html = '<div><b>A reading (ref):</b> ' + cell.dataset.a + ' in</div>' +
-             '<div><b>B reading:</b> ' + cell.dataset.b + ' in</div>' +
-             '<div><b>Edge drop:</b> ' + (cell.dataset.calc || '—') + '</div>';
-    }
-    html += '<div><b>GPS:</b> ' + cell.dataset.lat + ', ' + cell.dataset.lng + '</div>' +
-            '<div><b>Logged:</b> ' + (cell.dataset.when || '—') + '</div>';
     _popup.innerHTML = html;
     document.body.appendChild(_popup);
     var r = cell.getBoundingClientRect();
@@ -24340,21 +24559,27 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     $('ed-auto-sta').addEventListener('change', function () {
       if (this.checked) { _staFt = 0; _gpsLastLat = _lat; _gpsLastLng = _lng; $('ed-sta').value = '0+00'; }
     });
+    var addRowBtn = $('ed-add-row');
+    if (addRowBtn) addRowBtn.addEventListener('click', addBlankRow);
     var body = $('ed-track-body');
     body.addEventListener('click', function (e) {
-      var del = e.target.closest('[data-del]');
-      if (!del) return;
-      var id = del.dataset.del;
-      if (!window.confirm('Delete this edge-drop reading?')) return;
-      ROWS = ROWS.filter(function (r) { return r.id !== id; });
-      save(); render();
+      var del = e.target.closest('[data-rowdel]');
+      if (del) {
+        var id = del.dataset.rowdel;
+        if (!window.confirm('Delete this station row?')) return;
+        ROWS = ROWS.filter(function (r) { return r.id !== id; });
+        save(); render();
+        return;
+      }
+      var cell = e.target.closest('.ed-cell[data-ch]');
+      if (cell) startEdit(cell);
     });
     body.addEventListener('mouseover', function (e) {
-      var cell = e.target.closest('.ed-val');
-      if (cell) showPopup(cell);
+      var cell = e.target.closest('.ed-cell.ed-val');
+      if (cell && !cell.querySelector('input')) showPopup(cell);
     });
     body.addEventListener('mouseout', function (e) {
-      if (e.target.closest('.ed-val')) hidePopup();
+      if (e.target.closest('.ed-cell.ed-val')) hidePopup();
     });
 
     // ── Distance Measures panel ──
