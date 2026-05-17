@@ -7238,6 +7238,9 @@ body.mobile-mode #app {
             <option value="esri_aerial">Esri Aerial</option>
             <option value="esri_street">Esri Street</option>
             <option value="esri_topo">Esri Topo</option>
+            <option value="usgs_imagery">USGS Imagery</option>
+            <option value="usgs_topo">USGS Topo</option>
+            <option value="usgs_imagerytopo">USGS Imagery + Topo</option>
             <option value="nearmap">Nearmap Aerial 🔒</option>
             <option value="google_satellite">Google Satellite 🔒</option>
             <option value="google_hybrid">Google Hybrid 🔒</option>
@@ -7389,6 +7392,9 @@ body.mobile-mode #app {
             <button class="basemap-btn" data-map="esri_aerial">Esri Aerial</button>
             <button class="basemap-btn" data-map="esri_street">Esri Street</button>
             <button class="basemap-btn" data-map="esri_topo">Esri Topo</button>
+            <button class="basemap-btn" data-map="usgs_imagery">USGS Imagery</button>
+            <button class="basemap-btn" data-map="usgs_topo">USGS Topo</button>
+            <button class="basemap-btn" data-map="usgs_imagerytopo">USGS Img+Topo</button>
             <button class="basemap-btn" data-map="nearmap" title="Requires Nearmap API key">Nearmap</button>
             <button class="basemap-btn" data-map="google_satellite" title="Requires Google Maps API key">Google Sat</button>
             <button class="basemap-btn" data-map="google_hybrid" title="Requires Google Maps API key">Google Hybrid</button>
@@ -8133,6 +8139,9 @@ body.mobile-mode #app {
             <option value="esri_aerial">Aerial (Esri)</option>
             <option value="esri_street">Street (Esri)</option>
             <option value="esri_topo">Topo (Esri)</option>
+            <option value="usgs_imagery">Imagery (USGS)</option>
+            <option value="usgs_topo">Topo (USGS)</option>
+            <option value="usgs_imagerytopo">Imagery + Topo (USGS)</option>
             <option value="nearmap">Aerial (Nearmap)</option>
           </select></div>
         <div class="tcm-row"><label>Min zoom</label><select id="tcm-minz"></select></div>
@@ -9587,6 +9596,33 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
         { maxZoom: 19, attribution: 'Tiles © Esri' },
         'esri_topo'
+      ),
+    },
+    // USGS The National Map — free, public-domain, cacheable. ArcGIS REST
+    // tiles cached to native zoom 16; maxNativeZoom lets the map overzoom
+    // (upscale) past 16 instead of going blank.
+    usgs_imagery: {
+      label: 'USGS Imagery',
+      build: () => (window.offlineTileLayer || L.tileLayer)(
+        'https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}',
+        { maxZoom: 19, maxNativeZoom: 16, attribution: 'USGS · The National Map' },
+        'usgs_imagery'
+      ),
+    },
+    usgs_topo: {
+      label: 'USGS Topo',
+      build: () => (window.offlineTileLayer || L.tileLayer)(
+        'https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}',
+        { maxZoom: 19, maxNativeZoom: 16, attribution: 'USGS · The National Map' },
+        'usgs_topo'
+      ),
+    },
+    usgs_imagerytopo: {
+      label: 'USGS Imagery + Topo',
+      build: () => (window.offlineTileLayer || L.tileLayer)(
+        'https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryTopo/MapServer/tile/{z}/{y}/{x}',
+        { maxZoom: 19, maxNativeZoom: 16, attribution: 'USGS · The National Map' },
+        'usgs_imagerytopo'
       ),
     },
     nearmap: {
@@ -19409,6 +19445,13 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}' },
     nearmap:     { label: 'Aerial (Nearmap)', maxZoom: 24, keyName: 'nearmap',
       url: 'https://api.nearmap.com/tiles/v3/Vert/{z}/{x}/{y}.jpg?apikey={KEY}' },
+    // USGS The National Map — public domain, cached natively to zoom 16.
+    usgs_imagery:     { label: 'Imagery (USGS)', maxZoom: 16,
+      url: 'https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}' },
+    usgs_topo:        { label: 'Topo (USGS)', maxZoom: 16,
+      url: 'https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}' },
+    usgs_imagerytopo: { label: 'Imagery + Topo (USGS)', maxZoom: 16,
+      url: 'https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryTopo/MapServer/tile/{z}/{y}/{x}' },
   };
 
   // ── Web-mercator tile math ─────────────────────────────────────────────────
