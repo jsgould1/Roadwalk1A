@@ -19571,6 +19571,11 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     for (var c = 0; c < Math.min(CONC, tiles.length); c++) next();
   }
   // ── Export / import the whole cache as a file ──────────────────────────────
+  // Cache files use newline-delimited JSON (NDJSON): line 1 is a header
+  // object, every following line is one tile record. This avoids ever
+  // materialising the whole cache as a single JS string — `JSON.stringify`
+  // throws once a string passes the engine's ~512 MB limit, which is what
+  // failed before regardless of how much RAM the device has.
   function _tcmExport() {
     if (_tcmBusy) return;
     var ptxt = document.getElementById('tcm-progress-text');
@@ -19581,15 +19586,25 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     _tileCacheGetAll().then(function (recs) {
       if (!recs.length) { ptxt.textContent = 'Cache is empty — nothing to export.'; return; }
       ptxt.textContent = 'Building file for ' + recs.length.toLocaleString() + ' tiles…';
-      var payload = {
-        format: 'roadwalk-tiles', version: 1,
-        exported: new Date().toISOString(), count: recs.length, tiles: recs,
-      };
+      // Assemble the Blob from many small strings — a Blob is not bound by the
+      // string-length limit, so total size is limited only by disk/RAM.
+      var parts = [ JSON.stringify({
+        format: 'roadwalk-tiles', version: 2,
+        exported: new Date().toISOString(), count: recs.length,
+      }) + '\n' ];
       var blob;
       try {
-        blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+        for (var i = 0; i < recs.length; i++) {
+          var r = recs[i];
+          parts.push(JSON.stringify({
+            k: r.k, v: r.v, layer: r.layer, bytes: r.bytes || 0,
+          }) + '\n');
+          recs[i] = null;   // release the original record so peak RAM stays ~1×
+        }
+        blob = new Blob(parts, { type: 'application/x-ndjson' });
       } catch (e) {
-        ptxt.textContent = 'Export failed — cache is too large to package on this device.';
+        ptxt.textContent = 'Export failed — not enough free memory to build the ' +
+          'file. Clear unneeded layers, or export fewer zoom levels.';
         return;
       }
       var url = URL.createObjectURL(blob);
@@ -19606,6 +19621,37 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       ptxt.textContent = 'Export failed — could not read the cache.';
     });
   }
+  // Stream a file line-by-line so a multi-hundred-MB import never has to be
+  // held as one string. `onLine` is called per line; resolves when done.
+  function _streamFileLines(file, onLine) {
+    if (!file.stream) {
+      // Older engine — fall back to whole-file read (small files only).
+      return file.text().then(function (txt) {
+        txt.split('\n').forEach(function (ln) { if (ln) onLine(ln); });
+      });
+    }
+    var reader = file.stream().getReader();
+    var dec = new TextDecoder();
+    var buf = '';
+    return new Promise(function (resolve, reject) {
+      function pump() {
+        reader.read().then(function (res) {
+          if (res.value) {
+            buf += dec.decode(res.value, { stream: true });
+            var nl;
+            while ((nl = buf.indexOf('\n')) >= 0) {
+              var line = buf.slice(0, nl);
+              buf = buf.slice(nl + 1);
+              if (line) onLine(line);
+            }
+          }
+          if (res.done) { if (buf.trim()) onLine(buf); resolve(); return; }
+          pump();
+        }).catch(reject);
+      }
+      pump();
+    });
+  }
   function _tcmImport(file) {
     if (_tcmBusy || !file) return;
     var ptxt = document.getElementById('tcm-progress-text');
@@ -19614,21 +19660,38 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     var dlBtn = document.getElementById('tcm-download');
     ptxt.hidden = false;
     ptxt.textContent = 'Reading file…';
-    file.text().then(function (txt) {
-      var data;
-      try { data = JSON.parse(txt); }
-      catch (e) { throw new Error('not a valid cache file'); }
-      if (!data || data.format !== 'roadwalk-tiles' || !Array.isArray(data.tiles)) {
-        throw new Error('not a RoadWalk tile-cache file');
+    _tcmBusy = true;
+    if (dlBtn) dlBtn.disabled = true;
+    if (prog) prog.hidden = false;
+    if (bar)  bar.style.width = '0%';
+    var tiles = [];
+    var headerSeen = false, valid = false, lineNo = 0;
+    _streamFileLines(file, function (line) {
+      lineNo++;
+      var obj;
+      try { obj = JSON.parse(line); } catch (e) { return; }
+      if (!headerSeen) {
+        headerSeen = true;
+        if (obj && obj.format === 'roadwalk-tiles' && Array.isArray(obj.tiles)) {
+          // Legacy v1 file — the whole document was one JSON object.
+          valid = true;
+          tiles = obj.tiles;
+        } else if (obj && obj.format === 'roadwalk-tiles') {
+          valid = true;   // v2 header — tile records follow on later lines
+        }
+        return;
       }
-      if (!data.tiles.length) throw new Error('the file has no tiles');
-      _tcmBusy = true;
-      if (dlBtn) dlBtn.disabled = true;
-      if (prog) { prog.hidden = false; }
-      if (bar)  { bar.style.width = '0%'; }
-      return _tileCachePutAll(data.tiles, function (n, total) {
+      if (obj && obj.k && obj.v) tiles.push(obj);
+      if (lineNo % 500 === 0) {
+        ptxt.textContent = 'Reading file — ' + tiles.length.toLocaleString() + ' tiles…';
+      }
+    }).then(function () {
+      if (!valid) throw new Error('not a RoadWalk tile-cache file');
+      if (!tiles.length) throw new Error('the file has no tiles');
+      return _tileCachePutAll(tiles, function (n, total) {
         if (bar) bar.style.width = Math.round(n / total * 100) + '%';
-        ptxt.textContent = 'Importing ' + n.toLocaleString() + ' / ' + total.toLocaleString() + ' tiles';
+        ptxt.textContent = 'Importing ' + n.toLocaleString() + ' / ' +
+          total.toLocaleString() + ' tiles';
       });
     }).then(function (n) {
       if (n != null) ptxt.textContent = 'Imported ' + n.toLocaleString() + ' tiles into this device.';
