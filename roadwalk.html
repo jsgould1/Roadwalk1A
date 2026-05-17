@@ -12834,7 +12834,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       for (let i = 1; i < verts.length; i++) lengthFt += havFt(verts[i - 1], verts[i]);
       const [staFt] = projectOntoAlignment({ lat: verts[0][0], lng: verts[0][1] }, al.sec.alignment);
       const pin = {
-        id: '', kind: al.kind, source: 'user', status: 'pending',
+        id: '', kind: al.kind, source: 'AECOM', status: 'pending',
         geometry: { type: 'LineString', coordinates: verts.map(v => [v[1], v[0]]) },
         sta_ft: staFt,
         sta: staFt != null ? `${(staFt / 100 | 0)}+${(staFt % 100).toFixed(2).padStart(5, '0')}` : null,
@@ -14266,7 +14266,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       id: '',                         // filled by renumberPinsForKind below (mutable label)
       ulid: (typeof makeULID === 'function' ? makeULID() : ''), // canonical immutable id
       kind,
-      source: 'user',
+      source: 'AECOM',
       status: 'pending',
       geometry,
       sta_ft: staFt,
@@ -22608,8 +22608,11 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       case 'pt_sign':      // field-placed sign — same rich form as bundle signs
       case 'sign':         scrollEl.innerHTML = _renderSignForm(pin, sec);     break;
       case 'culvert':      scrollEl.innerHTML = _renderCulvertForm(pin, sec);  break;
-      case 'guardrail':    scrollEl.innerHTML = _renderGuardrailForm(pin, sec); break;
-      case 'wall':         scrollEl.innerHTML = _renderWallForm(pin, sec);     break;
+      case 'guardrail':
+      case 'ln_guardrail':  scrollEl.innerHTML = _renderGuardrailForm(pin, sec); break;
+      case 'wall':
+      case 'ln_retaining_wall':
+      case 'ln_barrier':    scrollEl.innerHTML = _renderWallForm(pin, sec);     break;
       case 'pavement':     scrollEl.innerHTML = _renderPavementForm(pin, sec); break;
       case 'overlook':     scrollEl.innerHTML = _renderOverlookForm(pin, sec); break;
       case 'ngs_monument': scrollEl.innerHTML = _renderMonumentForm(pin, sec); break;
@@ -22667,6 +22670,21 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   function _readonlyRow(label, val) {
     return '<div class="df-row"><span class="df-lbl">' + _esc(label) + '</span>' +
            '<span class="df-ctrl"><span class="df-readonly">' + _esc(val == null ? '—' : val) + '</span></span></div>';
+  }
+
+  // Source — where the feature came from. Field-drawn features are AECOM;
+  // pre-walk bundle features carry their dataset origin (NPS ESRI, RIP,
+  // WIP, GIP …). Editable so it can be set/corrected in the field.
+  function _sourceRow(pin) {
+    var a = pin.attrs || {};
+    var cur;
+    if (a.source) cur = a.source;
+    else if (pin.reported_in && pin.reported_in.length) cur = pin.reported_in.join(' / ');
+    else if (pin.source && pin.source !== 'user') cur = pin.source;
+    else cur = 'AECOM';
+    var SRC = ['AECOM', 'NPS ESRI', 'RIP', 'WIP', 'GIP', 'Other'];
+    if (SRC.indexOf(cur) < 0) SRC.unshift(cur);   // keep an existing value visible
+    return _selectRow('Source', 'source', cur, SRC.map(function (s) { return { v: s, l: s }; }));
   }
 
   // ── Condition roll-up ──────────────────────────────────────────────────────
@@ -22831,6 +22849,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       ];
 
       return _sectionHdr('LOCATION') +
+        _sourceRow(pin) +
         '<div class="df-row"><span class="df-lbl">Side</span>' +
           '<span class="df-ctrl"><div class="df-cond">' + sideBtns + '</div></span></div>' +
         _inputRow ('EOP Offset (ft)', 'eop_offset',    a.eop_offset,    'number') +
@@ -23158,6 +23177,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         _readonlyRow('Record ID', pin.id) +
         _readonlyRow('Section',   sec ? sec.name : '—') +
         _sectionHdr('LOCATION') +
+        _sourceRow(pin) +
         _readonlyRow('STA', pin.sta || '—') +
         '<div class="df-row"><span class="df-lbl">Side</span>' +
           '<span class="df-ctrl"><div class="df-cond">' + sideBtns + '</div></span></div>' +
@@ -23314,6 +23334,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     var crashOpts  = ['—','Yes — crashworthy','No — not crashworthy','Unknown'];
 
     return _sectionHdr('IDENTITY') +
+      _sourceRow(pin) +
       _readonlyRow('Pin ID',   pin.id) +
       _readonlyRow('Section',  sec ? sec.name : '—') +
       _readonlyRow('STA',      pin.sta || '—') +
@@ -23342,6 +23363,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     var functions_ = ['—','Cut slope retention','Fill slope retention','Roadway widening','Drainage channel','Other'];
 
     return _sectionHdr('IDENTITY') +
+      _sourceRow(pin) +
       _readonlyRow('Pin ID',   pin.id) +
       _readonlyRow('Section',  sec ? sec.name : '—') +
       _readonlyRow('STA',      pin.sta || '—') +
@@ -23682,6 +23704,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
 
     // ── Left column: fields ──────────────────────────────────────────────────
     var leftCol =
+      _sourceRow(pin) +
       '<div class="df-row"><span class="df-lbl">Side</span>' +
         '<span class="df-ctrl"><div class="df-cond">' + sideBtns + '</div></span></div>' +
       _inputRow('EOP Offset (ft)', 'eop_offset',   a.eop_offset,  'number') +
@@ -23737,6 +23760,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       .replace(/_/g,' ').replace(/\b\w/g, function(c){return c.toUpperCase();});
 
     return _sectionHdr(kindLabel.toUpperCase() + ' — IDENTITY') +
+      _sourceRow(pin) +
       _readonlyRow('Pin ID',  pin.id) +
       _readonlyRow('Section', sec ? sec.name : '—') +
       _readonlyRow('STA',     pin.sta || '—') +
@@ -23758,6 +23782,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     var surfaces   = ['—','Asphalt','Concrete','Chip Seal','Gravel','Brick/Stone','Other'];
 
     return _sectionHdr('IDENTITY') +
+      _sourceRow(pin) +
       _readonlyRow('Pin ID',   pin.id) +
       _readonlyRow('ULID',     pin.ulid || '—') +
       _readonlyRow('Section',  sec ? sec.name : '—') +
@@ -23791,6 +23816,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     var conditions = window._RW.SIGN_CONDITIONS || [];
 
     return _sectionHdr('IDENTITY') +
+      _sourceRow(pin) +
       _readonlyRow('Pin ID',     pin.id) +
       _readonlyRow('ULID',       pin.ulid || '—') +
       _readonlyRow('Section',    sec ? sec.name : '—') +
@@ -23816,6 +23842,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     var conditions = window._RW.SIGN_CONDITIONS || [];
 
     return _sectionHdr('IDENTITY') +
+      _sourceRow(pin) +
       _readonlyRow('Pin ID',     pin.id) +
       _readonlyRow('ULID',       pin.ulid || '—') +
       _readonlyRow('Section',    sec ? sec.name : '—') +
