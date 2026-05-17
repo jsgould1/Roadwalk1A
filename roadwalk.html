@@ -8077,6 +8077,15 @@ body.mobile-mode #app {
         <button class="tcm-btn" id="tcm-cancel" type="button">Close</button>
       </div>
 
+      <div class="tcm-sec">Transfer cache between devices</div>
+      <p class="tcm-note">Cache once, then export the tiles to a file. Copy that file
+        to another tablet and import it — no need to download the imagery again.</p>
+      <div class="tcm-actions">
+        <button class="tcm-btn" id="tcm-export" type="button">⬆ Export Cache File</button>
+        <button class="tcm-btn" id="tcm-import" type="button">⬇ Import Cache File</button>
+      </div>
+      <input type="file" id="tcm-import-input" accept=".json,application/json" style="display:none">
+
       <div class="tcm-sec tcm-danger">Clear cache</div>
       <div class="tcm-actions">
         <button class="tcm-btn tcm-btn-danger" id="tcm-clear-all" type="button">Clear All Tiles</button>
@@ -19112,6 +19121,42 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       });
     });
   }
+  // Every cached tile record — used by the export-to-file feature.
+  function _tileCacheGetAll() {
+    return openTileDB().then(function (db) {
+      return new Promise(function (res, rej) {
+        var rq = db.transaction(TILE_STORE, 'readonly').objectStore(TILE_STORE).getAll();
+        rq.onsuccess = function () { res(rq.result || []); };
+        rq.onerror   = function () { rej(rq.error); };
+      });
+    });
+  }
+  // Bulk-write tile records (from an imported file), chunked so the UI breathes.
+  function _tileCachePutAll(recs, onProgress) {
+    return openTileDB().then(function (db) {
+      return new Promise(function (res, rej) {
+        var i = 0, CHUNK = 400;
+        function putChunk() {
+          if (i >= recs.length) { res(recs.length); return; }
+          var tx = db.transaction(TILE_STORE, 'readwrite');
+          var store = tx.objectStore(TILE_STORE);
+          var end = Math.min(i + CHUNK, recs.length);
+          for (; i < end; i++) {
+            var t = recs[i];
+            if (t && t.k && t.v) {
+              store.put({ k: t.k, v: t.v, layer: t.layer, bytes: t.bytes || 0 });
+            }
+          }
+          tx.oncomplete = function () {
+            if (typeof onProgress === 'function') onProgress(i, recs.length);
+            putChunk();
+          };
+          tx.onerror = function () { rej(tx.error); };
+        }
+        putChunk();
+      });
+    });
+  }
   function _tileCacheStats(layerKey) {
     return openTileDB().then(function (db) {
       return new Promise(function (res) {
@@ -19460,6 +19505,77 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     update();
     for (var c = 0; c < Math.min(CONC, tiles.length); c++) next();
   }
+  // ── Export / import the whole cache as a file ──────────────────────────────
+  function _tcmExport() {
+    if (_tcmBusy) return;
+    var ptxt = document.getElementById('tcm-progress-text');
+    var prog = document.getElementById('tcm-progress');
+    if (prog) prog.hidden = true;
+    ptxt.hidden = false;
+    ptxt.textContent = 'Reading cache…';
+    _tileCacheGetAll().then(function (recs) {
+      if (!recs.length) { ptxt.textContent = 'Cache is empty — nothing to export.'; return; }
+      ptxt.textContent = 'Building file for ' + recs.length.toLocaleString() + ' tiles…';
+      var payload = {
+        format: 'roadwalk-tiles', version: 1,
+        exported: new Date().toISOString(), count: recs.length, tiles: recs,
+      };
+      var blob;
+      try {
+        blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+      } catch (e) {
+        ptxt.textContent = 'Export failed — cache is too large to package on this device.';
+        return;
+      }
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'roadwalk-tiles-' + new Date().toISOString().slice(0, 10) + '.json';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 5000);
+      ptxt.textContent = 'Exported ' + recs.length.toLocaleString() + ' tiles · ' +
+        (blob.size / 1048576).toFixed(1) + ' MB. Copy the file to another device and Import.';
+    }, function () {
+      ptxt.textContent = 'Export failed — could not read the cache.';
+    });
+  }
+  function _tcmImport(file) {
+    if (_tcmBusy || !file) return;
+    var ptxt = document.getElementById('tcm-progress-text');
+    var prog = document.getElementById('tcm-progress');
+    var bar  = document.getElementById('tcm-progress-bar');
+    var dlBtn = document.getElementById('tcm-download');
+    ptxt.hidden = false;
+    ptxt.textContent = 'Reading file…';
+    file.text().then(function (txt) {
+      var data;
+      try { data = JSON.parse(txt); }
+      catch (e) { throw new Error('not a valid cache file'); }
+      if (!data || data.format !== 'roadwalk-tiles' || !Array.isArray(data.tiles)) {
+        throw new Error('not a RoadWalk tile-cache file');
+      }
+      if (!data.tiles.length) throw new Error('the file has no tiles');
+      _tcmBusy = true;
+      if (dlBtn) dlBtn.disabled = true;
+      if (prog) { prog.hidden = false; }
+      if (bar)  { bar.style.width = '0%'; }
+      return _tileCachePutAll(data.tiles, function (n, total) {
+        if (bar) bar.style.width = Math.round(n / total * 100) + '%';
+        ptxt.textContent = 'Importing ' + n.toLocaleString() + ' / ' + total.toLocaleString() + ' tiles';
+      });
+    }).then(function (n) {
+      if (n != null) ptxt.textContent = 'Imported ' + n.toLocaleString() + ' tiles into this device.';
+    }).catch(function (err) {
+      ptxt.textContent = 'Import failed — ' + ((err && err.message) || 'unknown error') + '.';
+    }).then(function () {
+      _tcmBusy = false;
+      if (dlBtn) dlBtn.disabled = false;
+      _tcmStatus();
+      _redrawBasemap();
+    });
+  }
   function _openTileCacheModal() {
     var m = document.getElementById('tile-cache-modal');
     if (!m) return;
@@ -19504,6 +19620,15 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     });
     on('tcm-estimate', 'click', _tcmEstimate);
     on('tcm-download', 'click', _tcmDownload);
+    on('tcm-export', 'click', _tcmExport);
+    on('tcm-import', 'click', function () {
+      var inp = document.getElementById('tcm-import-input');
+      if (inp) inp.click();
+    });
+    on('tcm-import-input', 'change', function () {
+      if (this.files && this.files[0]) _tcmImport(this.files[0]);
+      this.value = '';
+    });
     on('tcm-clear-all', 'click', function () {
       if (_tcmBusy || !window.confirm('Clear ALL cached map tiles?')) return;
       _tileCacheClear().then(function () { _tcmStatus(); _redrawBasemap(); });
