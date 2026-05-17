@@ -588,6 +588,8 @@ a { color: inherit; text-decoration: none; }
 #map-north-btn .ctl-icon { color: #D32F2F !important; }
 /* Locate button highlights Google blue when CL is on */
 #map-locate-btn.cl-on .ctl-icon { color: #1A73E8; }
+/* SLD toggle button highlights blue while the alignment strip is open */
+#map-sld-btn.sld-on .ctl-icon { color: #1A73E8; }
 /* External GPS (Web Serial) connect button — colour reflects state */
 #map-gps-btn.gps-connecting .ctl-icon { color: #d97706; }
 #map-gps-btn.gps-on  .ctl-icon { color: #b45309; }
@@ -7149,6 +7151,13 @@ body.mobile-mode #app {
                     fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           </button>
+          <button class="map-ctl-btn" id="map-sld-btn" title="Show / hide the alignment strip (SLD)" aria-label="Toggle alignment strip">
+            <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true" class="ctl-icon">
+              <rect x="2" y="6" width="16" height="8" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.7"/>
+              <line x1="2.8" y1="10" x2="17.2" y2="10" stroke="currentColor" stroke-width="1.1" stroke-dasharray="2 1.6"/>
+              <line x1="10" y1="3.8" x2="10" y2="16.2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+            </svg>
+          </button>
           <button class="map-ctl-btn" id="map-locate-btn" title="Fly to my GPS location" aria-label="Locate me">
             <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true" class="ctl-icon">
               <circle cx="10" cy="10" r="6" fill="none" stroke="currentColor" stroke-width="1.8"/>
@@ -11933,6 +11942,9 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   let stripOpen = false;
   let stripCenterSta = 0;
   let stripCurrentSec = null;
+  // Last section the SLD showed — kept so the SLD can be re-opened after the
+  // user closes it (closeStrip clears stripCurrentSec, this one persists).
+  let lastStripSec = null;
 
   // Restore saved strip sizes from previous session
   {
@@ -12131,11 +12143,13 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
 
   function openStrip(sec, clickStaFt) {
     stripCurrentSec = sec;
+    lastStripSec = sec;
     stripCenterSta = clickStaFt;
     const strip = $('#alignment-strip');
     strip.classList.add('open');
     strip.classList.remove('collapsed');
     stripOpen = true;
+    $('#map-sld-btn')?.classList.add('sld-on');
     // Restore saved dock position (default: top for the horizontal SLD view)
     // Docking restricted to Top + Right; coerce legacy left/bottom values
     let savedPos = localStorage.getItem('rw_strip_pos') || 'top';
@@ -12163,6 +12177,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     delete $('#map-stage').dataset.strip;   // let map fill full width again
     stripOpen = false;
     stripCurrentSec = null;
+    $('#map-sld-btn')?.classList.remove('sld-on');
     updateStripCenterMapMarker(null, null);   // remove the dot
     // Unwire map→SLD sync
     if (state.map && state.map._rwMapMoveHandler) {
@@ -12172,6 +12187,17 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     setTimeout(() => state.map && state.map.invalidateSize(), 250);
   }
   $('#strip-close').addEventListener('click', closeStrip);
+
+  // Map-control toggle: re-open the SLD after an accidental close, or hide it.
+  $('#map-sld-btn')?.addEventListener('click', () => {
+    if (stripOpen) { closeStrip(); return; }
+    const sec = stripCurrentSec || lastStripSec;
+    if (sec) {
+      openStrip(sec, stripCenterSta || 0);
+    } else {
+      alert('Tap the route line on the map to open the alignment strip (SLD).');
+    }
+  });
   // Aerial source picker
   $('#strip-aerial-select')?.addEventListener('change', (e) => {
     if (!stripCurrentSec) return;
@@ -16841,6 +16867,8 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     if (!stripOpen) {
       $('#alignment-strip')?.classList.add('open');
       stripOpen = true;
+      lastStripSec = sec;
+      $('#map-sld-btn')?.classList.add('sld-on');
       setTimeout(() => state.map && state.map.invalidateSize(), 250);
     }
     updateStripCenterMapMarker(sec, newSta);
