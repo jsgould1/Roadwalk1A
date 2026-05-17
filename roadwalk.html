@@ -550,7 +550,7 @@ a { color: inherit; text-decoration: none; }
 .map-ctl-stack {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 8px;
   align-items: flex-end;
   pointer-events: auto;
 }
@@ -590,14 +590,33 @@ a { color: inherit; text-decoration: none; }
 #map-locate-btn.cl-on .ctl-icon { color: #1A73E8; }
 /* SLD toggle button highlights blue while the alignment strip is open */
 #map-sld-btn.sld-on .ctl-icon { color: #1A73E8; }
-/* External GPS (Web Serial) connect button — colour reflects state */
+/* External GPS (Web Serial) dock — bottom-left of the map */
+.gps-dock {
+  position: absolute;
+  left: 10px; bottom: 10px;
+  z-index: 620;
+  display: flex; align-items: center; gap: 7px;
+  pointer-events: none;            /* dock itself is click-through... */
+  transition: transform 0.22s ease;
+}
+.gps-dock > * { pointer-events: auto; }   /* ...but its controls are not */
+/* Slide the dock clear when the Edge Drop panel is open */
+.map-stage.ed-open .gps-dock { transform: translateX(var(--ed-w, 308px)); }
 #map-gps-btn.gps-connecting .ctl-icon { color: #d97706; }
 #map-gps-btn.gps-on  .ctl-icon { color: #b45309; }
 #map-gps-btn.gps-fix .ctl-icon { color: #15803d; }
-#map-gps-btn .gps-badge {
-  position: absolute; bottom: 1px; right: 2px;
-  font: 700 7px/1 'IBM Plex Mono', monospace;
-  color: #15803d;
+.gps-readout {
+  background: rgba(255,255,255,0.95);
+  border-radius: 6px;
+  padding: 5px 9px;
+  font: 700 11px/1.2 'IBM Plex Mono', monospace;
+  color: var(--ink-1, #222);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.28);
+  white-space: nowrap;
+}
+.gps-readout[hidden] { display: none; }
+.gps-readout .gps-rd-sub {
+  font-weight: 600; font-size: 9px; color: var(--ink-3, #888);
 }
 
 /* Basemap control — opacity slider + dropdown, bottom-right L.Control */
@@ -2624,7 +2643,7 @@ a { color: inherit; text-decoration: none; }
 .fp-left-stack {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 8px;
   pointer-events: auto;
 }
 .feature-picker {
@@ -3723,7 +3742,7 @@ a { color: inherit; text-decoration: none; }
   .tally-btn { height: 46px; padding: 0 16px; font-size: 12px; }
   .action-btn { font-size: 11px; }
   .action-btn .glyph { font-size: 22px; }
-  .map-ctl-stack { gap: 3px; }
+  .map-ctl-stack { gap: 6px; }
 
   /* On tablet, ribbons are useful by default — there's room. */
   /* (set in JS — see initial state) */
@@ -6937,9 +6956,6 @@ body.mobile-mode #app {
 
         <!-- Feature picker — toggle button + collapsible panel, anchored topleft -->
         <div class="fp-left-stack" id="fp-left-stack">
-          <button class="map-ctl-btn" id="map-new-section-btn" title="New section">
-            <span style="font-size:18px;line-height:1;font-weight:600;">+</span>
-          </button>
           <button class="map-ctl-btn" id="fp-toggle-btn" title="Add Feature (Insert)">
             <span style="font-size:16px;line-height:1;">⚡</span>
           </button>
@@ -7122,17 +7138,6 @@ body.mobile-mode #app {
               <path d="M5.5 7 L10.5 7 L10 13 L9 21 L7 21 L6 13 Z" fill="#1A73E8"/>
             </svg>
           </button>
-          <!-- Adjust alignment: trace a corrected CL over the aerial, re-drape pins -->
-          <button class="map-ctl-btn" id="adjust-cl-btn"
-                  title="Adjust centerline — trace corrected alignment over aerial" hidden>
-            <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true" class="ctl-icon">
-              <!-- road line -->
-              <path d="M2 15 Q7 5 18 7" fill="none" stroke="currentColor" stroke-width="1.8"
-                    stroke-linecap="round"/>
-              <!-- pencil tip -->
-              <path d="M15 3 L17 5 L10 12 L8 12 L8 10 Z" fill="currentColor"/>
-            </svg>
-          </button>
           <button class="map-ctl-btn" id="cl-toggle-btn" title="Show / hide road centerline">
             <svg viewBox="0 0 22 16" width="20" height="16" aria-hidden="true" class="ctl-icon">
               <path d="M1 8 C 4 2, 18 2, 21 8 C 18 14, 4 14, 1 8 Z" fill="none" stroke="currentColor" stroke-width="1.6"/>
@@ -7168,13 +7173,6 @@ body.mobile-mode #app {
               <line x1="17" y1="10"  x2="19.5" y2="10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
             </svg>
           </button>
-          <button class="map-ctl-btn" id="map-gps-btn" title="Connect a Bluetooth GPS receiver (Garmin GLO etc.)" aria-label="Connect GPS receiver">
-            <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true" class="ctl-icon">
-              <circle cx="10" cy="14.5" r="2.4" fill="currentColor"/>
-              <path d="M5.5 11 A6.4 6.4 0 0 1 14.5 11" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-              <path d="M3 8.2 A10 10 0 0 1 17 8.2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-            </svg>
-          </button>
           <button class="map-ctl-btn" id="map-rotate-btn" title="Rotate map +15° (Shift+click for −15°)" aria-label="Rotate map">
             <svg id="rotate-bearing-svg" viewBox="0 0 20 20" width="18" height="18" aria-hidden="true" class="ctl-icon"
                  style="transform-origin:center;transition:transform 0.2s ease;">
@@ -7194,6 +7192,20 @@ body.mobile-mode #app {
             </svg>
           </button>
         </div>
+        <!-- External GPS receiver — bottom-left dock: connect button + live lat/lng -->
+        <div class="gps-dock" id="gps-dock">
+          <button class="map-ctl-btn" id="map-gps-btn"
+                  title="Connect a Bluetooth GPS receiver (Garmin GLO etc.)"
+                  aria-label="Connect GPS receiver">
+            <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true" class="ctl-icon">
+              <circle cx="10" cy="14.5" r="2.4" fill="currentColor"/>
+              <path d="M5.5 11 A6.4 6.4 0 0 1 14.5 11" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+              <path d="M3 8.2 A10 10 0 0 1 17 8.2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+            </svg>
+          </button>
+          <span class="gps-readout" id="gps-readout" hidden></span>
+        </div>
+
         <!-- Basemap dropdown + opacity slider — bottom-right L.Control -->
         <div class="basemap-ctrl">
           <div class="basemap-opacity-row">
@@ -16149,8 +16161,8 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     $('#trace-banner').classList.add('open');
   });
 
-  // --- Adjust CL button (field view, linear sections) ---
-  $('#adjust-cl-btn').addEventListener('click', () => {
+  // --- Adjust CL button (removed from the UI; guard kept for any stragglers) ---
+  $('#adjust-cl-btn')?.addEventListener('click', () => {
     const sec = SECTIONS.find(s => s.id === state.sectionId);
     if (sec) startCLAdjust(sec);
   });
@@ -25095,23 +25107,29 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   };
   window.RWGps = RWGps;
 
-  var btn = document.getElementById('map-gps-btn');
+  var btn     = document.getElementById('map-gps-btn');
+  var readout = document.getElementById('gps-readout');
+
+  // Refresh the lat/lng readout shown to the right of the connect button.
+  function updateReadout() {
+    if (!readout) return;
+    if (!RWGps.connected) { readout.hidden = true; readout.textContent = ''; return; }
+    readout.hidden = false;
+    if (RWGps.last) {
+      var sub = RWGps.last.sats != null ? '  ·  ' + RWGps.last.sats + ' sat' : '';
+      readout.textContent = RWGps.last.lat.toFixed(6) + ', ' +
+        RWGps.last.lng.toFixed(6) + sub;
+    } else {
+      readout.textContent = 'acquiring…';
+    }
+  }
 
   function setBtn(cls) {
-    if (!btn) return;
-    btn.classList.remove('gps-connecting', 'gps-on', 'gps-fix');
-    if (cls) btn.classList.add(cls);
-    var badge = btn.querySelector('.gps-badge');
-    if (RWGps.connected && RWGps.last && RWGps.last.sats != null) {
-      if (!badge) {
-        badge = document.createElement('span');
-        badge.className = 'gps-badge';
-        btn.appendChild(badge);
-      }
-      badge.textContent = RWGps.last.sats;
-    } else if (badge) {
-      badge.remove();
+    if (btn) {
+      btn.classList.remove('gps-connecting', 'gps-on', 'gps-fix');
+      if (cls) btn.classList.add(cls);
     }
+    updateReadout();
   }
 
   // ── NMEA helpers ───────────────────────────────────────────────────────────
