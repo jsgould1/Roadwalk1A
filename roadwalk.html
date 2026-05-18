@@ -2635,6 +2635,9 @@ a { color: inherit; text-decoration: none; }
   z-index: 5;
 }
 
+/* Left-stack toggle button in its "off" state (e.g. ↔W width labels hidden) */
+.map-ctl-btn.ctl-off { opacity: 0.4; }
+
 /* --- Feature form — simple right slide-out --- */
 .ff-scrim {
   position: fixed; inset: 0; z-index: 1200;
@@ -7370,6 +7373,11 @@ body.mobile-mode #app {
           <!-- Field photos — geolocated photo markers -->
           <button class="map-ctl-btn" id="photos-toggle-btn" title="Field photos">
             <span style="font-size:15px;line-height:1;">📷</span>
+          </button>
+
+          <!-- Roadway-width labels — show / hide on the map + SLD -->
+          <button class="map-ctl-btn" id="width-toggle-btn" title="Show / hide roadway-width labels (map + SLD)">
+            <span style="font-size:13px;line-height:1;font-weight:800;">↔W</span>
           </button>
 
           <!-- Field-photos panel — floats right of the stack when open -->
@@ -15745,6 +15753,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   // (x+25 / x+75) so labels sit on a tidy 50-ft grid — one per slot, latest
   // reading wins. Shown on the map only at zoom 16+, and on the SLD strip.
   const WIDTH_LABEL_MIN_ZOOM = 16;
+  let _widthLabelsOn = true;   // toggled by the ↔W left-stack button
 
   function _collectSectionWidths(sec) {
     if (!sec || !sec.alignment || sec.alignment.length < 2) return [];
@@ -15783,6 +15792,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       state.map.removeLayer(state.mapLayers.widthLabels);
       state.mapLayers.widthLabels = null;
     }
+    if (!_widthLabelsOn) return;
     const sec = SECTIONS.find(s => s.id === state.sectionId);
     if (!sec || !sec.alignment || sec.alignment.length < 2) return;
     if (state.map.getZoom() < WIDTH_LABEL_MIN_ZOOM) return;
@@ -15811,6 +15821,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     const canvas = document.getElementById('strip-canvas');
     if (!inner || !canvas || !stripCurrentSec) return;
     inner.querySelectorAll('.strip-width-lbl').forEach(el => el.remove());
+    if (!_widthLabelsOn) return;
     const totalFt = parseFloat(canvas.dataset.totalFt) || 0;
     if (!totalFt) return;
     const widths = _collectSectionWidths(stripCurrentSec);
@@ -15826,6 +15837,20 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       el.style[axisKey]  = ((w.sta / totalFt) * 100) + '%';
       el.style[crossKey] = '50%';
       inner.appendChild(el);
+    }
+  }
+
+  // Wire the ↔W left-stack button — show / hide width labels on map + SLD.
+  {
+    const _wBtn = document.getElementById('width-toggle-btn');
+    if (_wBtn) {
+      _wBtn.classList.toggle('ctl-off', !_widthLabelsOn);
+      _wBtn.addEventListener('click', () => {
+        _widthLabelsOn = !_widthLabelsOn;
+        _wBtn.classList.toggle('ctl-off', !_widthLabelsOn);
+        _renderWidthLabels();
+        _renderStripWidths();
+      });
     }
   }
 
