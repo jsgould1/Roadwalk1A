@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Full-bleed navy background — safe for both "any" and "maskable" use -->
+  <rect width="512" height="512" fill="#0B3D66"/>
+  <!-- Perspective road -->
+  <path d="M210 152 L302 152 L398 402 L114 402 Z" fill="#EAE5D8"/>
+  <!-- Dashed centre line -->
+  <path d="M256 170 L256 388" fill="none" stroke="#0B3D66"
+        stroke-width="22" stroke-dasharray="38 30"/>
+  <!-- Location pin sitting at the head of the road -->
+  <circle cx="256" cy="120" r="52" fill="#E8A838"/>
+  <circle cx="256" cy="120" r="21" fill="#0B3D66"/>
+</svg>

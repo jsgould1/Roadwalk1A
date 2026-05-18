@@ -12,6 +12,38 @@
 <meta name="theme-color" content="#F5F1EA">
 <title>RoadWalk · AECOM Pavement · v20260514</title>
 
+<!-- PWA: installable to the home screen + offline-capable app shell -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="icon" href="icon.svg">
+<meta name="apple-mobile-web-app-title" content="RoadWalk">
+<script>
+  /* Register the service worker (offline app-shell cache) and ask the browser
+     to keep RoadWalk's field data from being evicted under storage pressure.
+     Both are no-ops on insecure origins (e.g. file://) and degrade silently. */
+  (function () {
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('sw.js').then(function () {
+          console.log('[RoadWalk] Service worker active — app shell cached for offline use.');
+        }).catch(function (err) {
+          console.warn('[RoadWalk] Service worker registration failed:', err);
+        });
+      });
+    }
+    if (navigator.storage && navigator.storage.persist) {
+      navigator.storage.persisted().then(function (already) {
+        if (already) { console.log('[RoadWalk] Persistent storage already granted.'); return; }
+        return navigator.storage.persist().then(function (granted) {
+          console.log('[RoadWalk] Persistent storage ' +
+            (granted ? 'granted — field data is protected from automatic eviction.'
+                     : 'not granted — export your project regularly as a backup.'));
+        });
+      }).catch(function () { /* Storage API unavailable — ignore */ });
+    }
+  })();
+</script>
+
 <!-- IBM Plex via Google Fonts. Production: bundle locally. -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

@@ -1,0 +1,19 @@
+{
+  "name": "RoadWalk — AECOM Pavement Inspection",
+  "short_name": "RoadWalk",
+  "description": "Field data collection for roadway and parking-lot pavement inspections.",
+  "start_url": "./roadwalk.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#F5F1EA",
+  "theme_color": "#0B3D66",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
