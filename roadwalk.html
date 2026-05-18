@@ -7113,6 +7113,11 @@ body.mobile-mode #app {
           <!-- Add a blank station row to fill in by hand -->
           <button class="ed-addrow" id="ed-add-row" type="button">+ Add station row</button>
 
+          <!-- Attach these readings to ln_edge_drop line features by GPS -->
+          <button class="ed-addrow" id="ed-sync-features" type="button"
+                  title="Snap every GPS-stamped reading onto the Edge Drop line features in the current section">
+            📎 Sync depths to Edge Drop features</button>
+
           <!-- Tracker: STA · Left edge-drop · Width · Right edge-drop.
                Every cell is tap-to-edit; readings merge onto the row that
                matches the current station, sorted by station ascending. -->
@@ -15089,6 +15094,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       kind: kind || 'user_line', code, tool: 'line',
       side: side || 'C', offsetFt: +offsetFt || 0, snap: snap !== false,
       vertices: [], polyLayer: null, paused: false,
+      _startTs: Date.now(),               // for Edge Drop reading time-window
       colorIdx, color: WALK_TRACK_COLORS[colorIdx],
     };
     walkTracks.push(track);
@@ -15144,6 +15150,15 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       pin.attrs.offset_side = t.side;
       pin.attrs.offset_ft   = t.offsetFt;
     }
+    // Edge Drop track: auto-attach the depth readings taken during this walk.
+    let edN = 0;
+    if (pin && t.kind === 'ln_edge_drop') {
+      const samples = _collectEdgeDropSamples(pin, {
+        window: { from: t._startTs - 5000, to: Date.now() },
+      });
+      _applyDepthSummary(pin, samples);
+      edN = samples.length;
+    }
     initOrUpdateMap(sec);
     // Re-assert any still-recording tracks' preview lines in case the map
     // re-render dropped them.
@@ -15154,7 +15169,8 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     }
     if (typeof renderStrip === 'function' && stripCurrentSec === sec) renderStrip();
     _rwToast(`${pin.id || t.code} saved · ${Math.round(pin.attrs?.length_ft || 0)} ft` +
-             (snapped ? ' · snapped to CL' : ''));
+             (snapped ? ' · snapped to CL' : '') +
+             (edN ? ` · ${edN} depth${edN !== 1 ? 's' : ''}` : ''));
   }
 
   // Open the side/offset dialog before starting a walk track for `kind`.
@@ -15173,6 +15189,87 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     $('#wt-dlg-err').textContent = '';
     $('#wt-overlay').hidden = false;
   }
+
+  // ── Edge Drop depth integration ─────────────────────────────────────────
+  // Snap GPS / station-stamped Edge Drop readings onto an ln_edge_drop line
+  // feature, producing a distance-along depth profile (attrs._depth_samples).
+
+  function _applyDepthSummary(pin, samples) {
+    pin.attrs = pin.attrs || {};
+    pin.attrs._depth_samples = samples;
+    const drops = samples.filter(s => s.depth_in != null).map(s => Math.abs(s.depth_in));
+    if (drops.length) {
+      pin.attrs.edge_drop_count  = drops.length;
+      pin.attrs.edge_drop_max_in = +Math.max.apply(null, drops).toFixed(2);
+      pin.attrs.edge_drop_avg_in = +(drops.reduce((a, b) => a + b, 0) / drops.length).toFixed(2);
+    } else {
+      delete pin.attrs.edge_drop_count;
+      delete pin.attrs.edge_drop_max_in;
+      delete pin.attrs.edge_drop_avg_in;
+    }
+  }
+
+  // Build the depth-sample list for one ln_edge_drop line pin.
+  // opts.window {from,to} (ms epoch) limits to readings taken in that span.
+  function _collectEdgeDropSamples(pin, opts) {
+    opts = opts || {};
+    if (!pin || !pin.geometry || pin.geometry.type !== 'LineString') return [];
+    const readings = (window.RWEdgeDrop && window.RWEdgeDrop.getReadings)
+                   ? window.RWEdgeDrop.getReadings() : [];
+    if (!readings.length) return [];
+    const line = pin.geometry.coordinates.map(c => [c[1], c[0]]);  // [lat,lng]
+    if (line.length < 2) return [];
+    let totalLen = 0;
+    for (let i = 1; i < line.length; i++) totalLen += havFt(line[i-1], line[i]);
+    const maxPerp = opts.maxPerpFt || 60;
+    const win = opts.window || null;
+    const samples = [];
+    for (const rd of readings) {
+      if (win && rd.ts) {
+        const t = Date.parse(rd.ts);
+        if (isFinite(t) && (t < win.from || t > win.to)) continue;
+      }
+      let along = null;
+      if (rd.lat != null && rd.lng != null) {
+        const pr = projectOntoAlignment({ lat: rd.lat, lng: rd.lng }, line);
+        if (pr[1] <= maxPerp) along = pr[0];          // GPS snap
+      }
+      if (along == null && rd.sta_ft != null && pin.sta_ft != null) {
+        const rel = rd.sta_ft - pin.sta_ft;           // station fallback
+        if (rel >= -10 && rel <= totalLen + 10) along = Math.max(0, Math.min(totalLen, rel));
+      }
+      if (along == null) continue;
+      samples.push({
+        dist_along_ft: +along.toFixed(1),
+        channel: rd.channel,
+        depth_in: rd.drop_in  != null ? +rd.drop_in  : null,
+        width_ft: rd.width_ft != null ? +rd.width_ft : null,
+        sta: rd.sta, lat: rd.lat, lng: rd.lng, ts: rd.ts, manual: rd.manual,
+      });
+    }
+    samples.sort((a, b) => a.dist_along_ft - b.dist_along_ft);
+    return samples;
+  }
+
+  // Re-sync every Edge Drop line feature in the active section from the
+  // Edge Drop panel's current readings — the "drawn line" GPS-sync path.
+  window._rwSyncEdgeDropToFeatures = function () {
+    const sec = SECTIONS.find(s => s.id === state.sectionId);
+    if (!sec) { _rwToast('Open a section first'); return; }
+    const eds = (sec.pins || []).filter(p =>
+      p.kind === 'ln_edge_drop' && p.geometry && p.geometry.type === 'LineString');
+    if (!eds.length) { _rwToast('No Edge Drop line features in this section'); return; }
+    let total = 0;
+    for (const pin of eds) {
+      const samples = _collectEdgeDropSamples(pin, {});
+      _applyDepthSummary(pin, samples);
+      total += samples.length;
+    }
+    initOrUpdateMap(sec);
+    if (typeof renderStrip === 'function' && stripCurrentSec === sec) renderStrip();
+    _rwToast(`Synced ${total} reading${total !== 1 ? 's' : ''} → ` +
+             `${eds.length} Edge Drop feature${eds.length !== 1 ? 's' : ''}`);
+  };
 
   // --- Floating feature picker -------------------------------------------
   // Categories built from FEATURE_CATALOG. Each group is collapsible (click
@@ -25734,6 +25831,32 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   }
   function save() { try { localStorage.setItem(LS, JSON.stringify(ROWS)); } catch (e) {} }
 
+  // Bridge for the map module: a flat list of GPS / station-stamped readings,
+  // so Edge Drop depths can be attached to ln_edge_drop line features.
+  window.RWEdgeDrop = {
+    getReadings: function () {
+      var out = [];
+      ROWS.forEach(function (r) {
+        ['L', 'W', 'R'].forEach(function (ch) {
+          var c = r[ch];
+          if (!c) return;
+          out.push({
+            channel:  ch,
+            sta:      r.sta || null,
+            sta_ft:   r.sta_ft != null ? r.sta_ft : null,
+            drop_in:  ch === 'W' ? null : (c.drop_in  != null ? c.drop_in  : null),
+            width_ft: ch === 'W' ? (c.width_ft != null ? c.width_ft : null) : null,
+            lat:      c.lat != null ? c.lat : null,
+            lng:      c.lng != null ? c.lng : null,
+            ts:       c.ts  || null,
+            manual:   !!c.manual,
+          });
+        });
+      });
+      return out;
+    },
+  };
+
   // ── Station-keyed row helpers ──────────────────────────────────────────────
   function genId() { return 'ed' + Date.now() + Math.random().toString(36).slice(2, 5); }
 
@@ -26375,6 +26498,14 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     });
     var addRowBtn = $('ed-add-row');
     if (addRowBtn) addRowBtn.addEventListener('click', addBlankRow);
+    var syncBtn = $('ed-sync-features');
+    if (syncBtn) syncBtn.addEventListener('click', function () {
+      if (typeof window._rwSyncEdgeDropToFeatures === 'function') {
+        window._rwSyncEdgeDropToFeatures();
+      } else {
+        alert('Open a section in the Map module first.');
+      }
+    });
     var body = $('ed-track-body');
     body.addEventListener('click', function (e) {
       var del = e.target.closest('[data-rowdel]');
