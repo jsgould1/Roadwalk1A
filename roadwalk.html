@@ -2659,20 +2659,21 @@ a { color: inherit; text-decoration: none; }
   pointer-events: auto;
 }
 /* Add Feature — the primary, most-tapped control: large, colourful,
-   and set apart from the rest of the stack. */
-#fp-toggle-btn {
+   and set apart from the rest of the stack. (#fp-toggle-btn-2 is the
+   matching copy at the top of the right-hand control stack.) */
+#fp-toggle-btn, #fp-toggle-btn-2 {
   width: 48px; height: 48px;
   margin-bottom: 12px;
   background: linear-gradient(150deg, #34d058 0%, #15803d 100%);
   box-shadow: 0 2px 9px rgba(0,0,0,0.38);
 }
-#fp-toggle-btn:hover  { background: linear-gradient(150deg, #3ee066 0%, #1a9148 100%); }
-#fp-toggle-btn:active { background: linear-gradient(150deg, #15803d 0%, #0f5f2e 100%); }
-#fp-toggle-btn .fp-plus {
+#fp-toggle-btn:hover,  #fp-toggle-btn-2:hover  { background: linear-gradient(150deg, #3ee066 0%, #1a9148 100%); }
+#fp-toggle-btn:active, #fp-toggle-btn-2:active { background: linear-gradient(150deg, #15803d 0%, #0f5f2e 100%); }
+#fp-toggle-btn .fp-plus, #fp-toggle-btn-2 .fp-plus {
   font: 800 34px/1 'IBM Plex Sans', sans-serif;
   color: #fff;
 }
-#fp-toggle-btn.on { box-shadow: 0 0 0 3px var(--blue), 0 2px 9px rgba(0,0,0,0.38); }
+#fp-toggle-btn.on, #fp-toggle-btn-2.on { box-shadow: 0 0 0 3px var(--blue), 0 2px 9px rgba(0,0,0,0.38); }
 /* Add Feature — bottom slide-up sheet (sits above tally / measure panels) */
 .feature-picker {
   position: absolute;
@@ -3171,10 +3172,10 @@ a { color: inherit; text-decoration: none; }
 }
 .gp-pop-save { background: #15803d; border: 1px solid #15803d; color: #fff; }
 .gp-pop-del  { background: #fff; border: 1px solid #fca5a5; color: #b91c1c; flex: 0 0 auto !important; }
-.gp-pop-gallery { display: flex; flex-wrap: wrap; gap: 5px; width: 252px; }
+.gp-pop-gallery { display: flex; flex-wrap: wrap; gap: 6px; width: 250px; }
 .gp-pop-thumb {
-  width: 58px; height: 58px; object-fit: cover; border-radius: 4px;
-  cursor: pointer; border: 2px solid transparent;
+  width: 116px; height: 116px; object-fit: cover; border-radius: 5px;
+  cursor: pointer; border: 2px solid var(--rule);
 }
 .gp-pop-thumb:hover { border-color: var(--blue); }
 .gp-pop-back {
@@ -7341,6 +7342,10 @@ body.mobile-mode #app {
         <!-- Map control stack (right side) — icon-only square buttons.
              SV / CL above the zoom buttons; Fit / Locate below. -->
         <div class="map-ctl-stack">
+          <!-- Add Feature — second copy of the green + button for easy reach -->
+          <button class="map-ctl-btn" id="fp-toggle-btn-2" title="Add Feature (Insert)">
+            <span class="fp-plus">+</span>
+          </button>
           <button class="map-ctl-btn pegman-btn" id="pegman-btn" draggable="true"
                   title="Drag onto the map to open Street View at that point">
             <svg viewBox="0 0 16 22" width="16" height="20" aria-hidden="true">
@@ -9476,6 +9481,10 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     els.featureCount.textContent = SECTIONS.reduce((sum, s) => sum + s.featureCount, 0);
   }
 
+  // Layer-toggle aliases: a feature kind that follows another kind's
+  // visibility toggle (Curb & Gutter follows the Curb layer toggle).
+  const LAYER_ALIAS = { ln_cg: 'ln_curb' };
+
   // A pin is "non-AECOM" if its Source says so, else if it's a pre-walk
   // bundle pin. Drives the single "Non-AECOM data" visibility toggle.
   function _pinIsNonAecom(p) {
@@ -9728,7 +9737,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       console.log('[initOrUpdateMap] _layersVis=', JSON.stringify(_layersVis), 'total pins=', pins.length);
       for (const pin of pins) {
         if (pin._editingVertices) continue;   // shown via the vertex-edit overlay
-        if (pin.kind && _layersVis[pin.kind] === false) continue;   // hidden via Layers panel
+        if (pin.kind && _layersVis[LAYER_ALIAS[pin.kind] || pin.kind] === false) continue;   // hidden via Layers panel
         if (_hideBundle && _pinIsNonAecom(pin)) continue;            // non-AECOM data hidden
         const marker = buildPinLayer(pin);
         if (!marker) continue;
@@ -13327,7 +13336,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       _sldLayersVis  = _sldLs.layersVis || {};
       _sldHideBundle = !!_sldLs.hideBundle;
     } catch (_) { _sldLayersVis = {}; }
-    const _sldKindVisible = k => _sldLayersVis[k] !== false;
+    const _sldKindVisible = k => _sldLayersVis[LAYER_ALIAS[k] || k] !== false;
     // Pin-aware visibility — also drops non-AECOM pins when that toggle is off.
     const _sldPinVisible = p => _sldKindVisible(p.kind) && !(_sldHideBundle && _pinIsNonAecom(p));
 
@@ -14164,16 +14173,46 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       return;
     }
 
-    // --- New-section mode: show name/MP dialog ---
+    // --- New-section mode: create the section, then open its Kickoff form ---
+    // No separate name dialog — the section name is collected in the Kickoff
+    // form's first section. For linear sections the milepost length is
+    // derived from the traced centerline so the SLD has a valid extent.
     const isLinear = traceState.type === 'linear';
-    $('#nsd-linear-fields').style.display = isLinear ? '' : 'none';
-    let distFt = 0;
-    for (let i = 1; i < n; i++) distFt += havFt(traceState.vertices[i-1], traceState.vertices[i]);
-    $('#nsd-traced').textContent = `${n} vertices · ${_fmtTraceDist(distFt)}`;
-    $('#nsd-name').value = $('#nsd-code').value = $('#nsd-mp-start').value = $('#nsd-mp-end').value = '';
-    $('#nsd-err').textContent = '';
-    $('#nsd-overlay').hidden = false;
-    setTimeout(() => $('#nsd-name').focus(), 80);
+    const secType  = traceState.type;
+    const verts    = traceState.vertices.slice();
+    const mid      = verts[Math.floor(verts.length / 2)];
+    let lenFt = 0;
+    for (let i = 1; i < verts.length; i++) lenFt += havFt(verts[i - 1], verts[i]);
+    const lenMi = lenFt / 5280;
+    const newId = 's' + Date.now().toString(36);
+    SECTIONS.push({
+      id:             newId,
+      name:           'New section',
+      type:           secType,
+      status:         'not',
+      featureCount:   0,
+      meta:           `Traced · ${lenMi.toFixed(2)} mi`,
+      kickoff:        false,
+      center:         mid,
+      alignment:      verts,
+      projectCode:    '',
+      mpStart:        0,
+      mpEnd:          isLinear ? +lenMi.toFixed(3) : 0,
+      pins:           [],
+      kickoffAnswers: { basics: {} },
+    });
+    // Tear down the trace
+    if (state.map) {
+      traceState.layers.forEach(l => state.map.removeLayer(l));
+      if (traceState.polyLayer) state.map.removeLayer(traceState.polyLayer);
+    }
+    Object.assign(traceState, { active: false, type: null, vertices: [], layers: [], polyLayer: null });
+    document.querySelector('.app')?.classList.remove('drawing');
+    if (state.map?.doubleClickZoom) state.map.doubleClickZoom.enable();
+    renderSectionList('all');
+    // Straight into the Section Kickoff form — its first section collects the name.
+    state.draftKickoff = { sectionId: newId, type: secType, answers: { basics: {} } };
+    showView('kickoff');
   }
 
   function _commitNewSection() {
@@ -17044,15 +17083,18 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   // --- Feature picker toggle ------------------------------------------------
   function toggleFeaturePicker(forceShow) {
     const picker = $('#feature-picker');
-    const btn    = $('#fp-toggle-btn');
     if (!picker) return;
     const show = forceShow !== undefined ? forceShow : !picker.classList.contains('open');
     picker.classList.toggle('open', show);
-    if (btn) btn.classList.toggle('on', show);
+    ['#fp-toggle-btn', '#fp-toggle-btn-2'].forEach(sel => {
+      const b = $(sel); if (b) b.classList.toggle('on', show);
+    });
   }
   (function wireFeaturePickerToggle() {
-    const btn = $('#fp-toggle-btn');
+    const btn  = $('#fp-toggle-btn');
     if (btn) btn.addEventListener('click', () => toggleFeaturePicker());
+    const btn2 = $('#fp-toggle-btn-2');
+    if (btn2) btn2.addEventListener('click', () => toggleFeaturePicker());
     const x = $('#fp-sheet-close');
     if (x) x.addEventListener('click', () => toggleFeaturePicker(false));
     // Auto-close the sheet once a feature is picked, so the map is clear.
@@ -26227,8 +26269,13 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       var single = g.photos.length === 1;
       var m = L.marker([g.lat, g.lng], { icon: makeIcon(g), draggable: single, autoPan: false });
       m.bindTooltip(tipFor(g), { direction: 'top', offset: [0, -14] });
-      m.bindPopup(function () { return buildPopupEl(g, m); },
-        { maxWidth: 280, minWidth: 256, autoPanPadding: [26, 26] });
+      // Cache the popup element so popup.update() (called when swapping
+      // gallery <-> detail views) re-lays-out instead of rebuilding it,
+      // which previously discarded the click-through to the detail view.
+      m.bindPopup(function () {
+        if (!m._gpPopEl) m._gpPopEl = buildPopupEl(g, m);
+        return m._gpPopEl;
+      }, { maxWidth: 320, minWidth: 256, autoPanPadding: [26, 26] });
       if (single) {
         m.on('dragend', function () {
           var ll = m.getLatLng(), p = g.photos[0];
