@@ -13869,6 +13869,10 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         Math.min(totalFt - STRIP_WINDOW_FT / 2, (scroll + canvasPx / 2) / pxPerFt));
       updateHeader(stripCenterSta);
       clickmark.dataset.sta = `STA ${fmtSta(stripCenterSta)}`;
+      // If this scroll was driven by the map→SLD sync (e.g. the Locate
+      // fly-to), don't echo a pan back — that's what snapped the map off
+      // the GPS point onto the centerline.
+      if (_mapPanning) return;
       // Briefly suppress tap-to-place/start-line after a scroll flick
       _stripDragWasMoved = true;
       clearTimeout(_stripScrollTimer);
