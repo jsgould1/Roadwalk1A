@@ -6712,15 +6712,29 @@ input.fs-slider::-webkit-slider-thumb {
 #data-form-pane.visible { transform: translateX(0); }
 /* Back bar */
 .data-form-bar {
-  flex: 0 0 44px;
+  position: relative;
+  flex: 0 0 48px;
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 0 16px;
+  padding: 0 14px;
   border-bottom: 1px solid var(--rule);
   background: var(--paper-2);
   flex-shrink: 0;
 }
+/* Save / Discard cluster — absolutely centred in the top bar */
+.data-bar-mid {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 6px;
+}
+.data-bar-mid .data-save-btn,
+.data-bar-mid .data-discard-btn {
+  position: static; padding: 7px 16px; border-radius: 5px;
+  font: 700 12px 'IBM Plex Sans', sans-serif; cursor: pointer; border: none;
+}
+.data-bar-mid .data-save-btn    { background: #15803d; color: #fff; }
+.data-bar-mid .data-discard-btn { background: #9aa3ad; color: #fff; }
+.data-form-bar .data-stat-chip  { margin-left: auto; }
 .data-back-btn {
   font-family: 'IBM Plex Mono', monospace;
   font-size: 11px;
@@ -6813,6 +6827,69 @@ input.fs-slider::-webkit-slider-thumb {
   -webkit-overflow-scrolling: touch;
   padding-bottom: 64px;  /* clear the single-row form footer */
 }
+/* ── Landscape Signs form — POST column + 4 panel direction columns ── */
+.sign-grid { display: flex; gap: 10px; align-items: flex-start; padding: 10px; }
+.sign-col {
+  flex: 0 0 240px; min-width: 240px;
+  background: var(--paper-2, #f1f3f5);
+  border: 1px solid var(--rule, #d8dde2); border-radius: 6px;
+  padding: 6px 8px 10px;
+}
+.sign-col-post { flex: 0 0 272px; min-width: 272px; }
+.sign-dir-scroll {
+  flex: 1 1 auto; min-width: 0;
+  display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px;
+}
+.sign-col-hdr {
+  font: 700 11px 'IBM Plex Mono', monospace; letter-spacing: 0.5px;
+  text-transform: uppercase; color: var(--ink, #222);
+  padding: 4px 2px 8px; border-bottom: 2px solid var(--blue, #1a5276); margin-bottom: 4px;
+}
+.sign-sub-hdr {
+  display: flex; align-items: center; gap: 6px;
+  font: 700 10px 'IBM Plex Mono', monospace; color: var(--blue, #1a5276);
+  margin: 10px 0 2px; padding-top: 6px; border-top: 1px dashed var(--rule, #d8dde2);
+}
+.sign-ulid {
+  margin-left: auto; font: 400 8px 'IBM Plex Mono', monospace;
+  color: var(--ink-3, #8a93a0); overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; max-width: 96px;
+}
+.sign-mini-del { border: none; background: none; color: #c0392b; font-size: 12px; cursor: pointer; padding: 0 2px; }
+.sign-add-row { padding: 8px 2px 2px; }
+.sign-add-btn {
+  width: 100%; padding: 7px; cursor: pointer;
+  border: 1px dashed var(--blue, #1a5276); border-radius: 5px;
+  background: none; color: var(--blue, #1a5276);
+  font: 700 11px 'IBM Plex Sans', sans-serif;
+}
+.sign-photo-row { display: flex; gap: 5px; margin: 4px 0; }
+.sign-ph-take, .sign-ph-up {
+  cursor: pointer; border: none; border-radius: 5px; padding: 7px 4px;
+  font: 700 10px 'IBM Plex Sans', sans-serif; color: #fff;
+}
+.sign-ph-take { flex: 3; background: #d8463c; }
+.sign-ph-up   { flex: 1; background: #9aa3ad; }
+.sign-photos { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
+.sign-photo-card { position: relative; }
+.sign-photo-thumb {
+  width: 64px; height: 64px; object-fit: cover; border-radius: 4px;
+  cursor: pointer; border: 1px solid var(--rule, #d8dde2);
+}
+.sign-photo-del {
+  position: absolute; top: -5px; right: -5px;
+  width: 17px; height: 17px; border-radius: 50%;
+  border: 1px solid #fff; background: #c0392b; color: #fff;
+  font-size: 10px; line-height: 1; cursor: pointer;
+}
+/* Stack each field's label above its control inside the narrow columns */
+.sign-col .df-row { flex-direction: column; align-items: stretch; gap: 2px; padding: 4px 2px; }
+.sign-col .df-lbl { padding: 2px 0 0; }
+.sign-col .df-ctrl { width: 100%; }
+.sign-col .df-select, .sign-col .df-input, .sign-col .df-textarea { width: 100%; box-sizing: border-box; }
+.sign-col .df-cond, .sign-col .df-flags { flex-wrap: wrap; }
+.sign-col .df-sec-hdr { padding: 8px 2px 4px; }
+.ds-code-search { margin-top: 4px; }
 /* Form sections */
 .df-sec { }
 .df-sec-hdr {
@@ -8385,10 +8462,15 @@ body.mobile-mode #app {
         <!-- ── Form pane: slides in over list ─────────────────────── -->
         <div id="data-form-pane">
 
-          <!-- Back / ID / status bar -->
+          <!-- Top bar: ✕ close (left) · Save/Discard (centre) · Confirm/Move/Delete (right) -->
           <div class="data-form-bar">
-            <button class="data-back-btn" id="data-back-btn">◀ Back</button>
+            <button class="data-back-btn" id="data-back-btn" title="Close">✕</button>
             <span class="data-form-label" id="data-form-label">—</span>
+            <div class="data-bar-mid">
+              <button class="data-save-btn"    id="data-save-btn">✓ Save</button>
+              <button class="data-discard-btn" id="data-discard-btn">Discard</button>
+              <span class="data-save-flash" id="data-save-flash"></span>
+            </div>
             <span class="data-stat-chip"  id="data-stat-chip">Pending</span>
             <!-- Asset quick-actions: shown for pt_* and pg_* kinds only -->
             <div class="dfa-asset-btns" id="dfa-asset-btns" hidden>
@@ -8398,18 +8480,11 @@ body.mobile-mode #app {
             </div>
           </div>
 
-          <!-- Sub-tabs (Signs only: Post | Panel 1 | … | + Panel) -->
+          <!-- Sub-tabs (Culvert only) -->
           <div class="data-sub-nav" id="data-sub-nav" hidden></div>
 
           <!-- Form fields injected by openDataForm() -->
           <div class="data-form-scroll" id="data-form-scroll"></div>
-
-          <!-- Form footer: Cancel / Save -->
-          <div class="data-footer">
-            <span   class="data-save-flash"  id="data-save-flash"></span>
-            <button class="data-discard-btn" id="data-discard-btn">Cancel</button>
-            <button class="data-save-btn"    id="data-save-btn">Save</button>
-          </div>
 
         </div><!-- /#data-form-pane -->
 
@@ -24913,11 +24988,11 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
 
     // Ensure sign attrs defaults — applies to both bundle 'sign' and field-placed 'pt_sign'
     if (merged.kind === 'sign' || merged.kind === 'pt_sign') {
-      if (!merged.attrs)                        merged.attrs = {};
-      if (!Array.isArray(merged.attrs.panels))  merged.attrs.panels = [];
-      if (!merged.attrs.post_type)              merged.attrs.post_type = '';
-      if (!merged.attrs.post_condition)         merged.attrs.post_condition = 'NA';
-      if (!Array.isArray(merged.attrs.post_damage)) merged.attrs.post_damage = [];
+      if (!merged.attrs) merged.attrs = {};
+      if (!Array.isArray(merged.attrs.panels)) merged.attrs.panels = [];
+      if (!Array.isArray(merged.attrs.posts) || !merged.attrs.posts.length) merged.attrs.posts = [{}];
+      if (!Array.isArray(merged.attrs.photos)) merged.attrs.photos = [];
+      if (!merged.ulid && typeof makeULID === 'function') merged.ulid = makeULID();
     }
 
     // Build a human-readable type label for the header
@@ -24945,8 +25020,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       var _isSign    = merged.kind === 'sign' || merged.kind === 'pt_sign';
       var _isCulvert = merged.kind === 'culvert';
       if (_isSign) {
-        subNav.removeAttribute('hidden');
-        _buildSignSubTabs();
+        subNav.setAttribute('hidden', '');   // landscape sign form has no sub-tabs
       } else if (_isCulvert) {
         subNav.removeAttribute('hidden');
         _buildCulvertSubTabs();
@@ -25278,7 +25352,9 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     if (!pin || !pin.attrs) return null;
     var a = pin.attrs, codes = [];
     if (pin.kind === 'sign' || pin.kind === 'pt_sign') {
-      codes.push(a.post_condition);
+      (Array.isArray(a.posts) ? a.posts : []).forEach(function (o) {
+        if (o) codes.push(o.post_condition);
+      });
       (Array.isArray(a.panels) ? a.panels : []).forEach(function (p) {
         if (p) { codes.push(p.panel_condition); codes.push(p.sheeting_condition); }
       });
@@ -25373,102 +25449,124 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   }
 
   // ── Sign form ──────────────────────────────────────────────────────────────
+  // Landscape sign form — POST column + four panel direction columns.
   function _renderSignForm(pin, sec) {
-    var a   = pin.attrs || {};
-    var sub = _dataState.signSubTab;
+    var a = pin.attrs || {};
+    if (!Array.isArray(a.posts) || !a.posts.length) a.posts = [{}];
+    if (!Array.isArray(a.panels)) a.panels = [];
+    if (!Array.isArray(a.photos)) a.photos = [];
+    var base = pin.ulid || '';
+    a.posts.forEach(function (o, i)  { if (o && !o.ulid) o.ulid = base + '-P'   + (i + 1); });
+    a.panels.forEach(function (p, i) { if (p && !p.ulid) p.ulid = base + '-PNL' + (i + 1); });
 
-    if (sub === 'post') {
-      // ── Post sub-tab ─────────────────────────────────────────────
-      var postTypes    = window._RW.SIGN_POST_TYPES || [];
-      var conditions   = (window._RW.conditionObjs ? window._RW.conditionObjs() : (window._RW.SIGN_CONDITIONS || []));
-      var postDmg      = window._RW.SIGN_POST_DMG   || [];
-      var postTypeOpts = [{v:'',l:'— type —'}].concat(postTypes);
-      var SIDES        = ['L','R','C','N/A'];
-      var sideBtns     = SIDES.map(function (s) {
-        var on = (a.side || '') === s;
-        return '<button class="df-cond-btn" data-cond="' + s + '" data-field="side"' +
-          (on ? ' style="background:var(--blue);color:#fff;border-color:var(--blue)"' : '') + '>' + s + '</button>';
-      }).join('');
-      var foundOpts = [
-        {v:'',l:'— select —'},{v:'buried_direct',l:'Buried direct'},
-        {v:'concrete',l:'Concrete footing'},{v:'drive_anchor',l:'Drive anchor'},
-        {v:'flange_plate',l:'Flange plate'},{v:'other',l:'Other'},
-      ];
-      var finishOpts = [
-        {v:'',l:'— select —'},{v:'galvanized',l:'Galvanized'},
-        {v:'powder_coat',l:'Powder coat'},{v:'painted',l:'Painted'},
-        {v:'bare_steel',l:'Bare steel'},{v:'other',l:'Other'},
-      ];
-      var breakOpts = [
-        {v:'',l:'— select —'},{v:'yes',l:'Yes — breakaway'},
-        {v:'no',l:'No'},{v:'unknown',l:'Unknown'},
-      ];
+    var conditions = (window._RW.conditionObjs ? window._RW.conditionObjs() : (window._RW.SIGN_CONDITIONS || []));
+    var postDmg    = window._RW.SIGN_POST_DMG || [];
+    var sheeting   = window._RW.SIGN_SHEETING || [];
+    var damage     = window._RW.SIGN_DAMAGE || [];
+    var postTypeOpts = [{v:'',l:'— type —'}].concat(window._RW.SIGN_POST_TYPES || []);
+    var sheetOpts    = [{v:'',l:'— type —'}].concat(sheeting);
+    var foundOpts = [{v:'',l:'— select —'},{v:'buried_direct',l:'Buried direct'},{v:'concrete',l:'Concrete footing'},
+      {v:'drive_anchor',l:'Drive anchor'},{v:'flange_plate',l:'Flange plate'},{v:'other',l:'Other'}];
+    var finishOpts = [{v:'',l:'— select —'},{v:'galvanized',l:'Galvanized'},{v:'powder_coat',l:'Powder coat'},
+      {v:'painted',l:'Painted'},{v:'bare_steel',l:'Bare steel'},{v:'other',l:'Other'}];
+    var breakOpts = [{v:'',l:'— select —'},{v:'yes',l:'Yes — breakaway'},{v:'no',l:'No'},{v:'unknown',l:'Unknown'}];
 
-      return _sectionHdr('LOCATION') +
+    var sideBtns = ['L','R','C','N/A'].map(function (s) {
+      var on = (a.side || '') === s;
+      return '<button class="df-cond-btn" data-cond="' + s + '" data-field="side"' +
+        (on ? ' style="background:var(--blue);color:#fff;border-color:var(--blue)"' : '') + '>' + s + '</button>';
+    }).join('');
+
+    // ── POST column ──────────────────────────────────────────────────────
+    var postBlocks = a.posts.map(function (post, oi) {
+      return '<div class="sign-post-block" data-post-scope="' + oi + '">' +
+        '<div class="sign-sub-hdr">POST ' + (oi + 1) +
+          (a.posts.length > 1 ? '<button class="sign-mini-del" data-del-post="' + oi + '">✕</button>' : '') +
+          '<span class="sign-ulid">' + _esc(post.ulid || '') + '</span></div>' +
+        _selectRow('Post type', 'post_type', post.post_type || '', postTypeOpts) +
+        _inputRow ('Post count', 'post_count', post.post_count, 'number') +
+        _inputRow ('Height (ft)', 'post_height_ft', post.post_height_ft, 'number') +
+        _selectRow('Foundation', 'post_foundation', post.post_foundation || '', foundOpts) +
+        _selectRow('Finish', 'post_finish', post.post_finish || '', finishOpts) +
+        _selectRow('Breakaway', 'post_breakaway', post.post_breakaway || '', breakOpts) +
+        _condRow  ('Post cond', 'post_condition', post.post_condition, conditions, 'data-post-field') +
+        _flagRow  ('Damage', 'post_damage', post.post_damage, postDmg) +
+        _textareaRow('Notes', 'notes', post.notes) +
+      '</div>';
+    }).join('');
+
+    var postCol =
+      '<div class="sign-col sign-col-post">' +
+        '<div class="sign-col-hdr">POST INFORMATION</div>' +
+        _sectionHdr('LOCATION') +
         _sourceRow(pin) +
         '<div class="df-row"><span class="df-lbl">Side</span>' +
           '<span class="df-ctrl"><div class="df-cond">' + sideBtns + '</div></span></div>' +
-        _inputRow ('EOP Offset (ft)', 'eop_offset',    a.eop_offset,    'number') +
-        _readonlyRow('Pin ID',   pin.id) +
-        _readonlyRow('Section',  sec ? sec.name : '—') +
-        _readonlyRow('STA',      pin.sta || '—') +
-        _sectionHdr('POST DETAILS') +
-        _selectRow('Post type',      'post_type',       a.post_type,       postTypeOpts) +
-        _inputRow ('Post count',     'post_count',      a.post_count,      'number') +
-        _inputRow ('Height (ft)',    'post_height_ft',  a.post_height_ft,  'number') +
-        _selectRow('Foundation',     'post_foundation', a.post_foundation || '', foundOpts) +
-        _selectRow('Finish',         'post_finish',     a.post_finish     || '', finishOpts) +
-        _selectRow('Breakaway',      'post_breakaway',  a.post_breakaway  || '', breakOpts) +
-        _condRow  ('Post cond',      'post_condition',  a.post_condition,  conditions, 'data-post-field') +
-        _condReadonlyRow('Overall',  _deriveOverallCondition(pin), 'worst of post + all panels') +
-        _flagRow  ('Damage',         'post_damage',     a.post_damage,     postDmg) +
-        _textareaRow('Notes',        'notes',           a.notes) +
-        _customFieldsSection(pin);
+        _inputRow('EOP Offset (ft)', 'eop_offset', a.eop_offset, 'number') +
+        _readonlyRow('Pin ID', pin.id) +
+        _readonlyRow('Section', sec ? sec.name : '—') +
+        _readonlyRow('STA', pin.sta || '—') +
+        _condReadonlyRow('Overall', _deriveOverallCondition(pin), 'worst of post + panels') +
+        _sectionHdr('POSTS') +
+        postBlocks +
+        '<div class="sign-add-row"><button class="sign-add-btn" data-add-post>＋ Add Post</button></div>' +
+        _customFieldsSection(pin) +
+      '</div>';
+
+    // ── Panel direction column ───────────────────────────────────────────
+    function _panelBlock(p, idx) {
+      var code = p.sign_code || '';
+      var meta = code && (window._RW.MUTCD_SIGNS || []).find(function (s) { return s.c === code; });
+      var lbl  = meta ? code + ' — ' + meta.n : (code || '(tap to pick code)');
+      return '<div class="sign-panel-block" data-panel-scope="' + idx + '">' +
+        '<div class="sign-sub-hdr">PANEL ' + (idx + 1) +
+          '<button class="sign-mini-del" data-del-panel="' + idx + '">✕</button>' +
+          '<span class="sign-ulid">' + _esc(p.ulid || '') + '</span></div>' +
+        '<div class="df-row"><span class="df-lbl">Sign code</span><span class="df-ctrl">' +
+          '<button class="ds-sign-code-btn" data-panel-idx="' + idx + '">' + _esc(lbl) + '</button>' +
+          '<div class="ds-code-search" data-panel-idx="' + idx + '" style="display:none"></div>' +
+        '</span></div>' +
+        _condRow('Panel cond', 'panel_condition', p.panel_condition, conditions, 'data-panel-field') +
+        _condRow('Sheeting cond', 'sheeting_condition', p.sheeting_condition, conditions, 'data-panel-field') +
+        _selectRow('Sheeting type', 'sheeting_type', p.sheeting_type || '', sheetOpts) +
+        _flagRow('Damage', 'panel_damage_flags', p.damage_flags, damage) +
+        _textareaRow('Notes', 'notes', p.notes) +
+      '</div>';
+    }
+    function _dirCol(D, lbl) {
+      var panelHtml = a.panels.map(function (p, i) { return { p: p, i: i }; })
+        .filter(function (x) { return Number(x.p.facing_degrees) === D; })
+        .map(function (x) { return _panelBlock(x.p, x.i); }).join('');
+      var photoHtml = a.photos.map(function (ph, i) { return { ph: ph, i: i }; })
+        .filter(function (x) { return Number(x.ph.dir) === D; })
+        .map(function (x) {
+          return '<div class="sign-photo-card">' +
+            '<img class="sign-photo-thumb" src="' + x.ph.dataUrl + '" data-photo-idx="' + x.i + '" title="Tap to annotate">' +
+            '<button class="sign-photo-del" data-photo-del="' + x.i + '">✕</button></div>';
+        }).join('');
+      return '<div class="sign-col sign-col-dir" data-dir="' + D + '">' +
+        '<div class="sign-col-hdr">' + _esc(lbl) + '</div>' +
+        '<div class="sign-photo-row">' +
+          '<button class="sign-ph-take" data-sign-photo data-dir="' + D + '">📷 Photo</button>' +
+          '<button class="sign-ph-up" data-sign-upload data-dir="' + D + '">⬆ Upload</button>' +
+        '</div>' +
+        '<div class="sign-photos">' + photoHtml + '</div>' +
+        panelHtml +
+        '<div class="sign-add-row"><button class="sign-add-btn" data-add-panel data-dir="' + D + '">＋ Add Panel</button></div>' +
+      '</div>';
     }
 
-    // ── Panel sub-tab ─────────────────────────────────────────────
-    var panelIdx = Number(sub);
-    var panels   = Array.isArray(a.panels) ? a.panels : [];
-    var panel    = panels[panelIdx] || {};
-    var facing   = window._RW.SIGN_FACING    || [];
-    var conditions2 = (window._RW.conditionObjs ? window._RW.conditionObjs() : (window._RW.SIGN_CONDITIONS || []));
-    var sheeting = window._RW.SIGN_SHEETING  || [];
-    var damage   = window._RW.SIGN_DAMAGE    || [];
-
-    var facingOpts = [{v:'',l:'— direction —'}].concat(facing.map(function (f) {
-      return {v: String(f.v), l: f.l};
-    }));
-    var sheetOpts  = [{v:'',l:'— type —'}].concat(sheeting);
-
-    // Sign code selector: show current + a search input below it
-    var sigCode = panel.sign_code || '';
-    var sigMeta = sigCode && (window._RW.MUTCD_SIGNS || []).find(function (s) { return s.c === sigCode; });
-    var sigLbl  = sigMeta ? sigCode + ' — ' + sigMeta.n : (sigCode || '(none — tap to search)');
-
-    var signCodeHtml =
-      '<div class="df-row"><span class="df-lbl">Sign code</span>' +
-      '<span class="df-ctrl">' +
-        '<button class="df-sign-code" id="ds-sign-code-btn" data-panel-idx="' + panelIdx + '">' + _esc(sigLbl) + '</button>' +
-        '<div id="ds-sign-search-wrap" style="display:none"></div>' +
-      '</span></div>';
-
-    // Wrap all panel-specific fields in [data-panel-scope] so the generic
-    // select/input/textarea handlers route writes to panels[idx] not pin.attrs.
-    return _sectionHdr('PANEL ' + (panelIdx + 1)) +
-      signCodeHtml +
-      '<div data-panel-scope="' + panelIdx + '">' +
-        _selectRow('Facing',        'facing_degrees',    String(panel.facing_degrees || ''), facingOpts) +
-        _condRow  ('Panel cond',    'panel_condition',   panel.panel_condition,    conditions2, 'data-panel-field') +
-        _condRow  ('Sheeting cond', 'sheeting_condition',panel.sheeting_condition, conditions2, 'data-panel-field') +
-        _selectRow('Sheeting type', 'sheeting_type',     panel.sheeting_type,      sheetOpts) +
-        _flagRow  ('Damage',        'panel_damage_flags',panel.damage_flags,        damage) +
-        _textareaRow('Notes',       'notes',              panel.notes) +
+    return '<div class="sign-grid">' +
+      postCol +
+      _dirCol(0, '0° · Faces traffic') +
+      '<div class="sign-dir-scroll">' +
+        _dirCol(90,  '90° · Right') +
+        _dirCol(180, '180° · Back') +
+        _dirCol(270, '270° · Left') +
       '</div>' +
-      '<div class="df-row">' +
-        '<button class="data-discard-btn" id="ds-remove-panel-btn" style="color:#b91c1c;border-color:#fca5a5;">' +
-          'Remove this panel' +
-        '</button>' +
-      '</div>';
+    '</div>' +
+    '<input type="file" id="ds-sign-photo-input" accept="image/*" capture="environment" style="display:none">' +
+    '<input type="file" id="ds-sign-upload-input" accept="image/*" multiple style="display:none">';
   }
 
   // ── Culvert form — full inspection sub-tabs ────────────────────────────────
@@ -26440,12 +26538,19 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     // Helper: resolve the target object for a field element.
     // Elements inside [data-panel-scope] write to the active panel; others to pin.attrs.
     function _targetObj(el) {
-      var scopeEl = el.closest('[data-panel-scope]');
-      if (scopeEl != null) {
-        var idx = parseInt(scopeEl.dataset.panelScope, 10);
+      var panelEl = el.closest('[data-panel-scope]');
+      if (panelEl != null) {
+        var pi = parseInt(panelEl.dataset.panelScope, 10);
         var panels = a.panels || [];
-        if (!panels[idx]) panels[idx] = {};
-        return panels[idx];
+        if (!panels[pi]) panels[pi] = {};
+        return panels[pi];
+      }
+      var postEl = el.closest('[data-post-scope]');
+      if (postEl != null) {
+        var oi = parseInt(postEl.dataset.postScope, 10);
+        var posts = a.posts || [];
+        if (!posts[oi]) posts[oi] = {};
+        return posts[oi];
       }
       return a;
     }
@@ -26518,11 +26623,19 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       });
     });
 
-    // Sign-specific: post condition buttons (data-post-field = value, data-field = key)
+    // Sign-specific: post condition buttons (data-post-field = value, data-field = key).
+    // Scoped to the enclosing post block when present (landscape multi-post form).
     scroll.querySelectorAll('.df-cond-btn[data-post-field]').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        // data-field = attr key (e.g. 'post_condition'), data-post-field = value (e.g. 'G')
-        a[btn.dataset.field] = btn.dataset.postField;
+        var tgt = a;
+        var postEl = btn.closest('[data-post-scope]');
+        if (postEl) {
+          var oi = parseInt(postEl.dataset.postScope, 10);
+          if (!Array.isArray(a.posts)) a.posts = [];
+          if (!a.posts[oi]) a.posts[oi] = {};
+          tgt = a.posts[oi];
+        }
+        tgt[btn.dataset.field] = btn.dataset.postField;
         _dataState.dirty = true;
         _renderFormBody();
       });
@@ -26542,92 +26655,180 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       });
     });
 
-    // Damage / flag toggles
+    // Damage / flag toggles — scope to the enclosing panel / post block.
     scroll.querySelectorAll('.df-flag[data-flag-field]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var field = btn.dataset.flagField;
         var val   = btn.dataset.flagVal;
-        var isPanelField = field.startsWith('panel_');
-        var arr;
-        if (isPanelField) {
-          var panels = a.panels || [];
-          var idx    = typeof _dataState.signSubTab === 'number' ? _dataState.signSubTab : 0;
-          if (!panels[idx]) return;
-          var key = field === 'panel_damage_flags' ? 'damage_flags' : field;
-          if (!Array.isArray(panels[idx][key])) panels[idx][key] = [];
-          arr = panels[idx][key];
-        } else {
-          if (!Array.isArray(a[field])) a[field] = [];
-          arr = a[field];
+        var tgt = a, key = field;
+        var panelEl = btn.closest('[data-panel-scope]');
+        var postEl  = btn.closest('[data-post-scope]');
+        if (panelEl) {
+          var pi = parseInt(panelEl.dataset.panelScope, 10);
+          if (!Array.isArray(a.panels)) a.panels = [];
+          if (!a.panels[pi]) a.panels[pi] = {};
+          tgt = a.panels[pi];
+          key = (field === 'panel_damage_flags') ? 'damage_flags' : field;
+        } else if (postEl) {
+          var oi = parseInt(postEl.dataset.postScope, 10);
+          if (!Array.isArray(a.posts)) a.posts = [];
+          if (!a.posts[oi]) a.posts[oi] = {};
+          tgt = a.posts[oi];
         }
-        var idx2 = arr.indexOf(val);
-        if (idx2 >= 0) arr.splice(idx2, 1); else arr.push(val);
+        if (!Array.isArray(tgt[key])) tgt[key] = [];
+        var ix = tgt[key].indexOf(val);
+        if (ix >= 0) tgt[key].splice(ix, 1); else tgt[key].push(val);
         _dataState.dirty = true;
         _renderFormBody();
       });
     });
 
-    // Sign code search button → toggle inline search
-    var codeBtn = document.getElementById('ds-sign-code-btn');
-    if (codeBtn) {
-      codeBtn.addEventListener('click', function () {
-        var wrap = document.getElementById('ds-sign-search-wrap');
-        if (!wrap) return;
-        var visible = wrap.style.display !== 'none';
-        wrap.style.display = visible ? 'none' : 'block';
-        if (!visible) {
-          var panelIdx = Number(codeBtn.dataset.panelIdx);
+    // ── Landscape sign form wiring ───────────────────────────────────────
+    if (pin.kind === 'sign' || pin.kind === 'pt_sign') {
+      // Per-panel sign-code search (toggled by each panel's code button)
+      scroll.querySelectorAll('.ds-sign-code-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var pIdx = Number(btn.dataset.panelIdx);
+          var wrap = btn.parentNode.querySelector('.ds-code-search');
+          if (!wrap) return;
+          if (wrap.style.display !== 'none') { wrap.style.display = 'none'; return; }
+          wrap.style.display = 'block';
           wrap.innerHTML =
             '<div class="df-sign-search-wrap">' +
-              '<input class="df-sign-search" id="ds-sign-search-inp" type="text" placeholder="Search MUTCD code or name…" autocomplete="off">' +
-              '<div class="df-sign-results" id="ds-sign-results"></div>' +
-            '</div>';
-          var inp = document.getElementById('ds-sign-search-inp');
-          var res = document.getElementById('ds-sign-results');
-          if (inp) {
-            inp.focus();
-            inp.addEventListener('input', function () {
-              var q   = inp.value.trim().toLowerCase();
-              var all = window._RW.MUTCD_SIGNS || [];
-              var hits = q.length < 2 ? all.slice(0, 30) : all.filter(function (s) {
-                return s.c.toLowerCase().includes(q) || (s.n && s.n.toLowerCase().includes(q));
-              }).slice(0, 40);
-              res.innerHTML = hits.map(function (s) {
-                return '<div class="df-sign-result" data-code="' + _esc(s.c) + '">' +
-                  '<span class="df-sign-code-tag">' + _esc(s.c) + '</span>' +
-                  '<span>' + _esc(s.n || '') + '</span></div>';
-              }).join('');
-              // Wire result clicks
-              res.querySelectorAll('.df-sign-result').forEach(function (r) {
-                r.addEventListener('click', function () {
-                  var code = r.dataset.code;
-                  var panels = _dataState.pin.attrs.panels;
-                  if (!panels[panelIdx]) panels[panelIdx] = {};
-                  panels[panelIdx].sign_code = code;
-                  _dataState.dirty = true;
-                  _buildSignSubTabs();
-                  _renderFormBody();
-                });
+              '<input class="df-sign-search" type="text" placeholder="Search MUTCD code or name…" autocomplete="off">' +
+              '<div class="df-sign-results"></div></div>';
+          var inp = wrap.querySelector('.df-sign-search');
+          var res = wrap.querySelector('.df-sign-results');
+          function run() {
+            var q = inp.value.trim().toLowerCase();
+            var all = window._RW.MUTCD_SIGNS || [];
+            var hits = q.length < 2 ? all.slice(0, 30) : all.filter(function (s) {
+              return s.c.toLowerCase().includes(q) || (s.n && s.n.toLowerCase().includes(q));
+            }).slice(0, 40);
+            res.innerHTML = hits.map(function (s) {
+              return '<div class="df-sign-result" data-code="' + _esc(s.c) + '">' +
+                '<span class="df-sign-code-tag">' + _esc(s.c) + '</span>' +
+                '<span>' + _esc(s.n || '') + '</span></div>';
+            }).join('');
+            res.querySelectorAll('.df-sign-result').forEach(function (r) {
+              r.addEventListener('click', function () {
+                if (!a.panels[pIdx]) a.panels[pIdx] = {};
+                a.panels[pIdx].sign_code = r.dataset.code;
+                _dataState.dirty = true;
+                _renderFormBody();
               });
             });
-            // Trigger initial empty search
-            inp.dispatchEvent(new Event('input'));
           }
-        }
+          inp.addEventListener('input', run);
+          inp.focus();
+          run();
+        });
       });
-    }
 
-    // Remove panel button (inside sign panel sub-tab)
-    var rmBtn = document.getElementById('ds-remove-panel-btn');
-    if (rmBtn) {
-      rmBtn.addEventListener('click', function () {
-        var panels = _dataState.pin.attrs.panels || [];
-        var idx    = typeof _dataState.signSubTab === 'number' ? _dataState.signSubTab : 0;
-        panels.splice(idx, 1);
-        _dataState.signSubTab = 'post';
+      // Add / remove posts
+      var addPostBtn = scroll.querySelector('[data-add-post]');
+      if (addPostBtn) addPostBtn.addEventListener('click', function () {
+        if (!Array.isArray(a.posts)) a.posts = [];
+        a.posts.push({});
         _dataState.dirty = true;
-        _buildSignSubTabs();
         _renderFormBody();
+      });
+      scroll.querySelectorAll('[data-del-post]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          var oi = Number(b.dataset.delPost);
+          if (Array.isArray(a.posts) && a.posts.length > 1) {
+            a.posts.splice(oi, 1);
+            _dataState.dirty = true;
+            _renderFormBody();
+          }
+        });
+      });
+
+      // Add / remove panels (each within its direction column)
+      scroll.querySelectorAll('[data-add-panel]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          if (!Array.isArray(a.panels)) a.panels = [];
+          a.panels.push({ facing_degrees: Number(b.dataset.dir) });
+          _dataState.dirty = true;
+          _renderFormBody();
+        });
+      });
+      scroll.querySelectorAll('[data-del-panel]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          var pi = Number(b.dataset.delPanel);
+          if (Array.isArray(a.panels) && a.panels[pi]) {
+            a.panels.splice(pi, 1);
+            _dataState.dirty = true;
+            _renderFormBody();
+          }
+        });
+      });
+
+      // Per-direction photos — take / upload, tagged with the column direction
+      var _signPhotoInput  = document.getElementById('ds-sign-photo-input');
+      var _signUploadInput = document.getElementById('ds-sign-upload-input');
+      var _pendDir = null;
+      function _addSignPhotos(files, isCapture) {
+        if (!files || !files.length) return;
+        if (!Array.isArray(a.photos)) a.photos = [];
+        var dir = _pendDir, chain = Promise.resolve();
+        Array.prototype.slice.call(files).forEach(function (f) {
+          chain = chain.then(function () {
+            return new Promise(function (resolve) {
+              var reader = new FileReader();
+              reader.onload = function (e) {
+                var raw = e.target.result;
+                var finish = function (url) {
+                  a.photos.push({ dataUrl: url, captured_at: new Date().toISOString(), dir: dir });
+                  resolve();
+                };
+                if (isCapture && typeof _applyWatermark === 'function') {
+                  _applyWatermark(raw, pin, _dataState.sec).then(finish);
+                } else { finish(raw); }
+              };
+              reader.readAsDataURL(f);
+            });
+          });
+        });
+        chain.then(function () { _dataState.dirty = true; _renderFormBody(); });
+      }
+      scroll.querySelectorAll('[data-sign-photo]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          _pendDir = Number(b.dataset.dir);
+          if (_signPhotoInput) _signPhotoInput.click();
+        });
+      });
+      scroll.querySelectorAll('[data-sign-upload]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          _pendDir = Number(b.dataset.dir);
+          if (_signUploadInput) _signUploadInput.click();
+        });
+      });
+      if (_signPhotoInput) _signPhotoInput.addEventListener('change', function () {
+        _addSignPhotos(_signPhotoInput.files, true);
+        _signPhotoInput.value = '';
+      });
+      if (_signUploadInput) _signUploadInput.addEventListener('change', function () {
+        _addSignPhotos(_signUploadInput.files, false);
+        _signUploadInput.value = '';
+      });
+      scroll.querySelectorAll('[data-photo-del]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          var i = Number(b.dataset.photoDel);
+          if (Array.isArray(a.photos) && a.photos[i]) {
+            a.photos.splice(i, 1);
+            _dataState.dirty = true;
+            _renderFormBody();
+          }
+        });
+      });
+      scroll.querySelectorAll('.sign-photo-thumb[data-photo-idx]').forEach(function (img) {
+        img.addEventListener('click', function () {
+          var i = Number(img.dataset.photoIdx);
+          if (typeof _openAnnotateModal === 'function') {
+            _openAnnotateModal(i, pin, function () { _dataState.dirty = true; _renderFormBody(); });
+          }
+        });
       });
     }
 
