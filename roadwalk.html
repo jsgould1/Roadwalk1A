@@ -2824,6 +2824,15 @@ a { color: inherit; text-decoration: none; }
   font: 700 9px 'IBM Plex Mono', monospace; color: var(--ink-2, #5a6470);
 }
 .ff-dim .ff-in { text-align: center; padding: 6px 2px; }
+/* Checkbox row (Historical / Sloped on the specialized slide-outs) */
+.ff-check {
+  display: flex; align-items: center; gap: 8px;
+  margin-top: 10px; padding: 8px 9px; cursor: pointer;
+  border: 1px solid var(--line, #c7cfd8); border-radius: 5px;
+  background: var(--paper, #fff);
+  font: 600 12.5px 'IBM Plex Sans', sans-serif; color: var(--ink, #222);
+}
+.ff-check input { width: 17px; height: 17px; flex: none; }
 /* Photo list below SAVE */
 .ff-photos-sep { border-top: 2px solid var(--line, #d8dde2); margin: 12px 0 0; }
 .ff-photos-title {
@@ -12013,6 +12022,89 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       `<input class="ff-in ff-cf-val" type="text" placeholder="Value" value="${_ffEsc(value)}">` +
       `<button type="button" class="ff-cf-del" title="Remove">✕</button></div>`;
   }
+
+  // ── Kind-specific slide-out blocks (guardrail/wall · swale · curb) ──────────
+  const FF_KIND_MATERIALS = {
+    barrier: ['Steel W-beam', 'Steel Thrie-beam', 'Cable barrier', 'Concrete (Jersey)',
+              'Box beam', 'Timber', 'Stone masonry', 'Gabion', 'Other'],
+    swale:   ['Gravel', 'Asphalt', 'Concrete', 'Stone', 'Riprap'],
+    curb:    ['Stone', 'Granite', 'Concrete', 'Asphalt', 'Asphalt Berm', 'Wooden', 'Other'],
+  };
+  const FF_END_TREATMENTS = ['—', 'MASH TL-2', 'MASH TL-3', 'NCHRP 350', 'Flared',
+                             'Buried in backslope', 'Blunt end', 'Crash cushion', 'None', 'Unknown'];
+  const FF_CRASHWORTHY = ['—', 'Yes — crashworthy', 'No — not crashworthy', 'Unknown'];
+  const FF_FLOW_COND   = ['—', 'Free-flowing', 'Partially blocked', 'Blocked / silted',
+                          'Standing water', 'Eroded', 'Dry / no flow'];
+
+  function _ffFamily(kind) {
+    if (['ln_guardrail','ln_retaining_wall','ln_barrier','guardrail','wall'].indexOf(kind) >= 0) return 'barrier';
+    if (['ln_swale','ln_paved_swale'].indexOf(kind) >= 0) return 'swale';
+    if (['ln_curb','ln_cg'].indexOf(kind) >= 0) return 'curb';
+    return null;
+  }
+  function _ffNum(id, val) {
+    return `<input class="ff-in" id="${id}" type="number" inputmode="decimal" step="0.1" ` +
+           `value="${val != null ? _ffEsc(val) : ''}">`;
+  }
+  function _ffCheckRow(id, label, checked) {
+    return `<label class="ff-check"><input type="checkbox" id="${id}"${checked ? ' checked' : ''}>` +
+           `<span>${_ffEsc(label)}</span></label>`;
+  }
+  function _ffSelOf(id, opts, cur) {
+    return `<select class="ff-sel" id="${id}">` + opts.map(o =>
+      `<option value="${_ffEsc(o)}"${String(cur || '') === String(o) ? ' selected' : ''}>${_ffEsc(o)}</option>`
+    ).join('') + `</select>`;
+  }
+  // Kind-specific fields for the specialized slide-out forms.
+  function _ffKindBlock(pin, a, fam) {
+    const matList = FF_KIND_MATERIALS[fam] || [];
+    let matOpts = ['<option value="">—</option>'].concat(matList.map(m =>
+      `<option value="${_ffEsc(m)}"${a.material === m ? ' selected' : ''}>${_ffEsc(m)}</option>`));
+    if (a.material && matList.indexOf(a.material) < 0)
+      matOpts.push(`<option value="${_ffEsc(a.material)}" selected>${_ffEsc(a.material)}</option>`);
+    const matSel = `<select class="ff-sel" id="ff-material">${matOpts.join('')}</select>`;
+
+    if (fam === 'barrier') {
+      return `
+        <div class="ff-row2">
+          <div><label class="ff-lbl">Length (ft)</label>${_ffNum('ff-length_ft', a.length_ft)}</div>
+          <div><label class="ff-lbl">Avg height (ft)</label>${_ffNum('ff-avg_height_ft', a.avg_height_ft)}</div>
+        </div>
+        <div class="ff-row"><label class="ff-lbl">Material</label>${matSel}</div>
+        ${_ffCheckRow('ff-historical', 'Historically significant', a.historical)}
+        <div class="ff-row2">
+          <div><label class="ff-lbl">Post size</label>
+            <input class="ff-in" id="ff-post_size" type="text" value="${_ffEsc(a.post_size)}"></div>
+          <div><label class="ff-lbl">Rail size</label>
+            <input class="ff-in" id="ff-rail_size" type="text" value="${_ffEsc(a.rail_size)}"></div>
+        </div>
+        <div class="ff-row"><label class="ff-lbl">End treatment</label>
+          ${_ffSelOf('ff-end_treatment', FF_END_TREATMENTS, a.end_treatment)}</div>
+        <div class="ff-row"><label class="ff-lbl">Crashworthy</label>
+          ${_ffSelOf('ff-crashworthy', FF_CRASHWORTHY, a.crashworthy)}</div>`;
+    }
+    if (fam === 'swale') {
+      return `
+        <div class="ff-row"><label class="ff-lbl">Material</label>${matSel}</div>
+        ${_ffCheckRow('ff-historical', 'Historically significant', a.historical)}
+        <div class="ff-row2">
+          <div><label class="ff-lbl">Length (ft)</label>${_ffNum('ff-length_ft', a.length_ft)}</div>
+          <div><label class="ff-lbl">Flow condition</label>
+            ${_ffSelOf('ff-flow_condition', FF_FLOW_COND, a.flow_condition)}</div>
+        </div>`;
+    }
+    if (fam === 'curb') {
+      return `
+        <div class="ff-row2">
+          <div><label class="ff-lbl">Length (ft)</label>${_ffNum('ff-length_ft', a.length_ft)}</div>
+          <div><label class="ff-lbl">Reveal (in)</label>${_ffNum('ff-reveal_in', a.reveal_in)}</div>
+        </div>
+        <div class="ff-row"><label class="ff-lbl">Material</label>${matSel}</div>
+        ${_ffCheckRow('ff-sloped', 'Sloped curb', a.sloped)}
+        ${_ffCheckRow('ff-historical', 'Historically significant', a.historical)}`;
+    }
+    return '';
+  }
   function _ffBuildBody(pin) {
     const a = pin.attrs || {};
     const mid = _ffMidCoords(pin);
@@ -12052,6 +12144,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       <div class="ff-row">
         <label class="ff-lbl">Condition</label>${_ffSegHtml('condition', condList, a.condition)}
       </div>
+      ${_ffFamily(pin.kind) ? _ffKindBlock(pin, a, _ffFamily(pin.kind)) : `
       <div class="ff-row2">
         <div><label class="ff-lbl">Material</label>
           <select class="ff-sel" id="ff-material">${matSel}</select></div>
@@ -12067,7 +12160,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
           ${_ffDimCell('dim_depth',  'D',   a)}
           ${_ffDimCell('dim_qty',    'Qty', a)}
         </div>
-      </div>
+      </div>`}
       <div class="ff-row">
         <label class="ff-lbl">Repair Type</label>
         <select class="ff-sel" id="ff-repair">${repairSel}</select>
@@ -12218,22 +12311,39 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       const v = g(id) ? g(id).value : '';
       return (v === '' || v == null || isNaN(parseFloat(v))) ? null : parseFloat(v);
     };
+    // Always-present fields
     const out = {
       description:       (g('ff-description')?.value || '').trim() || null,
       side:              seg('side'),
-      offset_ft:         num('ff-offset'),
       condition:         seg('condition'),
-      material:          (g('ff-material')?.value || '').trim() || null,
-      dim_length:        num('ff-dim_length'),
-      dim_width:         num('ff-dim_width'),
-      dim_height:        num('ff-dim_height'),
-      dim_depth:         num('ff-dim_depth'),
-      dim_qty:           num('ff-dim_qty'),
-      install_date:      g('ff-install')?.value || null,
       repair_type:       g('ff-repair')?.value || null,
       repair_type_other: null,
       notes:             (g('ff-notes')?.value || '').trim() || null,
     };
+    // Optional / kind-specific fields — collected only when actually on screen
+    const selv = id => { if (!g(id)) return undefined; const v = g(id).value; return (v === '' || v === '—') ? null : v; };
+    const txt  = id => g(id) ? ((g(id).value || '').trim() || null) : undefined;
+    const opt = {
+      offset_ft:      g('ff-offset')        ? num('ff-offset')        : undefined,
+      material:       g('ff-material')      ? ((g('ff-material').value || '').trim() || null) : undefined,
+      install_date:   g('ff-install')       ? (g('ff-install').value || null) : undefined,
+      dim_length:     g('ff-dim_length')    ? num('ff-dim_length')    : undefined,
+      dim_width:      g('ff-dim_width')     ? num('ff-dim_width')     : undefined,
+      dim_height:     g('ff-dim_height')    ? num('ff-dim_height')    : undefined,
+      dim_depth:      g('ff-dim_depth')     ? num('ff-dim_depth')     : undefined,
+      dim_qty:        g('ff-dim_qty')       ? num('ff-dim_qty')       : undefined,
+      length_ft:      g('ff-length_ft')     ? num('ff-length_ft')     : undefined,
+      avg_height_ft:  g('ff-avg_height_ft') ? num('ff-avg_height_ft') : undefined,
+      reveal_in:      g('ff-reveal_in')     ? num('ff-reveal_in')     : undefined,
+      post_size:      txt('ff-post_size'),
+      rail_size:      txt('ff-rail_size'),
+      end_treatment:  selv('ff-end_treatment'),
+      crashworthy:    selv('ff-crashworthy'),
+      flow_condition: selv('ff-flow_condition'),
+      historical:     g('ff-historical') ? !!g('ff-historical').checked : undefined,
+      sloped:         g('ff-sloped')     ? !!g('ff-sloped').checked     : undefined,
+    };
+    Object.keys(opt).forEach(k => { if (opt[k] !== undefined) out[k] = opt[k]; });
     if (out.material === '__add__') out.material = null;
     if (out.repair_type === '__add__') out.repair_type = null;
     if (out.repair_type === 'Other') {
@@ -12382,13 +12492,9 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
 
   function openPinSheet(pin, sec) {
     // ── Form routing ─────────────────────────────────────────────────────
-    //   barrier family → dedicated barrier sheet
     //   signs + culverts → detailed Data-module form
-    //   everything else → simple universal slide-out (openFeatureForm)
-    if (pin.kind === 'ln_guardrail' || pin.kind === 'ln_retaining_wall' ||
-        pin.kind === 'ln_barrier'  || pin.kind === 'guardrail' || pin.kind === 'wall') {
-      openBarrierSheet(pin, sec); return;
-    }
+    //   everything else (incl. guardrail / wall / barrier / swale / curb)
+    //     → the slide-out form, which adds kind-specific field blocks
     const _MODULE_KINDS = new Set([
       'pt_sign', 'sign', 'culvert', 'ln_culvert', 'ln_box_culvert',
     ]);
@@ -26050,64 +26156,62 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
    * Returns a Promise<string> resolving to the final dataURL.
    * Watermark is only applied when enabled in settings.
    */
+  // Process a photo for storage: resize to the configured max edge, composite
+  // the watermark band when enabled, and always re-encode as JPEG. Used by
+  // every data-entry form so photos are consistent (JPG · watermarked · sized).
   function _applyWatermark(dataUrl, pin, sec) {
     return new Promise(function (resolve) {
       var wm = _getWmSettings();
-      if (!wm.enabled) { resolve(dataUrl); return; }
+      var maxDim = 1600;
+      var _szEl = document.getElementById('pp-size');
+      if (_szEl && parseInt(_szEl.value, 10)) maxDim = parseInt(_szEl.value, 10);
 
       var img = new Image();
       img.onload = function () {
+        // Resize so the longest edge ≤ maxDim (per the photo-size setting).
+        var scale = Math.min(1, maxDim / Math.max(img.naturalWidth, img.naturalHeight));
         var canvas = document.createElement('canvas');
-        canvas.width  = img.naturalWidth;
-        canvas.height = img.naturalHeight;
+        canvas.width  = Math.max(1, Math.round(img.naturalWidth  * scale));
+        canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
         var ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-        var a = (pin && pin.attrs) ? pin.attrs : {};
-        var lines = [];
-
-        // Line 1: Section Name · Feature ID
-        var l1 = [];
-        if (wm.showSec !== false && sec && sec.name) l1.push(sec.name);
-        if (wm.showFid !== false && pin && pin.id)   l1.push(pin.id);
-        if (l1.length) lines.push(l1.join('  ·  '));
-
-        // Line 2: STA · Side · GPS
-        var l2 = [];
-        if (wm.showSta  !== false && pin && pin.sta) l2.push('STA ' + pin.sta);
-        if (wm.showSide !== false && a.side)         l2.push('Side ' + a.side);
-        if (wm.showGps  !== false && pin && pin.lat != null && pin.lng != null)
-          l2.push(Number(pin.lat).toFixed(6) + ', ' + Number(pin.lng).toFixed(6));
-        if (l2.length) lines.push(l2.join('  ·  '));
-
-        // Line 3: Date / Time
-        if (wm.showDt !== false) {
-          var now = new Date();
-          lines.push(now.toLocaleDateString() + '  ' + now.toLocaleTimeString());
+        // Watermark band — only when enabled in settings.
+        if (wm.enabled) {
+          var a = (pin && pin.attrs) ? pin.attrs : {};
+          var lines = [];
+          var l1 = [];
+          if (wm.showSec !== false && sec && sec.name) l1.push(sec.name);
+          if (wm.showFid !== false && pin && pin.id)   l1.push(pin.id);
+          if (l1.length) lines.push(l1.join('  ·  '));
+          var l2 = [];
+          if (wm.showSta  !== false && pin && pin.sta) l2.push('STA ' + pin.sta);
+          if (wm.showSide !== false && a.side)         l2.push('Side ' + a.side);
+          if (wm.showGps  !== false && pin && pin.lat != null && pin.lng != null)
+            l2.push(Number(pin.lat).toFixed(6) + ', ' + Number(pin.lng).toFixed(6));
+          if (l2.length) lines.push(l2.join('  ·  '));
+          if (wm.showDt !== false) {
+            var now = new Date();
+            lines.push(now.toLocaleDateString() + '  ' + now.toLocaleTimeString());
+          }
+          if (lines.length) {
+            var fSize = Math.max(14, Math.round(canvas.width / 55));
+            var lineH = Math.round(fSize * 1.55);
+            var padX  = Math.round(fSize * 0.7);
+            var padY  = Math.round(fSize * 0.5);
+            var bandH = lines.length * lineH + padY * 2;
+            var bandY = canvas.height - bandH;
+            ctx.fillStyle = 'rgba(0,0,0,0.60)';
+            ctx.fillRect(0, bandY, canvas.width, bandH);
+            ctx.font         = 'bold ' + fSize + 'px monospace';
+            ctx.fillStyle    = '#ffffff';
+            ctx.textBaseline = 'top';
+            lines.forEach(function (line, i) {
+              ctx.fillText(line, padX, bandY + padY + i * lineH);
+            });
+          }
         }
-
-        if (!lines.length) { resolve(dataUrl); return; }
-
-        var fSize = Math.max(14, Math.round(canvas.width / 55));
-        var lineH = Math.round(fSize * 1.55);
-        var padX  = Math.round(fSize * 0.7);
-        var padY  = Math.round(fSize * 0.5);
-        var bandH = lines.length * lineH + padY * 2;
-        var bandY = canvas.height - bandH;
-
-        // Semi-transparent band
-        ctx.fillStyle = 'rgba(0,0,0,0.60)';
-        ctx.fillRect(0, bandY, canvas.width, bandH);
-
-        // Text
-        ctx.font         = 'bold ' + fSize + 'px monospace';
-        ctx.fillStyle    = '#ffffff';
-        ctx.textBaseline = 'top';
-        lines.forEach(function (line, i) {
-          ctx.fillText(line, padX, bandY + padY + i * lineH);
-        });
-
-        resolve(canvas.toDataURL('image/jpeg', 0.88));
+        resolve(canvas.toDataURL('image/jpeg', 0.85));
       };
       img.onerror = function () { resolve(dataUrl); };
       img.src = dataUrl;
@@ -26782,7 +26886,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
                   a.photos.push({ dataUrl: url, captured_at: new Date().toISOString(), dir: dir });
                   resolve();
                 };
-                if (isCapture && typeof _applyWatermark === 'function') {
+                if (typeof _applyWatermark === 'function') {
                   _applyWatermark(raw, pin, _dataState.sec).then(finish);
                 } else { finish(raw); }
               };
@@ -26908,11 +27012,8 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
           _dataState.dirty = true;
           _renderFormBody();
         };
-        if (isCapture) {
-          _applyWatermark(rawUrl, pin, _dataState.sec).then(_finish);
-        } else {
-          _finish(rawUrl);
-        }
+        // All photos are processed (resize · watermark · JPEG) on the way in.
+        _applyWatermark(rawUrl, pin, _dataState.sec).then(_finish);
       };
       reader.readAsDataURL(file);
     }
