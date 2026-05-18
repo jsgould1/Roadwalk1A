@@ -2704,6 +2704,7 @@ a { color: inherit; text-decoration: none; }
 }
 .ff-scrim[hidden] { display: none; }
 .ff-panel {
+  position: relative;
   width: min(430px, 94vw); height: 100%;
   background: var(--paper, #fff);
   display: flex; flex-direction: column;
@@ -2711,6 +2712,19 @@ a { color: inherit; text-decoration: none; }
   animation: ffSlideIn 0.18s ease-out;
 }
 @keyframes ffSlideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+/* Left-edge drag handle to resize the panel width */
+.ff-resize {
+  position: absolute; left: 0; top: 0; width: 9px; height: 100%;
+  cursor: col-resize; z-index: 5;
+  background: linear-gradient(to right, rgba(0,0,0,0.12), transparent);
+}
+/* Collapsed: panel slides off to a peek tab; map stays usable */
+.ff-scrim.ff-collapsed { background: transparent; pointer-events: none; }
+.ff-scrim.ff-collapsed .ff-panel {
+  transform: translateX(calc(100% - 36px));
+  pointer-events: auto; cursor: pointer;
+  animation: none;
+}
 .ff-topbar { display: flex; gap: 6px; padding: 8px 10px; border-bottom: 1px solid var(--line, #d8dde2); }
 .ff-tbtn {
   flex: 1; padding: 7px 4px; cursor: pointer;
@@ -2721,13 +2735,21 @@ a { color: inherit; text-decoration: none; }
 .ff-tbtn.ff-verify { border-color: #15803d; color: #15803d; }
 .ff-tbtn.ff-del { flex: 0 0 auto; border-color: #c0392b; color: #c0392b; }
 .ff-tbtn.ff-del.armed { background: #c0392b; color: #fff; }
+.ff-tbtn.ff-iconbtn { flex: 0 0 auto; padding: 7px 9px; font-size: 13px; }
+.ff-photo-row { display: flex; gap: 8px; margin: 10px; }
 .ff-photo {
-  margin: 10px; padding: 12px; cursor: pointer;
+  flex: 3; padding: 12px; cursor: pointer;
   background: #d8463c; color: #fff;
-  font: 800 14px 'IBM Plex Sans', sans-serif; letter-spacing: 0.5px;
+  font: 800 13px 'IBM Plex Sans', sans-serif; letter-spacing: 0.4px;
   border: none; border-radius: 6px;
 }
-.ff-photo:active { transform: scale(0.98); }
+.ff-upload {
+  flex: 1; padding: 12px 4px; cursor: pointer;
+  background: #9aa3ad; color: #fff;
+  font: 700 11px 'IBM Plex Sans', sans-serif;
+  border: none; border-radius: 6px;
+}
+.ff-photo:active, .ff-upload:active { transform: scale(0.98); }
 .ff-body { flex: 1; overflow-y: auto; padding: 2px 14px 16px; }
 .ff-foot { display: flex; border-top: 1px solid var(--line, #d8dde2); }
 .ff-save {
@@ -8534,18 +8556,25 @@ body.mobile-mode #app {
 <!-- ====== FEATURE FORM — simple right slide-out for misc points/lines/polygons ====== -->
 <div class="ff-scrim" id="ff-scrim" hidden>
   <aside class="ff-panel" id="ff-panel" aria-label="Feature data form">
+    <div class="ff-resize" id="ff-resize" title="Drag to resize panel"></div>
     <div class="ff-topbar">
-      <button class="ff-tbtn ff-verify" id="ff-verify" type="button">✓ Verify</button>
-      <button class="ff-tbtn"           id="ff-move"   type="button">⊹ Move</button>
-      <button class="ff-tbtn ff-del"    id="ff-delete" type="button">🗑 Delete</button>
+      <button class="ff-tbtn ff-iconbtn" id="ff-close"    type="button" title="Close">✕</button>
+      <button class="ff-tbtn ff-iconbtn" id="ff-collapse" type="button" title="Collapse">⟩</button>
+      <button class="ff-tbtn ff-verify"  id="ff-verify"   type="button">✓ Verify</button>
+      <button class="ff-tbtn"            id="ff-move"     type="button">⊹ Move</button>
+      <button class="ff-tbtn ff-del"     id="ff-delete"   type="button">🗑 Delete</button>
     </div>
-    <button class="ff-photo" id="ff-photo" type="button">📷 TAKE PHOTOS</button>
+    <div class="ff-photo-row">
+      <button class="ff-photo"  id="ff-photo"  type="button">📷 Take Photo</button>
+      <button class="ff-upload" id="ff-upload" type="button">⬆ Upload</button>
+    </div>
     <div class="ff-body" id="ff-body"></div>
     <div class="ff-foot">
       <button class="ff-save"    id="ff-save"    type="button">✓ SAVE</button>
       <button class="ff-discard" id="ff-discard" type="button">DISCARD</button>
     </div>
-    <input type="file" id="ff-photo-input" accept="image/*" capture="environment" style="display:none">
+    <input type="file" id="ff-photo-input"  accept="image/*" capture="environment" style="display:none">
+    <input type="file" id="ff-upload-input" accept="image/*" multiple style="display:none">
   </aside>
 </div>
 
@@ -11660,7 +11689,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   const FF_CONDITIONS   = ['E', 'G', 'F', 'P', 'X'];
   const FF_REPAIR_TYPES = ['Do Nothing', 'Adjust', 'Repair', 'Replace',
                            'R&R', 'R&S', 'R&D', 'Other'];
-  let _ffPin = null, _ffSec = null, _ffDelArmed = false;
+  let _ffPin = null, _ffSec = null, _ffDelArmed = false, _ffPanelWidth = 0;
 
   function _ffEsc(s) {
     return String(s == null ? '' : s)
@@ -11820,8 +11849,12 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     }
     const delBtn = document.getElementById('ff-delete');
     if (delBtn) { delBtn.classList.remove('armed'); delBtn.textContent = '🗑 Delete'; }
+    const panel = document.getElementById('ff-panel');
+    if (panel && _ffPanelWidth) panel.style.width = _ffPanelWidth + 'px';
+    const collBtn = document.getElementById('ff-collapse');
+    if (collBtn) { collBtn.textContent = '⟩'; collBtn.title = 'Collapse'; }
     const scrim = document.getElementById('ff-scrim');
-    if (scrim) scrim.hidden = false;
+    if (scrim) { scrim.classList.remove('ff-collapsed'); scrim.hidden = false; }
   }
 
   function _ffClose() {
@@ -11883,6 +11916,73 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     document.getElementById('ff-save')?.addEventListener('click', () => _ffSave(null));
     document.getElementById('ff-verify')?.addEventListener('click', () => _ffSave('confirmed'));
     document.getElementById('ff-discard')?.addEventListener('click', () => _ffClose());
+    document.getElementById('ff-close')?.addEventListener('click', () => _ffClose());
+    // Collapse — slide the panel to a peek tab so the map stays usable.
+    document.getElementById('ff-collapse')?.addEventListener('click', () => {
+      const scrim = document.getElementById('ff-scrim');
+      const btn = document.getElementById('ff-collapse');
+      if (!scrim) return;
+      const collapsed = scrim.classList.toggle('ff-collapsed');
+      if (btn) { btn.textContent = collapsed ? '⟨' : '⟩'; btn.title = collapsed ? 'Expand' : 'Collapse'; }
+    });
+    // Click the collapsed peek-strip → expand again.
+    document.getElementById('ff-panel')?.addEventListener('click', e => {
+      const scrim = document.getElementById('ff-scrim');
+      if (scrim && scrim.classList.contains('ff-collapsed')) {
+        scrim.classList.remove('ff-collapsed');
+        const btn = document.getElementById('ff-collapse');
+        if (btn) { btn.textContent = '⟩'; btn.title = 'Collapse'; }
+        e.stopPropagation();
+      }
+    });
+    // Upload photo(s) — file picker (no camera).
+    const _ffUpBtn = document.getElementById('ff-upload');
+    const _ffUpInput = document.getElementById('ff-upload-input');
+    if (_ffUpBtn && _ffUpInput) {
+      _ffUpBtn.addEventListener('click', () => _ffUpInput.click());
+      _ffUpInput.addEventListener('change', () => {
+        const files = [].slice.call(_ffUpInput.files || []);
+        _ffUpInput.value = '';
+        const pin = _ffPin, sec = _ffSec;
+        if (!pin || !sec || !files.length) return;
+        const addFn = window._RW && window._RW.captureAndAddPhoto;
+        const refresh = () => {
+          const cnt = document.getElementById('ff-photo-count');
+          const n = (Array.isArray(pin.attrs?.photos) ? pin.attrs.photos.length : 0)
+                  + (pin.attrs?.photo ? 1 : 0);
+          if (cnt) cnt.textContent = n + ' attached';
+        };
+        if (addFn) files.reduce((p, f) => p.then(() => addFn(pin, sec, f)), Promise.resolve())
+                        .then(refresh).catch(refresh);
+      });
+    }
+    // Left-edge drag handle — resize the panel width.
+    (function () {
+      const handle = document.getElementById('ff-resize');
+      const panel  = document.getElementById('ff-panel');
+      if (!handle || !panel) return;
+      let startX = 0, startW = 0, dragging = false;
+      const onMove = e => {
+        if (!dragging) return;
+        let w = startW + (startX - e.clientX);
+        w = Math.max(300, Math.min(window.innerWidth * 0.96, w));
+        panel.style.width = w + 'px';
+        _ffPanelWidth = w;
+      };
+      const onUp = () => {
+        dragging = false;
+        document.removeEventListener('pointermove', onMove);
+        document.removeEventListener('pointerup', onUp);
+      };
+      handle.addEventListener('pointerdown', e => {
+        dragging = true;
+        startX = e.clientX;
+        startW = panel.getBoundingClientRect().width;
+        document.addEventListener('pointermove', onMove);
+        document.addEventListener('pointerup', onUp);
+        e.preventDefault();
+      });
+    })();
     document.getElementById('ff-move')?.addEventListener('click', () => {
       const pin = _ffPin, sec = _ffSec;
       _ffClose();
@@ -12738,7 +12838,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     if (!pin.attrs) pin.attrs = {};
     const a = pin.attrs;
     if (a.condition        == null) a.condition        = '';
-    if (a.rec_treatment    == null) a.rec_treatment    = '';
+    if (a.repair_type      == null) a.repair_type      = '';
     if (a.repair_length_ft == null) a.repair_length_ft = '';
     if (a.notes            == null) a.notes            = '';
     if (a.photo_start_term == null) a.photo_start_term = '';
@@ -12746,7 +12846,9 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     if (!Array.isArray(a.photos_repair)) a.photos_repair = [];
 
     const types      = isRW ? _RW_TYPES      : _GR_TYPES;
-    const treatments = isRW ? _RW_TREATMENTS : _GR_TREATMENTS;
+    const treatments = (window._RW && window._RW.dropdownGet)
+      ? window._RW.dropdownGet('repair_type')
+      : (isRW ? _RW_TREATMENTS : _GR_TREATMENTS);
 
     // ── Self-contained overlay — no els.sheetBackdrop dependency ────────────
     const overlay = document.createElement('div');
@@ -12813,7 +12915,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         .concat(types.map(t => `<option value="${t}"${a.rpt_type === t ? ' selected' : ''}>${t}</option>`))
         .join('');
       const treatOpts = [`<option value="">— select —</option>`]
-        .concat(treatments.map(t => `<option value="${t}"${a.rec_treatment === t ? ' selected' : ''}>${t}</option>`))
+        .concat(treatments.map(t => `<option value="${t}"${a.repair_type === t ? ' selected' : ''}>${t}</option>`))
         .join('');
 
       const lengthDisp = a.length_ft != null ? `${a.length_ft} ft` : '—';
@@ -12861,7 +12963,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
                 <div class="cond-btns">${mkCondBtns()}</div>
               </div>
               <div class="panel-row">
-                <span class="panel-lbl">Treatment</span>
+                <span class="panel-lbl">Repair Type</span>
                 <select class="sign-select" id="gr-treat-sel" style="flex:1;min-width:0;">${treatOpts}</select>
               </div>
             </div>
@@ -12924,7 +13026,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         }));
 
       // Treatment
-      overlay.querySelector('#gr-treat-sel')?.addEventListener('change', e => { a.rec_treatment = e.target.value; });
+      overlay.querySelector('#gr-treat-sel')?.addEventListener('change', e => { a.repair_type = e.target.value; });
 
       // Repair length
       overlay.querySelector('#gr-repair-len')?.addEventListener('change', e => {
@@ -16067,12 +16169,17 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   function _sectionInfoCardHtml(pin) {
     const a = pin.attrs || {};
     const rows = [
-      ['NAME',  'loc_name',      a.loc_name,      true],
-      ['DESC',  'description',   a.description,   true],
-      ['STA',   null,            pin.sta,         false],
-      ['RIP',   'rip_id',        a.rip_id,        true],
-      ['SPOTS', 'parking_spots', a.parking_spots, true],
-      ['MAT',   'material',      a.material,      true],
+      ['NAME',  'loc_name',        a.loc_name,        true],
+      ['DESC',  'description',     a.description,     true],
+      ['STA',   null,              pin.sta,           false],
+      ['RIP',   'rip_id',          a.rip_id,          true],
+      ['SPOTS', 'parking_spots',   a.parking_spots,   true],
+      ['MAT',   'material',        a.material,        true],
+      ['AVG W', 'avg_width_ft',    a.avg_width_ft,    true],
+      ['LENGTH','length_ft',       a.length_ft,       true],
+      ['CURB R','curb_reveal_in',  a.curb_reveal_in,  true],
+      ['DRAIN', 'drain_condition', a.drain_condition, true],
+      ['X-SLP', 'cross_slope_pct', a.cross_slope_pct, true],
     ];
     const body = rows.map(([lbl, k, v, edit]) => {
       const val = (v == null || v === '') ? '—' : String(v);
@@ -24416,7 +24523,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         rows.push(['Test level', a.test_level]);
         rows.push(['Crashworthy',a.crashworthy]);
         rows.push(['Condition',  a.condition]);
-        rows.push(['Action',     a.rec_treatment]);
+        rows.push(['Repair Type', a.repair_type || a.rec_treatment]);
         rows.push(['Repair $',   a.repair_cost]);
         break;
       case 'wall':
@@ -24424,7 +24531,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         rows.push(['Function',   a.wall_function]);
         rows.push(['Height',     a.wall_height_ft ? a.wall_height_ft + ' ft' : null]);
         rows.push(['Condition',  a.condition]);
-        rows.push(['Action',     a.rec_treatment]);
+        rows.push(['Repair Type', a.repair_type || a.rec_treatment]);
         break;
       default:
         rows.push(['Condition',  a.condition]);
@@ -25443,7 +25550,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     var a = pin.attrs || {};
     var conditions = (window._RW.conditionObjs ? window._RW.conditionObjs() : (window._RW.SIGN_CONDITIONS || []));
     var grTypes    = window._RW.GR_TYPES       || [];
-    var treatments = window._RW.GR_TREATMENTS  || [];
+    var treatments = (window._RW.dropdownGet ? window._RW.dropdownGet('repair_type') : (window._RW.GR_TREATMENTS || []));
 
     var termTypes  = ['—','MASH TL-2 (ET-Plus / SRT-350)','MASH TL-3','NCHRP 350 TL-2','NCHRP 350 TL-3','Blunt end','None','Unknown'];
     var testLevels = ['—','MASH TL-2','MASH TL-3','NCHRP 350 TL-2','NCHRP 350 TL-3','Not crashworthy','Unknown'];
@@ -25465,7 +25572,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       _inputRow ('Repair length (ft)','repair_length_ft', a.repair_length_ft, 'number') +
       _sectionHdr('CONDITION') +
       _condRow  ('Overall',          'condition',         a.condition,        conditions, 'data-cond') +
-      _selectRow('Recommended action','rec_treatment',    a.rec_treatment  || '',[{v:'',l:'— select —'}].concat(treatments.map(function(t){return {v:t,l:t};}))) +
+      _selectRow('Repair Type','repair_type',    a.repair_type  || '',[{v:'',l:'— select —'}].concat(treatments.map(function(t){return {v:t,l:t};}))) +
       _textareaRow('Notes',          'notes',             a.notes) +
       _customFieldsSection(pin);
   }
@@ -25475,7 +25582,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     var a = pin.attrs || {};
     var conditions = (window._RW.conditionObjs ? window._RW.conditionObjs() : (window._RW.SIGN_CONDITIONS || []));
     var rwTypes    = window._RW.RW_TYPES        || [];
-    var treatments = window._RW.RW_TREATMENTS   || [];
+    var treatments = (window._RW.dropdownGet ? window._RW.dropdownGet('repair_type') : (window._RW.RW_TREATMENTS || []));
     var functions_ = ['—','Cut slope retention','Fill slope retention','Roadway widening','Drainage channel','Other'];
 
     return _sectionHdr('IDENTITY') +
@@ -25496,7 +25603,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       _condRow  ('Overall',         'condition',      a.condition,      conditions, 'data-cond') +
       _condRow  ('Drainage',        'drain_condition',a.drain_condition,conditions, 'data-cond') +
       _condRow  ('Structural',      'struct_condition',a.struct_condition,conditions,'data-cond') +
-      _selectRow('Recommended action','rec_treatment',a.rec_treatment || '',
+      _selectRow('Repair Type','repair_type',a.repair_type || '',
                  [{v:'',l:'— select —'}].concat(treatments.map(function(t){return {v:t,l:t};}))) +
       _textareaRow('Notes', 'notes', a.notes) +
       _customFieldsSection(pin);
