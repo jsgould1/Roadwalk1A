@@ -11604,6 +11604,14 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     _saveDropdownLib();
     return true;
   };
+  // Condition values as {v,l,col} objects (for the button-style condition
+  // controls in the detailed sign / culvert / barrier forms). Sourced from
+  // the same library list the universal form uses, so all forms stay in sync.
+  const _COND_COLORS = { E: '#16a34a', G: '#22c55e', F: '#f59e0b', P: '#ef4444', X: '#6b7280' };
+  window._RW.conditionObjs = function () {
+    return window._RW.dropdownGet('condition').map(v =>
+      ({ v: v, l: v, col: _COND_COLORS[v] || '#6b7280' }));
+  };
 
   // Settings UI — renders the editable library into #dropdown-lib-body.
   function _renderDropdownLib() {
@@ -12729,7 +12737,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     // Ensure attrs exist with defaults
     if (!pin.attrs) pin.attrs = {};
     const a = pin.attrs;
-    if (a.condition        == null) a.condition        = 'NA';
+    if (a.condition        == null) a.condition        = '';
     if (a.rec_treatment    == null) a.rec_treatment    = '';
     if (a.repair_length_ft == null) a.repair_length_ft = '';
     if (a.notes            == null) a.notes            = '';
@@ -12768,7 +12776,9 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     }
 
     function mkCondBtns() {
-      return SIGN_CONDITIONS.filter(c => c.v !== 'NA').concat(SIGN_CONDITIONS.filter(c => c.v === 'NA')).map(c => {
+      const _conds = (window._RW && window._RW.conditionObjs)
+        ? window._RW.conditionObjs() : SIGN_CONDITIONS;
+      return _conds.map(c => {
         const on = a.condition === c.v;
         return `<button class="cond-btn" data-cond="${c.v}"
           style="background:${on?c.col:''}; color:${on?'#fff':''}; border-color:${on?c.col:''}">${c.v}</button>`;
@@ -12909,7 +12919,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       // Condition toggle
       overlay.querySelectorAll('.cond-btn[data-cond]').forEach(btn =>
         btn.addEventListener('click', () => {
-          a.condition = btn.dataset.cond === a.condition ? 'NA' : btn.dataset.cond;
+          a.condition = btn.dataset.cond === a.condition ? '' : btn.dataset.cond;
           render();
         }));
 
@@ -24741,7 +24751,8 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   }
 
   function _condRow(label, field, val, conditions, dataAttr) {
-    conditions = conditions || window._RW.SIGN_CONDITIONS || [];
+    conditions = conditions ||
+      (window._RW.conditionObjs ? window._RW.conditionObjs() : (window._RW.SIGN_CONDITIONS || []));
     var btns = conditions.map(function (c) {
       var on = val === c.v;
       return '<button class="df-cond-btn" ' + dataAttr + '="' + _esc(c.v) + '"' +
@@ -24929,7 +24940,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     if (sub === 'post') {
       // ── Post sub-tab ─────────────────────────────────────────────
       var postTypes    = window._RW.SIGN_POST_TYPES || [];
-      var conditions   = window._RW.SIGN_CONDITIONS || [];
+      var conditions   = (window._RW.conditionObjs ? window._RW.conditionObjs() : (window._RW.SIGN_CONDITIONS || []));
       var postDmg      = window._RW.SIGN_POST_DMG   || [];
       var postTypeOpts = [{v:'',l:'— type —'}].concat(postTypes);
       var SIDES        = ['L','R','C','N/A'];
@@ -24980,7 +24991,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     var panels   = Array.isArray(a.panels) ? a.panels : [];
     var panel    = panels[panelIdx] || {};
     var facing   = window._RW.SIGN_FACING    || [];
-    var conditions2 = window._RW.SIGN_CONDITIONS || [];
+    var conditions2 = (window._RW.conditionObjs ? window._RW.conditionObjs() : (window._RW.SIGN_CONDITIONS || []));
     var sheeting = window._RW.SIGN_SHEETING  || [];
     var damage   = window._RW.SIGN_DAMAGE    || [];
 
@@ -25430,7 +25441,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   // ── Guard rail form ────────────────────────────────────────────────────────
   function _renderGuardrailForm(pin, sec) {
     var a = pin.attrs || {};
-    var conditions = window._RW.SIGN_CONDITIONS || [];
+    var conditions = (window._RW.conditionObjs ? window._RW.conditionObjs() : (window._RW.SIGN_CONDITIONS || []));
     var grTypes    = window._RW.GR_TYPES       || [];
     var treatments = window._RW.GR_TREATMENTS  || [];
 
@@ -25462,7 +25473,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   // ── Retaining wall form ────────────────────────────────────────────────────
   function _renderWallForm(pin, sec) {
     var a = pin.attrs || {};
-    var conditions = window._RW.SIGN_CONDITIONS || [];
+    var conditions = (window._RW.conditionObjs ? window._RW.conditionObjs() : (window._RW.SIGN_CONDITIONS || []));
     var rwTypes    = window._RW.RW_TYPES        || [];
     var treatments = window._RW.RW_TREATMENTS   || [];
     var functions_ = ['—','Cut slope retention','Fill slope retention','Roadway widening','Drainage channel','Other'];
@@ -25860,7 +25871,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
 
   function _renderOtherForm(pin, sec) {
     var a = pin.attrs || {};
-    var conditions = window._RW.SIGN_CONDITIONS || [];
+    var conditions = (window._RW.conditionObjs ? window._RW.conditionObjs() : (window._RW.SIGN_CONDITIONS || []));
     var kindLabel  = (pin.kind || '').replace(/^(ln|pt|pg)_/, '')
       .replace(/_/g,' ').replace(/\b\w/g, function(c){return c.toUpperCase();});
 
@@ -25883,7 +25894,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   // ── Pavement form (polygon — area, surface, condition) ────────────────────
   function _renderPavementForm(pin, sec) {
     var a = pin.attrs || {};
-    var conditions = window._RW.SIGN_CONDITIONS || [];
+    var conditions = (window._RW.conditionObjs ? window._RW.conditionObjs() : (window._RW.SIGN_CONDITIONS || []));
     var surfaces   = ['—','Asphalt','Concrete','Chip Seal','Gravel','Brick/Stone','Other'];
 
     return _sectionHdr('IDENTITY') +
@@ -25918,7 +25929,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   // ── Scenic overlook form ──────────────────────────────────────────────────
   function _renderOverlookForm(pin, sec) {
     var a = pin.attrs || {};
-    var conditions = window._RW.SIGN_CONDITIONS || [];
+    var conditions = (window._RW.conditionObjs ? window._RW.conditionObjs() : (window._RW.SIGN_CONDITIONS || []));
 
     return _sectionHdr('IDENTITY') +
       _sourceRow(pin) +
@@ -25944,7 +25955,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   // ── NGS monument form (survey reference; read-mostly) ─────────────────────
   function _renderMonumentForm(pin, sec) {
     var a = pin.attrs || {};
-    var conditions = window._RW.SIGN_CONDITIONS || [];
+    var conditions = (window._RW.conditionObjs ? window._RW.conditionObjs() : (window._RW.SIGN_CONDITIONS || []));
 
     return _sectionHdr('IDENTITY') +
       _sourceRow(pin) +
