@@ -18714,7 +18714,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     if (f.type === 'text') {
       inputHtml = `<input type="text" data-field="${f.id}" value="${esc(curVal)}" placeholder="${esc(f.placeholder || '')}">`;
     } else if (f.type === 'number') {
-      inputHtml = `<input type="number" inputmode="numeric" data-field="${f.id}" value="${esc(curVal)}" placeholder="${esc(f.placeholder || '')}">`;
+      inputHtml = `<input type="number" inputmode="decimal" step="any" data-field="${f.id}" value="${esc(curVal)}" placeholder="${esc(f.placeholder || '')}">`;
     } else if (f.type === 'textarea') {
       inputHtml = `<textarea data-field="${f.id}" placeholder="${esc(f.placeholder || '')}">${esc(curVal)}</textarea>`;
     } else if (f.type === 'select') {
@@ -25563,8 +25563,11 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
 
   function _inputRow(label, field, val, type) {
     type = type || 'text';
+    // Number fields get a decimal numeric keypad on touch devices.
+    var extra = (type === 'number') ? ' inputmode="decimal" step="any"' : '';
     return '<div class="df-row"><span class="df-lbl">' + _esc(label) + '</span>' +
-           '<span class="df-ctrl"><input class="df-input" type="' + type + '" data-field="' + _esc(field) + '" value="' + _esc(val == null ? '' : val) + '"></span></div>';
+           '<span class="df-ctrl"><input class="df-input" type="' + type + '"' + extra +
+           ' data-field="' + _esc(field) + '" value="' + _esc(val == null ? '' : val) + '"></span></div>';
   }
 
   function _readonlyRow(label, val) {
@@ -25748,19 +25751,28 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       {v:'X',l:'Fail',col:'#111111'}
     ];
 
-    // Persisted per-column widths (post + 4 panel columns).
+    // Persisted per-column widths (post + 4 panel columns). Returns null when
+    // the user has not resized yet → columns default to an equal 20% each.
     function _signColWidths() {
-      var def = [248, 248, 248, 248, 248];
       try {
         var raw = JSON.parse(localStorage.getItem('rw_sign_col_widths') || 'null');
-        if (Array.isArray(raw) && raw.length === 5) {
-          return raw.map(function (w, i) { var n = Number(w); return (n && n >= 140) ? n : def[i]; });
+        if (Array.isArray(raw) && raw.length === 5 &&
+            raw.every(function (w) { return Number(w) >= 140; })) {
+          return raw.map(Number);
         }
       } catch (e) {}
-      return def;
+      return null;
     }
     var colW = _signColWidths();
+    // Effective width of a column — saved px, else an even split of the screen.
+    function _colWidth(i) {
+      if (colW) return colW[i];
+      var sw = window.innerWidth || 1200;
+      return Math.max(140, Math.floor((sw - 56) / 5));
+    }
     function _colAttr(i) {
+      // No saved width → keep the CSS flex:1 1 0 so all five share the width.
+      if (!colW) return ' data-sign-col="' + i + '"';
       return ' data-sign-col="' + i + '" style="flex:0 0 ' + colW[i] + 'px;width:' + colW[i] + 'px;"';
     }
 
@@ -25856,7 +25868,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       '</div>';
     }
     // Two photos sit beside the buttons only when the column is wide enough.
-    function _photoTopCount(ci) { return (colW[ci] >= 278) ? 2 : 1; }
+    function _photoTopCount(ci) { return (_colWidth(ci) >= 278) ? 2 : 1; }
     // Head: Take / Upload buttons with the first photo(s) shown right below them.
     function _photoHead(dirKey, ci) {
       var list = _photoList(dirKey);
@@ -26979,10 +26991,12 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       });
     });
 
-    // Condition buttons (overall / culvert / guardrail / wall — uses data-cond)
+    // Condition buttons (overall / culvert / guardrail / wall — uses data-cond).
+    // Clicking the active value again clears it (fixes an erroneous tap).
     scroll.querySelectorAll('.df-cond-btn[data-cond][data-field]').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        a[btn.dataset.field] = btn.dataset.cond;
+        a[btn.dataset.field] = (a[btn.dataset.field] === btn.dataset.cond)
+          ? '' : btn.dataset.cond;
         _dataState.dirty = true;
         _renderFormBody();
       });
@@ -27000,7 +27014,9 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
           if (!a.posts[oi]) a.posts[oi] = {};
           tgt = a.posts[oi];
         }
-        tgt[btn.dataset.field] = btn.dataset.postField;
+        // Clicking the active value again clears it (fixes an erroneous tap).
+        tgt[btn.dataset.field] = (tgt[btn.dataset.field] === btn.dataset.postField)
+          ? '' : btn.dataset.postField;
         _dataState.dirty = true;
         _renderFormBody();
       });
@@ -27013,8 +27029,10 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
                           : (typeof _dataState.signSubTab === 'number' ? _dataState.signSubTab : 0);
         var panels = a.panels || [];
         if (!panels[idx]) panels[idx] = {};
-        // data-field = attr key, data-panel-field = value
-        panels[idx][btn.dataset.field] = btn.dataset.panelField;
+        // data-field = attr key, data-panel-field = value.
+        // Clicking the active value again clears it (fixes an erroneous tap).
+        panels[idx][btn.dataset.field] = (panels[idx][btn.dataset.field] === btn.dataset.panelField)
+          ? '' : btn.dataset.panelField;
         _dataState.dirty = true;
         _renderFormBody();
       });
