@@ -2607,6 +2607,8 @@ a { color: inherit; text-decoration: none; }
 .wt-btn:hover { background: rgba(255,255,255,0.3); }
 .wt-btn.wt-done { border-color: rgba(100,220,100,0.7); }
 .wt-btn.wt-x    { border-color: rgba(255,140,120,0.6); }
+.wt-row.wt-allrow { justify-content: center; padding: 4px 8px; background: rgba(11,61,102,0.94); }
+.wt-all-btn { padding: 3px 16px; }
 /* Walk-track start dialog — side picker */
 .wt-side-row { display: flex; gap: 6px; }
 .wt-side-btn {
@@ -7690,6 +7692,19 @@ body.mobile-mode #app {
               <option value="25">Strong · 25 ft</option>
             </select>
           </div>
+          <div class="settings-row">
+            <div>
+              <div class="s-label">Snap walked features to road centerline</div>
+              <div class="s-sub">A GPS-walked line feature is rebuilt to follow the
+                section centerline at its measured offset — curve-aware vertices,
+                no GPS noise. Default for new walk tracks; uncheck per track when
+                a feature genuinely departs from the road.</div>
+            </div>
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px">
+              <input type="checkbox" id="s-snap-centerline" checked style="width:17px;height:17px">
+              <span>On</span>
+            </label>
+          </div>
         </div>
 
         <div class="settings-group">
@@ -8367,6 +8382,12 @@ body.mobile-mode #app {
     <div class="nsd-row" id="wt-offset-row" style="display:none">
       <label for="wt-offset">Offset distance from your path (ft)</label>
       <input id="wt-offset" type="number" min="0" step="1" value="10" inputmode="decimal">
+    </div>
+    <div class="nsd-row">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:normal">
+        <input type="checkbox" id="wt-snap" checked style="width:16px;height:16px">
+        <span>Snap to road centerline on finish (recommended)</span>
+      </label>
     </div>
     <div class="nsd-foot">
       <span class="nsd-err" id="wt-dlg-err"></span>
@@ -9274,6 +9295,10 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       // section or line/polygon feature, vertices sitting within this distance
       // of a straight run are dropped (Ramer–Douglas–Peucker); 0 disables it.
       gpsTraceSimplifyFt: 15,
+      // Snap GPS-walked line features to the road centerline on finish — the
+      // feature is rebuilt from the centerline's own (curve-aware) vertices at
+      // its measured offset, killing GPS noise. Default on; per-track override.
+      snapToCenterline: true,
       // Per-type ID counters (monotonic project-wide).
       // When any feature is saved of type X, counters[X]++; ID = X + "-" + padded counter.
       idCounters: { Si: 23, CB: 11, Re: 7, GR: 4, ED: 9, AR: 2, No: 5, Cu: 3 },
@@ -10195,6 +10220,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     { geom: 'line', name: 'Misc', items: [
       { value: 'ln_pvmt_change',   label: 'Pvmt Change',    code: 'PC', color: '#444444', dashArray: '4 3' },
       { value: 'ln_pvmt_widening', label: 'Pvmt Widening',  code: 'PW', color: '#9CA3AF' },
+      { value: 'ln_edge_drop',     label: 'Edge Drop',      code: 'ED', color: '#C85A2B', dashArray: '5 3' },
       { value: 'ln_loops',        label: 'Loops',       code: 'LO', color: '#8A5A2B' },
       { value: 'ln_curb',         label: 'Curb',        code: 'CU', color: '#8A5A2B' },
       { value: 'ln_cg',           label: 'C&G',         code: 'CG', color: '#8A5A2B' },
@@ -14876,8 +14902,8 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   // Up to 4 line features record concurrently as you walk the route. Each
   // track follows your GPS path; on finish it is RDP-simplified and (when a
   // side + offset are set) shifted perpendicular into its true position.
-  const WALK_TRACK_MAX    = 4;
-  const WALK_TRACK_COLORS = ['#c85a2b', '#2b8cc8', '#7a3fb8', '#1f9c5a'];
+  const WALK_TRACK_MAX    = 6;
+  const WALK_TRACK_COLORS = ['#c85a2b', '#2b8cc8', '#7a3fb8', '#1f9c5a', '#d4a017', '#0e7c7b'];
   const walkTracks = [];          // active GPS line recorders
   let _wtPendingKind = null;      // feature kind awaiting the side/offset dialog
   let _rwToastTimer  = null;
@@ -14917,6 +14943,46 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       else                           b = _bearingRad(verts[i-1], verts[i+1]);
       return offsetLatLng(v, b + perp, offsetFt);
     });
+  }
+
+  // Final clean-up pass: re-derive a walked line so it follows the road
+  // centerline. The walked path is projected onto the section alignment to
+  // get its station span + median perpendicular offset, then the feature is
+  // rebuilt from the centerline's own vertices (curve-aware — sparse on
+  // straights, dense on curves) at that offset. Kills GPS noise entirely.
+  function _snapToCenterline(verts, sec) {
+    const al = sec && sec.alignment;
+    if (!al || al.length < 2 || verts.length < 2) return verts;
+    const projs = verts.map(v => {
+      const ll = { lat: v[0], lng: v[1] };
+      const pr = projectOntoAlignment(ll, al);     // [sta, perpFt]
+      return { sta: pr[0], perp: pr[1], side: sideOfAlignment(ll, al) };
+    });
+    const staA = projs[0].sta, staB = projs[projs.length - 1].sta;
+    const lo = Math.min(staA, staB), hi = Math.max(staA, staB);
+    if (hi - lo < 5) return verts;                 // too short to be meaningful
+    // Median perpendicular offset + dominant side
+    const sortedPerp = projs.map(p => p.perp).filter(p => isFinite(p)).sort((a, b) => a - b);
+    const medPerp = sortedPerp.length ? sortedPerp[sortedPerp.length >> 1] : 0;
+    const rN = projs.filter(p => p.side === 'R').length;
+    const side = rN >= projs.length / 2 ? 'R' : 'L';
+    // Centerline cumulative stations
+    const clSta = [0];
+    for (let i = 1; i < al.length; i++) clSta.push(clSta[i - 1] + havFt(al[i - 1], al[i]));
+    // Path stations: walked-span endpoints + every centerline vertex between
+    const pathSta = [lo];
+    for (let i = 0; i < al.length; i++) {
+      if (clSta[i] > lo + 1 && clSta[i] < hi - 1) pathSta.push(clSta[i]);
+    }
+    pathSta.push(hi);
+    // Offset each centerline point perpendicular by the median offset
+    const sign = side === 'R' ? 1 : -1;
+    const out = pathSta.map(s => {
+      const base = pointAt(al, s);
+      if (medPerp < 1) return base;
+      return offsetLatLng(base, tangentAt(al, s) + sign * Math.PI / 2, medPerp);
+    });
+    return out.length >= 2 ? out : verts;
   }
 
   function _walkTrackById(id) { return walkTracks.find(t => t.id === id); }
@@ -14988,6 +15054,14 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       row.querySelector('.wt-code').textContent = t.code;   // textContent — no HTML injection
       stack.appendChild(row);
     }
+    // Pause-all / resume-all control — shown once 2+ tracks are running.
+    if (walkTracks.length >= 2) {
+      const anyActive = walkTracks.some(t => !t.paused);
+      const ctl = document.createElement('div');
+      ctl.className = 'wt-row wt-allrow';
+      ctl.innerHTML = `<button class="wt-btn wt-all-btn">${anyActive ? '⏸ Pause all' : '▶ Resume all'}</button>`;
+      stack.appendChild(ctl);
+    }
     stack.hidden = walkTracks.length === 0;
     _layoutTopBanners();
   }
@@ -15000,7 +15074,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   }
 
   // Start a new GPS walk track for a line feature.
-  function _startWalkTrack(kind, side, offsetFt) {
+  function _startWalkTrack(kind, side, offsetFt, snap) {
     if (walkTracks.length >= WALK_TRACK_MAX) {
       _rwToast(`Max ${WALK_TRACK_MAX} tracks already recording`);
       return;
@@ -15013,7 +15087,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     const track = {
       id: 'wt' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
       kind: kind || 'user_line', code, tool: 'line',
-      side: side || 'C', offsetFt: +offsetFt || 0,
+      side: side || 'C', offsetFt: +offsetFt || 0, snap: snap !== false,
       vertices: [], polyLayer: null, paused: false,
       colorIdx, color: WALK_TRACK_COLORS[colorIdx],
     };
@@ -15026,6 +15100,16 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   function _toggleTrackPause(id) {
     const t = _walkTrackById(id);
     if (t) { t.paused = !t.paused; _renderWalkTrackStack(); }
+  }
+
+  // Pause every track if any is still recording; otherwise resume them all.
+  // Handy when you stop to inspect something off-route.
+  function _togglePauseAll() {
+    if (!walkTracks.length) return;
+    const anyActive = walkTracks.some(t => !t.paused);
+    walkTracks.forEach(t => { t.paused = anyActive; });
+    _renderWalkTrackStack();
+    _rwToast(anyActive ? 'All tracks paused' : 'All tracks resumed');
   }
 
   function _discardWalkTrack(id) {
@@ -15049,6 +15133,12 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     let verts = _simplifyTrack(verts0);
     if (verts.length < 2) verts = verts0;
     if (t.offsetFt && t.side !== 'C') verts = _offsetTrack(verts, t.side, t.offsetFt);
+    // Final clean-up pass: snap to the road centerline (curve-aware, noise-free).
+    let snapped = false;
+    if (t.snap && sec.alignment && sec.alignment.length >= 2) {
+      const sn = _snapToCenterline(verts, sec);
+      if (sn && sn.length >= 2) { verts = sn; snapped = true; }
+    }
     const pin = _buildAndSaveFeaturePin(sec, 'line', t.kind, verts, 'gps');
     if (pin && pin.attrs && t.side !== 'C') {
       pin.attrs.offset_side = t.side;
@@ -15063,7 +15153,8 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       }
     }
     if (typeof renderStrip === 'function' && stripCurrentSec === sec) renderStrip();
-    _rwToast(`${pin.id || t.code} saved · ${Math.round(pin.attrs?.length_ft || 0)} ft`);
+    _rwToast(`${pin.id || t.code} saved · ${Math.round(pin.attrs?.length_ft || 0)} ft` +
+             (snapped ? ' · snapped to CL' : ''));
   }
 
   // Open the side/offset dialog before starting a walk track for `kind`.
@@ -15078,6 +15169,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     $('#wt-dlg-title').textContent = `Walk track — ${code}`;
     $$('#wt-side-row .wt-side-btn').forEach(b => b.classList.toggle('active', b.dataset.side === 'C'));
     $('#wt-offset-row').style.display = 'none';
+    $('#wt-snap').checked = state.settings.snapToCenterline !== false;
     $('#wt-dlg-err').textContent = '';
     $('#wt-overlay').hidden = false;
   }
@@ -17097,6 +17189,9 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     if ($('#s-gps-trace-simplify')) {
       $('#s-gps-trace-simplify').value = String(state.settings.gpsTraceSimplifyFt ?? 15);
     }
+    if ($('#s-snap-centerline')) {
+      $('#s-snap-centerline').checked = state.settings.snapToCenterline !== false;
+    }
     $('#s-streetview').checked = state.settings.streetViewEnabled;
 
     // Watermark — re-apply saved values each time view opens
@@ -17197,16 +17292,18 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   $('#wt-start').addEventListener('click', () => {
     const side   = $('#wt-side-row .wt-side-btn.active')?.dataset.side || 'C';
     const offset = side === 'C' ? 0 : (parseFloat($('#wt-offset').value) || 0);
+    const snap   = $('#wt-snap').checked;
     const kind   = _wtPendingKind;
     $('#wt-overlay').hidden = true;
     _wtPendingKind = null;
     cancelDraw();                       // free the feature picker for the next track
-    _startWalkTrack(kind, side, offset);
+    _startWalkTrack(kind, side, offset, snap);
   });
   // --- Walk-track stacked banners — pause / finish / discard per track ---
   $('#walk-track-stack')?.addEventListener('click', e => {
     const btn = e.target.closest('.wt-btn');
     if (!btn) return;
+    if (btn.classList.contains('wt-all-btn')) { _togglePauseAll(); return; }
     const id = btn.dataset.id;
     if (btn.classList.contains('wt-pause'))     _toggleTrackPause(id);
     else if (btn.classList.contains('wt-done')) _finishWalkTrack(id);
@@ -18748,6 +18845,9 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   $('#s-gps-trace-simplify')?.addEventListener('change', e => {
     state.settings.gpsTraceSimplifyFt = parseInt(e.target.value, 10) || 0;
   });
+  $('#s-snap-centerline')?.addEventListener('change', e => {
+    state.settings.snapToCenterline = e.target.checked;
+  });
   $('#s-streetview').addEventListener('change', e => {
     state.settings.streetViewEnabled = e.target.checked;
   });
@@ -19640,6 +19740,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     { kind: 'misc_line',        label: 'Misc Lines',      defColor: '#8A5A2B', defLT: 'solid',          defWt: 3, defOff: 0, defCode: 'ML' },
     { kind: 'ln_paved_swale',   label: 'Paved Swale',     defColor: '#2563A8', defLT: 'solid',          defWt: 4, defOff: 7, defCode: 'PS' },
     { kind: 'ln_pvmt_widening', label: 'Pvmt Widening',   defColor: '#9CA3AF', defLT: 'solid',          defWt: 4, defOff: 1, defCode: 'PW' },
+    { kind: 'ln_edge_drop',     label: 'Edge Drop',       defColor: '#C85A2B', defLT: 'dashed',         defWt: 4, defOff: 2, defCode: 'ED' },
     { kind: 'ln_curb',          label: 'Curb',            defColor: '#000000', defLT: 'double',         defWt: 4, defOff: 0, defCode: 'CU' },
     { kind: 'pg_sidewalk',      label: 'Sidewalk',        defColor: '#9CA3AF', defLT: 'pipe',           defWt: 5, defOff: 6, defCode: 'SW' },
   ];
