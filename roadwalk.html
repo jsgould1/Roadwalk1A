@@ -7117,9 +7117,11 @@ body.mobile-mode #app {
         <div class="trace-banner" id="draw-banner">
           <span id="draw-banner-type">DRAWING</span>
           <span class="tb-sep">·</span>
+          <span id="draw-pt-hint" hidden>Tap the map to place it</span>
           <span id="draw-banner-vcount">0 pts</span>
-          <span class="tb-sep">·</span>
+          <span class="tb-sep" id="draw-banner-sep2">·</span>
           <span id="draw-banner-need"></span>
+          <button class="tb-btn tb-walk" id="draw-gps-btn" hidden title="Drop this feature at your current GPS position">📍 Drop at GPS</button>
           <button class="tb-btn tb-done" id="draw-done-btn" disabled>✓ Done</button>
           <button class="tb-btn" id="draw-cancel-btn">✕ Cancel</button>
         </div>
@@ -14483,14 +14485,26 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       const meta = (typeof PIN_STYLE !== 'undefined' && kind && PIN_STYLE[kind]) || null;
       hint.textContent = (kind ? `${(meta && meta.code) || kind}: ` : '') + _drawHintText(tool);
     }
-    // Show draw banner for line / polygon — gives touch users a ✓ Done button
-    if (tool === 'line' || tool === 'polygon') {
-      const meta   = (typeof PIN_STYLE !== 'undefined' && kind && PIN_STYLE[kind]) || null;
-      const code   = meta?.code || (kind ? kind.replace(/_/g, ' ') : tool.toUpperCase());
-      const typeEl = $('#draw-banner-type');
-      if (typeEl) typeEl.textContent = `DRAWING ${code.toUpperCase()}`;
-      _updateDrawBanner();
-      $('#draw-banner')?.classList.add('open');
+    // Show the draw banner for every geometry tool:
+    //  • point        → "📍 Drop at GPS" button + tap-the-map hint
+    //  • line/polygon → vertex counter + ✓ Done button
+    {
+      const meta    = (typeof PIN_STYLE !== 'undefined' && kind && PIN_STYLE[kind]) || null;
+      const code    = meta?.code || (kind ? kind.replace(/_/g, ' ') : tool.toUpperCase());
+      const isPoint = (tool === 'point');
+      const typeEl  = $('#draw-banner-type');
+      if (typeEl) typeEl.textContent = `${isPoint ? 'DROPPING' : 'DRAWING'} ${code.toUpperCase()}`;
+      // Point-only elements
+      const ptHint = $('#draw-pt-hint');
+      if (ptHint) { ptHint.hidden = !isPoint; ptHint.textContent = 'Tap the map to place it'; }
+      $('#draw-gps-btn').hidden = !isPoint;
+      // Line/polygon-only elements
+      $('#draw-banner-vcount').hidden = isPoint;
+      $('#draw-banner-sep2').hidden   = isPoint;
+      $('#draw-banner-need').hidden    = isPoint;
+      $('#draw-done-btn').hidden        = isPoint;
+      if (!isPoint) _updateDrawBanner();
+      $('#draw-banner').classList.add('open');
     }
     // Disable Leaflet's double-click zoom while drawing so dblclick = "finish"
     if (state.map && state.map.doubleClickZoom) state.map.doubleClickZoom.disable();
@@ -14529,6 +14543,26 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     }).addTo(state.map);
     line._rwTempLine = true;
     drawState.tempLayers.push(line);
+  }
+
+  // Place a point feature instantly at the live GPS fix instead of a map tap.
+  // Wired to the "📍 Drop at GPS" button on the draw banner.
+  function _dropFeatureAtGps() {
+    if (drawState.tool !== 'point') return;
+    if (!state.gpsPos) {
+      const h = $('#draw-pt-hint');
+      if (h) h.textContent = 'No GPS fix yet — tap the map instead';
+      return;
+    }
+    const { lat, lng } = state.gpsPos;
+    drawState.source = 'gps';
+    drawState.vertices.push([lat, lng]);
+    const m = L.circleMarker([lat, lng], {
+      radius: 4, color: '#c85a2b', fillColor: '#fff', fillOpacity: 1, weight: 2,
+      interactive: false,
+    }).addTo(state.map);
+    drawState.tempLayers.push(m);
+    finishDraw();
   }
 
   function finishDraw() {
@@ -16688,6 +16722,8 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   // --- Feature draw: Done / Cancel buttons in the draw banner (touch-friendly) ---
   $('#draw-done-btn').addEventListener('click', () => finishDraw());
   $('#draw-cancel-btn').addEventListener('click', () => cancelDraw());
+  // --- Feature draw: drop a point feature at the live GPS position ---
+  $('#draw-gps-btn').addEventListener('click', () => _dropFeatureAtGps());
 
   // --- New Section dialog: Save / Cancel ---
   $('#nsd-save-btn').addEventListener('click', () => _commitNewSection());
