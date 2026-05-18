@@ -16111,6 +16111,9 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     let lenFt = 0;
     for (let i = 1; i < verts.length; i++) lenFt += havFt(verts[i - 1], verts[i]);
     const lenMi = lenFt / 5280;
+    // Linear sections: seed the kickoff stationing — start at 0+00 and end at
+    // the traced centerline length expressed as a station (X+XX).
+    const seedBasics = isLinear ? { fromSta: '0+00', toSta: fmtSta(lenFt) } : {};
     const newId = 's' + Date.now().toString(36);
     SECTIONS.push({
       id:             newId,
@@ -16127,7 +16130,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       mpStart:        0,
       mpEnd:          isLinear ? +lenMi.toFixed(3) : 0,
       pins:           [],
-      kickoffAnswers: { basics: {} },
+      kickoffAnswers: { basics: Object.assign({}, seedBasics) },
     });
     // Tear down the trace
     if (state.map) {
@@ -16139,8 +16142,10 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     document.querySelector('.app')?.classList.remove('drawing');
     if (state.map?.doubleClickZoom) state.map.doubleClickZoom.enable();
     renderSectionList('all');
-    // Straight into the Section Kickoff form — its first section collects the name.
-    state.draftKickoff = { sectionId: newId, type: secType, answers: { basics: {} } };
+    // Straight into the Section Kickoff form — its first section collects the
+    // name; linear sections arrive with From/To stations pre-filled.
+    state.draftKickoff = { sectionId: newId, type: secType,
+                           answers: { basics: Object.assign({}, seedBasics) } };
     showView('kickoff');
   }
 
