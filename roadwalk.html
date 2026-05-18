@@ -6878,18 +6878,25 @@ input.fs-slider::-webkit-slider-thumb {
 }
 .sign-ph-take { flex: 3; background: #d8463c; }
 .sign-ph-up   { flex: 1; background: #9aa3ad; }
-.sign-photos { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
-.sign-photo-card { position: relative; }
+.sign-photos { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
+.sign-photo-card { display: flex; flex-direction: column; gap: 3px; width: 128px; }
+.sign-photo-imgwrap { position: relative; }
 .sign-photo-thumb {
-  width: 64px; height: 64px; object-fit: cover; border-radius: 4px;
-  cursor: pointer; border: 1px solid var(--rule, #d8dde2);
+  width: 128px; height: 128px; object-fit: cover; border-radius: 4px;
+  cursor: pointer; border: 1px solid var(--rule, #d8dde2); display: block;
 }
 .sign-photo-del {
-  position: absolute; top: -5px; right: -5px;
-  width: 17px; height: 17px; border-radius: 50%;
+  position: absolute; top: -6px; right: -6px;
+  width: 20px; height: 20px; border-radius: 50%;
   border: 1px solid #fff; background: #c0392b; color: #fff;
-  font-size: 10px; line-height: 1; cursor: pointer;
+  font-size: 11px; line-height: 1; cursor: pointer;
 }
+.sign-photo-desc {
+  width: 128px; box-sizing: border-box; padding: 4px 6px;
+  font: 400 11px 'IBM Plex Sans', sans-serif; color: var(--ink, #222);
+  border: 1px solid var(--rule, #d8dde2); border-radius: 4px; background: #fff;
+}
+.sign-photo-desc:focus { outline: none; border-color: var(--blue, #1a5276); }
 /* One compact line per attribute inside the narrow columns: label left, control right */
 .sign-col .df-row { display: flex; align-items: center; gap: 6px; padding: 3px 2px; }
 .sign-col .df-lbl { flex: 0 0 74px; padding: 0; }
@@ -6938,6 +6945,11 @@ input.fs-slider::-webkit-slider-thumb {
   font: 700 8px 'IBM Plex Mono', monospace; letter-spacing: 0.5px;
   color: var(--ink-3, #8a93a0); padding: 6px 2px 2px;
 }
+/* Textarea rows — label stacked tight above the field (no dead space) */
+.df-row-ta { flex-direction: column; align-items: stretch; gap: 4px; }
+.df-row-ta .df-lbl { padding-top: 0; }
+.sign-col .df-row-ta { align-items: stretch; }
+.sign-col .df-row-ta .df-lbl { flex: 0 0 auto; padding: 0; }
 /* Form sections */
 .df-sec { }
 .df-sec-hdr {
@@ -7114,9 +7126,10 @@ input.fs-slider::-webkit-slider-thumb {
   font-family: 'IBM Plex Mono', monospace; flex-shrink: 0;
 }
 .dfa-btn:hover { border-color: var(--blue); color: var(--blue); background: var(--paper-2); }
-.dfa-btn.dfa-confirm:hover { background: #dcfce7; border-color: #15803d; color: #15803d; }
-.dfa-btn.dfa-move:hover    { background: #eff6ff; border-color: var(--blue); color: var(--blue); }
-.dfa-btn.dfa-delete:hover  { background: #fee2e2; border-color: #b91c1c;   color: #b91c1c; }
+.dfa-btn.dfa-confirm:hover  { background: #dcfce7; border-color: #15803d; color: #15803d; }
+.dfa-btn.dfa-move:hover     { background: #eff6ff; border-color: var(--blue); color: var(--blue); }
+.dfa-btn.dfa-reassign:hover { background: #fef3c7; border-color: #b45309; color: #b45309; }
+.dfa-btn.dfa-delete:hover   { background: #fee2e2; border-color: #b91c1c;   color: #b91c1c; }
 .dfa-btn.active            { background: var(--blue); color: #fff; border-color: var(--blue); }
 /* Photo annotation modal */
 .rw-annotate-overlay {
@@ -8522,9 +8535,10 @@ body.mobile-mode #app {
             <span class="data-stat-chip"  id="data-stat-chip">Pending</span>
             <!-- Asset quick-actions: shown for pt_* and pg_* kinds only -->
             <div class="dfa-asset-btns" id="dfa-asset-btns" hidden>
-              <button class="dfa-btn dfa-confirm" id="dfa-confirm-btn" title="Confirm Asset">✓</button>
-              <button class="dfa-btn dfa-move"    id="dfa-move-btn"    title="Move Asset on Map">⊹</button>
-              <button class="dfa-btn dfa-delete"  id="dfa-delete-btn"  title="Delete Asset">✕</button>
+              <button class="dfa-btn dfa-confirm"  id="dfa-confirm-btn"  title="Confirm Asset">✓</button>
+              <button class="dfa-btn dfa-move"     id="dfa-move-btn"     title="Move Asset on Map">⊹</button>
+              <button class="dfa-btn dfa-reassign" id="dfa-reassign-btn" title="Assign to Other Section">↪</button>
+              <button class="dfa-btn dfa-delete"   id="dfa-delete-btn"   title="Delete Asset">🗑</button>
             </div>
           </div>
 
@@ -25244,10 +25258,11 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     var assetBtnsEl = document.getElementById('dfa-asset-btns');
     if (assetBtnsEl) assetBtnsEl.removeAttribute('hidden');
 
-    var _dfaConfirmBtn = document.getElementById('dfa-confirm-btn');
-    var _dfaMoveBtn    = document.getElementById('dfa-move-btn');
-    var _dfaDeleteBtn  = document.getElementById('dfa-delete-btn');
-    var _dfaChipEl     = document.getElementById('data-stat-chip');
+    var _dfaConfirmBtn  = document.getElementById('dfa-confirm-btn');
+    var _dfaMoveBtn     = document.getElementById('dfa-move-btn');
+    var _dfaReassignBtn = document.getElementById('dfa-reassign-btn');
+    var _dfaDeleteBtn   = document.getElementById('dfa-delete-btn');
+    var _dfaChipEl      = document.getElementById('data-stat-chip');
 
     // Confirm — toggle confirmed/pending, then save
     if (_dfaConfirmBtn) {
@@ -25266,6 +25281,8 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     // Move — hand off to map relocate mode (the next map tap sets the location)
     if (_dfaMoveBtn) {
       _dfaMoveBtn.onclick = function () {
+        if (!window.confirm('Move "' + (merged.id || 'this asset') +
+            '" on the map?\nThe next map tap will set its new location.')) return;
         if (_dataState.dirty &&
             !window.confirm('You have unsaved changes. Discard them and move the asset?')) return;
         // _rwStartRelocate mutates pin.geometry directly — pass the live
@@ -25285,6 +25302,59 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         } else {
           window.alert('Relocate mode is unavailable.');
         }
+      };
+    }
+
+    // Reassign — move this asset's record into a different section
+    if (_dfaReassignBtn) {
+      _dfaReassignBtn.onclick = function () {
+        var secs = window.SECTIONS || [];
+        if (secs.length < 2) {
+          window.alert('There are no other sections to assign to.');
+          return;
+        }
+        var choices = secs.map(function (s, i) {
+          return (i + 1) + ') ' + (s.name || s.id) + (s === sec ? '  (current)' : '');
+        }).join('\n');
+        var ans = window.prompt('Assign "' + (merged.id || 'this asset') +
+          '" to which section?\n\n' + choices + '\n\nEnter the number:');
+        if (ans == null) return;
+        var idx = parseInt(ans, 10) - 1;
+        if (isNaN(idx) || idx < 0 || idx >= secs.length) {
+          window.alert('Invalid selection.');
+          return;
+        }
+        var target = secs[idx];
+        if (target === sec) {
+          window.alert('The asset is already in that section.');
+          return;
+        }
+        if (!window.confirm('Reassign "' + (merged.id || 'this asset') + '" from "' +
+            ((sec && (sec.name || sec.id)) || '—') + '" to "' +
+            (target.name || target.id) + '"?')) return;
+        // Move the live bundle pin between the section pin arrays.
+        var moved = null;
+        if (sec && Array.isArray(sec.pins)) {
+          for (var _ri = 0; _ri < sec.pins.length; _ri++) {
+            if (sec.pins[_ri].id === merged.id ||
+                (merged.ulid && sec.pins[_ri].ulid === merged.ulid)) {
+              moved = sec.pins.splice(_ri, 1)[0]; break;
+            }
+          }
+        }
+        if (!Array.isArray(target.pins)) target.pins = [];
+        target.pins.push(moved || merged);
+        // Point the form at the new section, then persist with the new sec_id.
+        sec = target;
+        _dataState.sec = target;
+        _saveDataForm();
+        if (window._RW && typeof window._RW.persistSections === 'function') {
+          window._RW.persistSections();
+        }
+        if (window._RW && typeof window._RW.rerender === 'function') window._RW.rerender();
+        if (typeof _updateTypeBadges === 'function') _updateTypeBadges();
+        if (typeof renderDataList === 'function') renderDataList(_dataState.type);
+        window.alert('Asset reassigned to "' + (target.name || target.id) + '".');
       };
     }
 
@@ -25584,8 +25654,8 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   }
 
   function _textareaRow(label, field, val) {
-    return '<div class="df-row" style="flex-direction:column;gap:4px;align-items:stretch;">' +
-           '<span class="df-lbl" style="padding-top:0">' + _esc(label) + '</span>' +
+    return '<div class="df-row df-row-ta">' +
+           '<span class="df-lbl">' + _esc(label) + '</span>' +
            '<textarea class="df-textarea" data-field="' + _esc(field) + '" rows="3">' +
            _esc(val == null ? '' : val) + '</textarea></div>';
   }
@@ -25755,6 +25825,8 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       '<div class="sign-col sign-col-post"' + _colAttr(0) + '>' +
         '<div class="sign-col-hdr">POST INFORMATION</div>' +
         _signMetaBlock() +
+        _sectionHdr('POST PHOTOS') +
+        _photoHead('post', 0) +
         _sectionHdr('LOCATION') +
         _sourceRow(pin) +
         '<div class="df-row"><span class="df-lbl">Side</span>' +
@@ -25764,10 +25836,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         postBlocks +
         '<div class="sign-add-row"><button class="sign-add-btn" data-add-post>＋ Add Post</button></div>' +
         _customFieldsSection(pin) +
-        '<div class="sign-photos-sep"></div>' +
-        '<div class="sign-col-hdr" style="margin-top:6px">POST PHOTOS</div>' +
-        _photoHead('post') +
-        _photoTail('post') +
+        _photoTail('post', 0) +
       '</div>';
 
     // ── Photo blocks (reused by direction columns + the post column) ─────
@@ -25777,25 +25846,33 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     }
     function _photoThumb(ph, i) {
       return '<div class="sign-photo-card">' +
-        '<img class="sign-photo-thumb" src="' + ph.dataUrl + '" data-photo-idx="' + i +
-        '" title="Tap to annotate">' +
-        '<button class="sign-photo-del" data-photo-del="' + i + '">✕</button></div>';
+        '<div class="sign-photo-imgwrap">' +
+          '<img class="sign-photo-thumb" src="' + ph.dataUrl + '" data-photo-idx="' + i +
+          '" title="Tap to annotate">' +
+          '<button class="sign-photo-del" data-photo-del="' + i + '">✕</button>' +
+        '</div>' +
+        '<input class="sign-photo-desc" type="text" placeholder="Description…" ' +
+          'data-photo-desc="' + i + '" value="' + _esc(ph.desc == null ? '' : ph.desc) + '">' +
+      '</div>';
     }
-    // Head: Take / Upload buttons with the first photo shown right below them.
-    function _photoHead(dirKey) {
+    // Two photos sit beside the buttons only when the column is wide enough.
+    function _photoTopCount(ci) { return (colW[ci] >= 278) ? 2 : 1; }
+    // Head: Take / Upload buttons with the first photo(s) shown right below them.
+    function _photoHead(dirKey, ci) {
       var list = _photoList(dirKey);
-      var first = list.length
-        ? '<div class="sign-photos">' + _photoThumb(list[0].ph, list[0].i) + '</div>' : '';
+      var shown = list.slice(0, _photoTopCount(ci))
+        .map(function (x) { return _photoThumb(x.ph, x.i); }).join('');
       return '<div class="sign-photo-row">' +
           '<button class="sign-ph-take" data-sign-photo data-dir="' + dirKey + '">📷 Photo</button>' +
           '<button class="sign-ph-up" data-sign-upload data-dir="' + dirKey + '">⬆ Upload</button>' +
-        '</div>' + first;
+        '</div>' + (shown ? '<div class="sign-photos">' + shown + '</div>' : '');
     }
     // Tail: additional photos parked at the column bottom after a separator.
-    function _photoTail(dirKey) {
+    function _photoTail(dirKey, ci) {
       var list = _photoList(dirKey);
-      if (list.length < 2) return '';
-      var rest = list.slice(1).map(function (x) { return _photoThumb(x.ph, x.i); }).join('');
+      var n = _photoTopCount(ci);
+      if (list.length <= n) return '';
+      var rest = list.slice(n).map(function (x) { return _photoThumb(x.ph, x.i); }).join('');
       return '<div class="sign-photos-sep"></div>' +
         '<div class="sign-photos-more-hdr">MORE PHOTOS</div>' +
         '<div class="sign-photos">' + rest + '</div>';
@@ -25840,10 +25917,10 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         .map(function (x) { return _panelBlock(x.p, x.i); }).join('');
       return '<div class="sign-col sign-col-dir" data-dir="' + D + '"' + _colAttr(ci) + '>' +
         '<div class="sign-col-hdr">' + _esc(lbl) + '</div>' +
-        _photoHead(D) +
+        _photoHead(D, ci) +
         panelHtml +
         '<div class="sign-add-row"><button class="sign-add-btn" data-add-panel data-dir="' + D + '">＋ Add Panel</button></div>' +
-        _photoTail(D) +
+        _photoTail(D, ci) +
       '</div>';
     }
 
@@ -27126,6 +27203,17 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         });
       });
 
+      // Per-photo description fields
+      scroll.querySelectorAll('input.sign-photo-desc[data-photo-desc]').forEach(function (inp) {
+        inp.addEventListener('input', function () {
+          var i = Number(inp.dataset.photoDesc);
+          if (Array.isArray(a.photos) && a.photos[i]) {
+            a.photos[i].desc = inp.value;
+            _dataState.dirty = true;
+          }
+        });
+      });
+
       // Column resize handles — drag adjusts the column to the left; the five
       // widths are persisted to localStorage so they survive form re-renders.
       scroll.querySelectorAll('.sign-resize').forEach(function (h) {
@@ -27335,7 +27423,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       }
     }
 
-    window.RWIdb.put('inspections', record).then(function () {
+    return window.RWIdb.put('inspections', record).then(function () {
       // Update both cache indexes so _mergedPin finds the record immediately
       _dataState.idbCache[pin.id]             = record;
       _dataState.idbCacheByUlid[record.ulid]  = record;
@@ -27590,15 +27678,22 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       _closeDataForm();
     });
 
-    // Discard button
+    // Discard button — always confirm, then discard changes and exit.
     document.getElementById('data-discard-btn')?.addEventListener('click', function () {
-      if (_dataState.dirty && !confirm('Discard changes?')) return;
+      if (!confirm('Discard changes and exit without saving?')) return;
       _dataState.dirty = false;
       _closeDataForm();
     });
 
-    // Save button
-    document.getElementById('data-save-btn')?.addEventListener('click', _saveDataForm);
+    // Save button — save, then exit back to wherever the form was opened from.
+    document.getElementById('data-save-btn')?.addEventListener('click', function () {
+      var p = _saveDataForm();
+      if (p && typeof p.then === 'function') {
+        p.then(function () { _closeDataForm(); });
+      } else {
+        _closeDataForm();
+      }
+    });
 
 
     // ── Preview pane buttons ────────────────────────────────────────────────
