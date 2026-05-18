@@ -13436,6 +13436,9 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       } else if (_barPat?.double) {
         // Double line: two stripes at top and bottom of the bar, gap in center
         bar.style.background = `linear-gradient(to bottom,${_barColor} 0 30%,transparent 30% 70%,${_barColor} 70% 100%)`;
+      } else if (_barPat?.pipe) {
+        // Pipe: solid edges with a translucent fill — reads like a conduit band
+        bar.style.background = `linear-gradient(to bottom,${_barColor} 0 22%,${_barColor}44 22% 78%,${_barColor} 78% 100%)`;
       } else {
         bar.style.background = _barColor;
       }
@@ -14178,6 +14181,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     if (!name) { $('#nsd-err').textContent = 'Section name is required.'; return; }
 
     const isLinear = traceState.type === 'linear';
+    const secType  = traceState.type;   // captured before traceState is torn down
     const code     = $('#nsd-code').value.trim();
     const mpStart  = isLinear ? (parseFloat($('#nsd-mp-start').value) || 0) : 0;
     const mpEnd    = isLinear ? (parseFloat($('#nsd-mp-end').value)   || 0) : 0;
@@ -14217,7 +14221,9 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     if (state.map?.doubleClickZoom) state.map.doubleClickZoom.enable();
 
     renderSectionList('all');
-    showView('field', newId);
+    // New section created — go straight into its Section Kickoff form.
+    state.draftKickoff = { sectionId: newId, type: secType, answers: { basics: { name } } };
+    showView('kickoff');
   }
 
   // --- Track 2e: Adjust existing section centerline -------------------------
@@ -18928,6 +18934,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     { v: 'dotted',         l: 'Dotted',          da: '1 4' },
     { v: 'double',         l: 'Double solid',    da: null,  double: true },
     { v: 'double_dashed',  l: 'Double dashed',   da: '5 4', double: true },
+    { v: 'pipe',           l: 'Pipe',            da: null,  pipe: true, thick: 6 },
     { v: 'guardrail',      l: 'Guard rail',      da: '6 3',
       hatch: 'repeating-linear-gradient(90deg,transparent 0 6px,{c} 6px 8px)', thick: 6 },
     { v: 'retaining_wall', l: 'Retaining wall',  da: null,
@@ -18953,6 +18960,8 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     { kind: 'misc_line',        label: 'Misc Lines',      defColor: '#8A5A2B', defLT: 'solid',          defWt: 3, defOff: 0, defCode: 'ML' },
     { kind: 'ln_paved_swale',   label: 'Paved Swale',     defColor: '#2563A8', defLT: 'solid',          defWt: 4, defOff: 7, defCode: 'PS' },
     { kind: 'ln_pvmt_widening', label: 'Pvmt Widening',   defColor: '#9CA3AF', defLT: 'solid',          defWt: 4, defOff: 1, defCode: 'PW' },
+    { kind: 'ln_curb',          label: 'Curb',            defColor: '#000000', defLT: 'double',         defWt: 4, defOff: 0, defCode: 'CU' },
+    { kind: 'pg_sidewalk',      label: 'Sidewalk',        defColor: '#9CA3AF', defLT: 'pipe',           defWt: 5, defOff: 6, defCode: 'SW' },
   ];
 
   // ── Storage: featureStyles lives inside rw_v1 (same key as layersVis) ──────
@@ -19171,6 +19180,11 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       var gap = w + 2;
       lines = '<line x1="4" y1="' + (cy - gap / 2) + '" x2="' + (W - 4) + '" y2="' + (cy - gap / 2) + '" stroke="' + color + '" stroke-width="' + w + '"' + da + '/>' +
               '<line x1="4" y1="' + (cy + gap / 2) + '" x2="' + (W - 4) + '" y2="' + (cy + gap / 2) + '" stroke="' + color + '" stroke-width="' + w + '"' + da + '/>';
+    } else if (lt.pipe) {
+      var pg = w + 6;
+      lines = '<rect x="4" y="' + (cy - pg / 2) + '" width="' + (W - 8) + '" height="' + pg + '" fill="' + color + '" fill-opacity="0.28"/>' +
+              '<line x1="4" y1="' + (cy - pg / 2) + '" x2="' + (W - 4) + '" y2="' + (cy - pg / 2) + '" stroke="' + color + '" stroke-width="' + w + '"/>' +
+              '<line x1="4" y1="' + (cy + pg / 2) + '" x2="' + (W - 4) + '" y2="' + (cy + pg / 2) + '" stroke="' + color + '" stroke-width="' + w + '"/>';
     } else {
       lines = '<line x1="4" y1="' + cy + '" x2="' + (W - 4) + '" y2="' + cy + '" stroke="' + color + '" stroke-width="' + w + '"' + da + '/>';
     }
@@ -20452,6 +20466,8 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     // Drawn linear features — toggles key off the catalog `value` kind.
     { label: 'Paved Swales',  kind: 'ln_paved_swale',   color: '#2563A8', active: true },
     { label: 'Pvmt Widening', kind: 'ln_pvmt_widening', color: '#9CA3AF', active: true },
+    { label: 'Curbs',         kind: 'ln_curb',          color: '#000000', active: true },
+    { label: 'Sidewalks',     kind: 'pg_sidewalk',      color: '#9CA3AF', active: true },
   ];
 
   /**
