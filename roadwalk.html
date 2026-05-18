@@ -2638,6 +2638,34 @@ a { color: inherit; text-decoration: none; }
 /* Left-stack toggle button in its "off" state (e.g. ↔W width labels hidden) */
 .map-ctl-btn.ctl-off { opacity: 0.4; }
 
+/* --- Polygon Section Info cards (Overlook / Parking) --- */
+.psc-card {
+  background: #fff;
+  border: 1px solid #0B3D66;
+  border-radius: 5px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+  padding: 4px 6px;
+  min-width: 132px;
+  font-family: 'IBM Plex Sans', sans-serif;
+}
+.psc-row { display: flex; align-items: baseline; gap: 6px; line-height: 1.5; }
+.psc-lbl {
+  flex: 0 0 36px;
+  font: 700 8px 'IBM Plex Mono', monospace;
+  letter-spacing: 0.4px; color: #5a6470;
+}
+.psc-val {
+  flex: 1; min-width: 0;
+  font-size: 11px; color: #1a2733;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.psc-val.psc-edit { cursor: text; border-bottom: 1px dotted #9aa7b3; }
+.psc-input {
+  width: 100%; box-sizing: border-box;
+  font-size: 11px; padding: 1px 3px;
+  border: 1px solid #0B3D66; border-radius: 3px;
+}
+
 /* --- Settings: dropdown-list library --- */
 .dl-list { margin-top: 12px; }
 .dl-list-name {
@@ -7410,6 +7438,11 @@ body.mobile-mode #app {
             <span style="font-size:13px;line-height:1;font-weight:800;">↔W</span>
           </button>
 
+          <!-- Polygon Section Info — info cards next to Overlook / Parking points -->
+          <button class="map-ctl-btn ctl-off" id="section-info-btn" title="Show / hide Overlook &amp; Parking info cards">
+            <span style="font-size:14px;line-height:1;">ⓘ</span>
+          </button>
+
           <!-- Field-photos panel — floats right of the stack when open -->
           <div class="photos-panel" id="photos-panel" hidden>
             <div class="layers-panel-title">FIELD PHOTOS</div>
@@ -10178,6 +10211,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       state.map.on('zoomend', _renderWidthLabels);
     }
     _renderWidthLabels();
+    _renderSectionInfoCards();
 
     // Force a tile recalc — common gotcha when the container starts hidden
     setTimeout(() => state.map.invalidateSize(), 50);
@@ -16015,6 +16049,112 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         _renderStripWidths();
       });
     }
+  }
+
+  // ── Polygon Section Info cards — editable info beside Overlook/Parking ──
+  let _sectionInfoOn = false;
+
+  function _sectionInfoCardHtml(pin) {
+    const a = pin.attrs || {};
+    const rows = [
+      ['NAME',  'loc_name',      a.loc_name,      true],
+      ['DESC',  'description',   a.description,   true],
+      ['STA',   null,            pin.sta,         false],
+      ['RIP',   'rip_id',        a.rip_id,        true],
+      ['SPOTS', 'parking_spots', a.parking_spots, true],
+      ['MAT',   'material',      a.material,      true],
+    ];
+    const body = rows.map(([lbl, k, v, edit]) => {
+      const val = (v == null || v === '') ? '—' : String(v);
+      const cls = 'psc-val' + (edit ? ' psc-edit' : '');
+      const at  = (edit && k) ? ` data-k="${k}"` : '';
+      return `<div class="psc-row"><span class="psc-lbl">${lbl}</span>` +
+             `<span class="${cls}"${at}>${_ffEsc(val)}</span></div>`;
+    }).join('');
+    return `<div class="psc-card" data-pid="${_ffEsc(pin.id)}">${body}</div>`;
+  }
+
+  function _sectionInfoEdit(cell) {
+    if (cell.querySelector('input')) return;
+    const k = cell.dataset.k;
+    const card = cell.closest('.psc-card');
+    const pid = card ? card.dataset.pid : null;
+    const cur = cell.textContent === '—' ? '' : cell.textContent;
+    const inp = document.createElement('input');
+    inp.className = 'psc-input';
+    if (k === 'parking_spots') { inp.type = 'number'; inp.inputMode = 'numeric'; }
+    else inp.type = 'text';
+    inp.value = cur;
+    cell.textContent = '';
+    cell.appendChild(inp);
+    inp.focus();
+    const commit = () => {
+      const v = inp.value.trim();
+      const sec = SECTIONS.find(s => s.id === state.sectionId);
+      const pin = sec && (sec.pins || []).find(p => p.id === pid);
+      if (pin) {
+        pin.attrs = pin.attrs || {};
+        if (k === 'parking_spots') {
+          pin.attrs[k] = (v === '' || isNaN(parseFloat(v))) ? null : parseFloat(v);
+        } else {
+          pin.attrs[k] = v || null;
+        }
+        if (typeof window.RWAutoSave === 'function') window.RWAutoSave();
+      }
+      cell.textContent = (v === '') ? '—' : v;
+    };
+    inp.addEventListener('blur', commit);
+    inp.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); inp.blur(); }
+      else if (e.key === 'Escape') { cell.textContent = cur || '—'; }
+    });
+  }
+
+  function _renderSectionInfoCards() {
+    if (!state.map) return;
+    if (state.mapLayers.sectionInfo) {
+      state.map.removeLayer(state.mapLayers.sectionInfo);
+      state.mapLayers.sectionInfo = null;
+    }
+    if (!_sectionInfoOn) return;
+    const sec = SECTIONS.find(s => s.id === state.sectionId);
+    if (!sec || !sec.pins) return;
+    const grp = L.layerGroup();
+    const markers = [];
+    for (const pin of sec.pins) {
+      if (pin.kind !== 'parking' && pin.kind !== 'overlook') continue;
+      if (!pin.geometry || pin.geometry.type !== 'Point') continue;
+      const [lng, lat] = pin.geometry.coordinates;
+      const m = L.marker([lat, lng], {
+        icon: L.divIcon({ className: 'psc-card-wrap', html: _sectionInfoCardHtml(pin),
+                          iconSize: null, iconAnchor: [-12, 14] }),
+        interactive: true, zIndexOffset: 700,
+      });
+      grp.addLayer(m);
+      markers.push(m);
+    }
+    grp.addTo(state.map);
+    state.mapLayers.sectionInfo = grp;
+    markers.forEach(m => {
+      const el = m.getElement();
+      if (!el) return;
+      L.DomEvent.disableClickPropagation(el);
+      L.DomEvent.disableScrollPropagation(el);
+      el.addEventListener('click', e => {
+        const cell = e.target.closest('.psc-val[data-k]');
+        if (cell) _sectionInfoEdit(cell);
+      });
+    });
+  }
+
+  // Wire the ⓘ left-stack button — show / hide the section-info cards.
+  {
+    const _siBtn = document.getElementById('section-info-btn');
+    if (_siBtn) _siBtn.addEventListener('click', () => {
+      _sectionInfoOn = !_sectionInfoOn;
+      _siBtn.classList.toggle('ctl-off', !_sectionInfoOn);
+      _renderSectionInfoCards();
+    });
   }
 
   // --- Floating feature picker -------------------------------------------
