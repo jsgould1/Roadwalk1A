@@ -2634,6 +2634,99 @@ a { color: inherit; text-decoration: none; }
   pointer-events: none;
   z-index: 5;
 }
+
+/* --- Feature form — simple right slide-out --- */
+.ff-scrim {
+  position: fixed; inset: 0; z-index: 1200;
+  background: rgba(0,0,0,0.28);
+  display: flex; justify-content: flex-end;
+}
+.ff-scrim[hidden] { display: none; }
+.ff-panel {
+  width: min(430px, 94vw); height: 100%;
+  background: var(--paper, #fff);
+  display: flex; flex-direction: column;
+  box-shadow: -3px 0 18px rgba(0,0,0,0.3);
+  animation: ffSlideIn 0.18s ease-out;
+}
+@keyframes ffSlideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+.ff-topbar { display: flex; gap: 6px; padding: 8px 10px; border-bottom: 1px solid var(--line, #d8dde2); }
+.ff-tbtn {
+  flex: 1; padding: 7px 4px; cursor: pointer;
+  font: 700 11px 'IBM Plex Sans', sans-serif;
+  border: 1px solid var(--line, #c7cfd8); border-radius: 5px;
+  background: var(--paper-2, #f1f3f5); color: var(--ink, #222);
+}
+.ff-tbtn.ff-verify { border-color: #15803d; color: #15803d; }
+.ff-tbtn.ff-del { flex: 0 0 auto; border-color: #c0392b; color: #c0392b; }
+.ff-tbtn.ff-del.armed { background: #c0392b; color: #fff; }
+.ff-photo {
+  margin: 10px; padding: 12px; cursor: pointer;
+  background: #d8463c; color: #fff;
+  font: 800 14px 'IBM Plex Sans', sans-serif; letter-spacing: 0.5px;
+  border: none; border-radius: 6px;
+}
+.ff-photo:active { transform: scale(0.98); }
+.ff-body { flex: 1; overflow-y: auto; padding: 2px 14px 16px; }
+.ff-foot { display: flex; border-top: 1px solid var(--line, #d8dde2); }
+.ff-save {
+  flex: 3; padding: 14px; cursor: pointer; border: none;
+  background: #15803d; color: #fff;
+  font: 800 14px 'IBM Plex Sans', sans-serif;
+}
+.ff-discard {
+  flex: 1; padding: 14px; cursor: pointer; border: none;
+  background: #9aa3ad; color: #fff;
+  font: 700 12px 'IBM Plex Sans', sans-serif;
+}
+.ff-save:active, .ff-discard:active { filter: brightness(0.93); }
+.ff-row  { margin-top: 10px; }
+.ff-row2 { display: flex; gap: 10px; margin-top: 10px; }
+.ff-row2 > * { flex: 1; min-width: 0; }
+.ff-lbl {
+  display: block; margin-bottom: 3px;
+  font: 700 10px 'IBM Plex Mono', monospace;
+  letter-spacing: 0.5px; text-transform: uppercase;
+  color: var(--ink-2, #5a6470);
+}
+.ff-in, .ff-sel, .ff-ta {
+  width: 100%; box-sizing: border-box;
+  padding: 7px 8px; font: 13px 'IBM Plex Sans', sans-serif;
+  border: 1px solid var(--line, #c7cfd8); border-radius: 5px;
+  background: var(--paper, #fff); color: var(--ink, #222);
+}
+.ff-ta { resize: vertical; min-height: 38px; }
+.ff-head {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  gap: 10px; padding: 8px 0 2px;
+}
+.ff-head-id  { font: 800 15px 'IBM Plex Mono', monospace; color: var(--ink, #222); }
+.ff-head-sta { font: 700 11px 'IBM Plex Mono', monospace; color: var(--ink-2, #5a6470); margin-top: 2px; }
+.ff-head-gps {
+  text-align: right; max-width: 46%;
+  font: 9.5px 'IBM Plex Mono', monospace; color: var(--ink-3, #8a93a0); line-height: 1.5;
+}
+.ff-seg { display: flex; gap: 4px; }
+.ff-seg-btn {
+  flex: 1; padding: 7px 2px; cursor: pointer;
+  font: 700 12px 'IBM Plex Sans', sans-serif;
+  border: 1px solid var(--line, #c7cfd8); border-radius: 5px;
+  background: var(--paper, #fff); color: var(--ink-2, #5a6470);
+}
+.ff-seg-btn.active { background: #0B3D66; color: #fff; border-color: #0B3D66; }
+.ff-custom-row { display: flex; gap: 6px; margin-top: 6px; align-items: center; }
+.ff-custom-row .ff-cf-lbl { flex: 0 0 38%; }
+.ff-custom-row .ff-cf-val { flex: 1; }
+.ff-cf-del {
+  flex: 0 0 auto; border: none; background: none; color: #c0392b;
+  font-size: 15px; cursor: pointer; padding: 2px 4px;
+}
+.ff-addfield {
+  margin-top: 8px; width: 100%; padding: 8px; cursor: pointer;
+  border: 1px dashed var(--line, #c7cfd8); border-radius: 5px;
+  background: none; color: var(--ink-2, #5a6470);
+  font: 700 11px 'IBM Plex Sans', sans-serif;
+}
 /* Walk-track start dialog — side picker */
 .wt-side-row { display: flex; gap: 6px; }
 .wt-side-btn {
@@ -8351,6 +8444,24 @@ body.mobile-mode #app {
   </div>
 </div>
 
+<!-- ====== FEATURE FORM — simple right slide-out for misc points/lines/polygons ====== -->
+<div class="ff-scrim" id="ff-scrim" hidden>
+  <aside class="ff-panel" id="ff-panel" aria-label="Feature data form">
+    <div class="ff-topbar">
+      <button class="ff-tbtn ff-verify" id="ff-verify" type="button">✓ Verify</button>
+      <button class="ff-tbtn"           id="ff-move"   type="button">⊹ Move</button>
+      <button class="ff-tbtn ff-del"    id="ff-delete" type="button">🗑 Delete</button>
+    </div>
+    <button class="ff-photo" id="ff-photo" type="button">📷 TAKE PHOTOS</button>
+    <div class="ff-body" id="ff-body"></div>
+    <div class="ff-foot">
+      <button class="ff-save"    id="ff-save"    type="button">✓ SAVE</button>
+      <button class="ff-discard" id="ff-discard" type="button">DISCARD</button>
+    </div>
+    <input type="file" id="ff-photo-input" accept="image/*" capture="environment" style="display:none">
+  </aside>
+</div>
+
 <!-- ============ FEATURE CONTEXT POPUP (SLD + map clicks) ============ -->
 <div class="feature-popup" id="feature-popup">
   <div class="fp-head">
@@ -11366,26 +11477,274 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
 
   const sheetState = { pin: null, sec: null };
 
-  function openPinSheet(pin, sec) {
-    // pt_sign now routes through the unified Data module form (same as bundle 'sign').
-    // The 12-step wizard (openSignSheet / _swIntercept) is preserved in code but bypassed.
-    // if (pin.kind === 'pt_sign') { openSignSheet(pin, sec); return; }
-    if (pin.kind === 'ln_guardrail' || pin.kind === 'ln_retaining_wall' || pin.kind === 'ln_barrier') { openBarrierSheet(pin, sec); return; }
-    // Bundle short-kinds + all pt_* / pg_* field-placed features → Data module forms.
-    const _BUNDLE_DATA_KINDS = new Set(['sign','culvert','guardrail','wall','pavement','overlook','ngs_monument']);
-    const _goToData = _BUNDLE_DATA_KINDS.has(pin.kind)
-                   || pin.kind.startsWith('pt_')
-                   || pin.kind.startsWith('pg_');
-    if (_goToData) {
-      console.log('[RoadWalk] openPinSheet routing', pin.kind, '→ Data module. openDataForm type:', typeof window.openDataForm);
-      if (typeof window.openDataForm === 'function') {
-        if (typeof window.showModule === 'function') window.showModule('data');
-        // Opened from the map → closing the form returns to the map module.
-        window.openDataForm(pin, sec, 'map');
+  // ══ Simple feature form — right slide-out for misc points / lines / polys ══
+  // One universal form: every feature writes the SAME attr keys (condition,
+  // repair_type, material, …) so a compiled feature list sorts cleanly across
+  // all features. Complex kinds (signs, culverts, barriers) keep their own forms.
+  const FF_CONDITIONS   = ['E', 'G', 'F', 'P', 'X'];
+  const FF_REPAIR_TYPES = ['Do Nothing', 'Adjust', 'Repair', 'Replace',
+                           'R&R', 'R&S', 'R&D', 'Other'];
+  let _ffPin = null, _ffSec = null, _ffDelArmed = false;
+
+  function _ffEsc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function _ffMidCoords(pin) {
+    const g = pin && pin.geometry;
+    if (!g || !g.coordinates) return null;
+    if (g.type === 'Point') return g.coordinates;
+    const cs = g.type === 'Polygon' ? g.coordinates[0] : g.coordinates;
+    return (cs && cs.length) ? cs[Math.floor(cs.length / 2)] : null;
+  }
+  function _ffSegHtml(name, opts, cur) {
+    return `<div class="ff-seg" data-ffseg="${name}">` + opts.map(v =>
+      `<button type="button" class="ff-seg-btn${v === cur ? ' active' : ''}" ` +
+      `data-v="${_ffEsc(v)}">${_ffEsc(v)}</button>`).join('') + `</div>`;
+  }
+  function _ffCustomRowHtml(label, value) {
+    return `<div class="ff-custom-row">` +
+      `<input class="ff-in ff-cf-lbl" type="text" placeholder="Field name" value="${_ffEsc(label)}">` +
+      `<input class="ff-in ff-cf-val" type="text" placeholder="Value" value="${_ffEsc(value)}">` +
+      `<button type="button" class="ff-cf-del" title="Remove">✕</button></div>`;
+  }
+  function _ffBuildBody(pin) {
+    const a = pin.attrs || {};
+    const mid = _ffMidCoords(pin);
+    const gps = mid ? `${(+mid[1]).toFixed(6)},<br>${(+mid[0]).toFixed(6)}` : '—';
+    const repairSel = FF_REPAIR_TYPES.map(r =>
+      `<option value="${r}"${a.repair_type === r ? ' selected' : ''}>${r}</option>`).join('');
+    const customRows = (Array.isArray(a.custom_fields) ? a.custom_fields : [])
+      .map(cf => _ffCustomRowHtml(cf.label, cf.value)).join('');
+    const photoN = (Array.isArray(a.photos) ? a.photos.length : 0) + (a.photo ? 1 : 0);
+    return `
+      <div class="ff-head">
+        <div>
+          <div class="ff-head-id">${_ffEsc(pin.id || '—')}</div>
+          <div class="ff-head-sta">STA ${_ffEsc(pin.sta || '—')}</div>
+        </div>
+        <div class="ff-head-gps">${gps}</div>
+      </div>
+      <div class="ff-row">
+        <label class="ff-lbl">Description</label>
+        <textarea class="ff-ta" id="ff-description" rows="2">${_ffEsc(a.description)}</textarea>
+      </div>
+      <div class="ff-row2">
+        <div><label class="ff-lbl">Side</label>${_ffSegHtml('side', ['L', 'C', 'R'], a.side)}</div>
+        <div><label class="ff-lbl">Offset (ft)</label>
+          <input class="ff-in" id="ff-offset" type="number" inputmode="decimal" step="0.1"
+                 value="${a.offset_ft != null ? _ffEsc(a.offset_ft) : ''}"></div>
+      </div>
+      <div class="ff-row">
+        <label class="ff-lbl">Condition</label>${_ffSegHtml('condition', FF_CONDITIONS, a.condition)}
+      </div>
+      <div class="ff-row2">
+        <div><label class="ff-lbl">Material</label>
+          <input class="ff-in" id="ff-material" type="text" value="${_ffEsc(a.material)}"></div>
+        <div><label class="ff-lbl">Dimensions <span style="opacity:.55">(opt)</span></label>
+          <input class="ff-in" id="ff-dimensions" type="text" value="${_ffEsc(a.dimensions)}"></div>
+      </div>
+      <div class="ff-row2">
+        <div><label class="ff-lbl">Install Date</label>
+          <input class="ff-in" id="ff-install" type="month" value="${_ffEsc(a.install_date)}"></div>
+        <div><label class="ff-lbl">Photos</label>
+          <div class="ff-in" id="ff-photo-count"
+               style="background:var(--paper-2,#f1f3f5)">${photoN} attached</div></div>
+      </div>
+      <div class="ff-row">
+        <label class="ff-lbl">Repair Type</label>
+        <select class="ff-sel" id="ff-repair">${repairSel}</select>
+      </div>
+      <div class="ff-row" id="ff-repair-other-row"
+           style="${a.repair_type === 'Other' ? '' : 'display:none'}">
+        <label class="ff-lbl">Repair Type — Other</label>
+        <input class="ff-in" id="ff-repair-other" type="text" value="${_ffEsc(a.repair_type_other)}">
+      </div>
+      <div class="ff-row">
+        <label class="ff-lbl">Notes</label>
+        <textarea class="ff-ta" id="ff-notes" rows="2">${_ffEsc(a.notes)}</textarea>
+      </div>
+      <div class="ff-row">
+        <label class="ff-lbl">Custom Fields</label>
+        <div id="ff-custom-list">${customRows}</div>
+        <button type="button" class="ff-addfield" id="ff-addfield">＋ Add Field</button>
+      </div>`;
+  }
+
+  function openFeatureForm(pin, sec) {
+    if (!pin) return;
+    // Every feature carries a unique ULID — backfill legacy / bundle pins.
+    if (!pin.ulid && typeof makeULID === 'function') pin.ulid = makeULID();
+    _ffPin = pin; _ffSec = sec; _ffDelArmed = false;
+    const body = document.getElementById('ff-body');
+    if (body) {
+      body.innerHTML = _ffBuildBody(pin);
+      body.querySelectorAll('.ff-seg').forEach(seg => {
+        seg.querySelectorAll('.ff-seg-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const wasOn = btn.classList.contains('active');
+            seg.querySelectorAll('.ff-seg-btn').forEach(b => b.classList.remove('active'));
+            if (!wasOn) btn.classList.add('active');     // tap again clears
+          });
+        });
+      });
+      const repair = body.querySelector('#ff-repair');
+      const otherRow = body.querySelector('#ff-repair-other-row');
+      if (repair && otherRow) repair.addEventListener('change', () => {
+        otherRow.style.display = repair.value === 'Other' ? '' : 'none';
+      });
+      const addBtn = body.querySelector('#ff-addfield');
+      const list = body.querySelector('#ff-custom-list');
+      if (addBtn && list) addBtn.addEventListener('click', () => {
+        const d = document.createElement('div');
+        d.innerHTML = _ffCustomRowHtml('', '');
+        list.appendChild(d.firstElementChild);
+      });
+      // #ff-custom-list is rebuilt on every open, so this listener never stacks.
+      if (list) list.addEventListener('click', e => {
+        const del = e.target.closest('.ff-cf-del');
+        if (del) { const r = del.closest('.ff-custom-row'); if (r) r.remove(); }
+      });
+    }
+    const delBtn = document.getElementById('ff-delete');
+    if (delBtn) { delBtn.classList.remove('armed'); delBtn.textContent = '🗑 Delete'; }
+    const scrim = document.getElementById('ff-scrim');
+    if (scrim) scrim.hidden = false;
+  }
+
+  function _ffClose() {
+    const scrim = document.getElementById('ff-scrim');
+    if (scrim) scrim.hidden = true;
+    _ffPin = null; _ffSec = null; _ffDelArmed = false;
+  }
+
+  function _ffCollect() {
+    const g = id => document.getElementById(id);
+    const seg = name => {
+      const el = document.querySelector(`.ff-seg[data-ffseg="${name}"] .ff-seg-btn.active`);
+      return el ? el.dataset.v : null;
+    };
+    const offRaw = g('ff-offset') ? g('ff-offset').value : '';
+    const out = {
+      description:       (g('ff-description')?.value || '').trim() || null,
+      side:              seg('side'),
+      offset_ft:         (offRaw !== '' && offRaw != null) ? parseFloat(offRaw) : null,
+      condition:         seg('condition'),
+      material:          (g('ff-material')?.value || '').trim() || null,
+      dimensions:        (g('ff-dimensions')?.value || '').trim() || null,
+      install_date:      g('ff-install')?.value || null,
+      repair_type:       g('ff-repair')?.value || null,
+      repair_type_other: null,
+      notes:             (g('ff-notes')?.value || '').trim() || null,
+    };
+    if (out.repair_type === 'Other') {
+      out.repair_type_other = (g('ff-repair-other')?.value || '').trim() || null;
+    }
+    const cf = [];
+    document.querySelectorAll('#ff-custom-list .ff-custom-row').forEach(row => {
+      const lbl = (row.querySelector('.ff-cf-lbl')?.value || '').trim();
+      const val = (row.querySelector('.ff-cf-val')?.value || '').trim();
+      if (lbl) cf.push({ label: lbl, value: val });
+    });
+    out.custom_fields = cf;
+    return out;
+  }
+
+  function _ffSave(newStatus) {
+    const pin = _ffPin, sec = _ffSec;
+    if (!pin) { _ffClose(); return; }
+    pin.attrs = pin.attrs || {};
+    Object.assign(pin.attrs, _ffCollect());
+    pin.attrs._edited_at = new Date().toISOString();
+    if (newStatus) pin.status = newStatus;
+    if (typeof window.RWAutoSave === 'function') window.RWAutoSave();
+    _ffClose();
+    if (sec && typeof initOrUpdateMap === 'function') initOrUpdateMap(sec);
+    if (typeof renderStrip === 'function' && typeof stripCurrentSec !== 'undefined'
+        && stripCurrentSec === sec) renderStrip();
+  }
+
+  // Wire the feature-form's fixed buttons once.
+  {
+    document.getElementById('ff-save')?.addEventListener('click', () => _ffSave(null));
+    document.getElementById('ff-verify')?.addEventListener('click', () => _ffSave('confirmed'));
+    document.getElementById('ff-discard')?.addEventListener('click', () => _ffClose());
+    document.getElementById('ff-move')?.addEventListener('click', () => {
+      const pin = _ffPin, sec = _ffSec;
+      _ffClose();
+      if (pin && sec && window._rwStartRelocate) window._rwStartRelocate(pin, sec);
+    });
+    document.getElementById('ff-delete')?.addEventListener('click', () => {
+      const btn = document.getElementById('ff-delete');
+      if (!_ffDelArmed) {
+        _ffDelArmed = true;
+        if (btn) { btn.classList.add('armed'); btn.textContent = '🗑 Confirm?'; }
         return;
       }
-      console.warn('[RoadWalk] openDataForm not available — falling back to generic sheet');
+      const pin = _ffPin, sec = _ffSec;
+      _ffClose();
+      if (pin && sec && Array.isArray(sec.pins)) {
+        const idx = sec.pins.indexOf(pin);
+        if (idx !== -1) {
+          sec.pins.splice(idx, 1);
+          if (typeof window.RWAutoSave === 'function') window.RWAutoSave();
+          if (typeof initOrUpdateMap === 'function') initOrUpdateMap(sec);
+          if (typeof renderStrip === 'function' && typeof stripCurrentSec !== 'undefined'
+              && stripCurrentSec === sec) renderStrip();
+        }
+      }
+    });
+    const _ffPhotoBtn = document.getElementById('ff-photo');
+    const _ffPhotoInput = document.getElementById('ff-photo-input');
+    if (_ffPhotoBtn && _ffPhotoInput) {
+      _ffPhotoBtn.addEventListener('click', () => _ffPhotoInput.click());
+      _ffPhotoInput.addEventListener('change', () => {
+        const file = _ffPhotoInput.files && _ffPhotoInput.files[0];
+        _ffPhotoInput.value = '';
+        const pin = _ffPin, sec = _ffSec;
+        if (!file || !pin || !sec) return;
+        const addFn = window._RW && window._RW.captureAndAddPhoto;
+        const refresh = () => {
+          const cnt = document.getElementById('ff-photo-count');
+          const n = (Array.isArray(pin.attrs?.photos) ? pin.attrs.photos.length : 0)
+                  + (pin.attrs?.photo ? 1 : 0);
+          if (cnt) cnt.textContent = n + ' attached';
+        };
+        if (addFn) addFn(pin, sec, file).then(refresh).catch(refresh);
+      });
     }
+    const _ffScrim = document.getElementById('ff-scrim');
+    if (_ffScrim) _ffScrim.addEventListener('click', e => {
+      if (e.target === _ffScrim) _ffClose();
+    });
+    // Expose the canonical option sets so other forms can stay consistent.
+    if (window._RW) {
+      window._RW.FF_CONDITIONS = FF_CONDITIONS;
+      window._RW.FF_REPAIR_TYPES = FF_REPAIR_TYPES;
+    }
+  }
+
+  function openPinSheet(pin, sec) {
+    // ── Form routing ─────────────────────────────────────────────────────
+    //   barrier family → dedicated barrier sheet
+    //   signs + culverts → detailed Data-module form
+    //   everything else → simple universal slide-out (openFeatureForm)
+    if (pin.kind === 'ln_guardrail' || pin.kind === 'ln_retaining_wall' ||
+        pin.kind === 'ln_barrier'  || pin.kind === 'guardrail' || pin.kind === 'wall') {
+      openBarrierSheet(pin, sec); return;
+    }
+    const _MODULE_KINDS = new Set([
+      'pt_sign', 'sign', 'culvert', 'ln_culvert', 'ln_box_culvert',
+    ]);
+    if (_MODULE_KINDS.has(pin.kind) && typeof window.openDataForm === 'function') {
+      if (typeof window.showModule === 'function') window.showModule('data');
+      window.openDataForm(pin, sec, 'map');
+      return;
+    }
+    openFeatureForm(pin, sec);
+    return;
+    // ── legacy generic sheet below — retained for reference, no longer reached ──
     sheetState.pin = pin;
     sheetState.sec = sec;
     const style = PIN_STYLE[pin.kind] || { code: '?' };
