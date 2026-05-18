@@ -9679,7 +9679,10 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     // Every save persists the whole SECTIONS array to IDB. If a working copy
     // exists it supersedes the pristine bundle so field edits survive reload.
     try {
-      idbGet('safety', 'rw_sections_' + (PROJECT.id || 'default')).then(function (saved) {
+      // idbGet lives in the Phase 1 IIFE — reach it via the exposed window.RWIdb.
+      // (A bare idbGet here threw a ReferenceError, so the field working copy
+      //  was never restored and reloads silently fell back to the pristine bundle.)
+      window.RWIdb.get('safety', 'rw_sections_' + (PROJECT.id || 'default')).then(function (saved) {
         if (saved && Array.isArray(saved.sections) && saved.sections.length) {
           SECTIONS = saved.sections;
           window.SECTIONS = SECTIONS;
@@ -23221,17 +23224,28 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     }
   }
 
-  /** Restart the Tier-1 auto-save interval — honors the Settings interval. */
+  /** Restart the Tier-1 auto-save interval — honors the Settings interval.
+   *  `state` lives in the main IIFE and is NOT in this scope, so it is read
+   *  defensively via window.state; a bare `state` reference here threw a
+   *  ReferenceError that aborted _startup() before the modules were wired. */
   function restartAutoSave() {
     clearInterval(_autoSaveTimer);
-    var mins = (state.settings && +state.settings.autosaveMin) || 2;
+    var mins = 2;
+    try {
+      var s = window.state && window.state.settings;
+      if (s && +s.autosaveMin > 0) mins = +s.autosaveMin;
+    } catch (e) {}
     if (mins > 0) _autoSaveTimer = setInterval(doAutoSave, mins * 60 * 1000);
   }
 
   /** Restart the Tier-2 IDB backup interval — honors the Settings interval. */
   function restartAutoBackup() {
     clearInterval(_autoBackupTimer);
-    var mins = (state.settings && +state.settings.backupMin) || 10;
+    var mins = 10;
+    try {
+      var s = window.state && window.state.settings;
+      if (s && +s.backupMin > 0) mins = +s.backupMin;
+    } catch (e) {}
     if (mins > 0) _autoBackupTimer = setInterval(doAutoBackup, mins * 60 * 1000);
   }
 
