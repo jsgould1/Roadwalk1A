@@ -2746,6 +2746,9 @@ a { color: inherit; text-decoration: none; }
   transition: background 0.1s;
 }
 .layer-row:hover { background: var(--paper-2); }
+/* Master "ALL LAYERS" row sits at the top with a divider under it */
+.layer-row-all { border-bottom: 1px solid var(--rule); }
+.layer-row-all .layer-label { font-weight: 800; letter-spacing: 0.6px; color: var(--ink); }
 /* Coloured dot matching the map pin colour */
 .layer-dot {
   width: 10px; height: 10px;
@@ -9432,6 +9435,15 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     els.featureCount.textContent = SECTIONS.reduce((sum, s) => sum + s.featureCount, 0);
   }
 
+  // A pin is "non-AECOM" if its Source says so, else if it's a pre-walk
+  // bundle pin. Drives the single "Non-AECOM data" visibility toggle.
+  function _pinIsNonAecom(p) {
+    if (!p) return false;
+    var s = p.attrs && p.attrs.source;
+    if (s) return s !== 'AECOM';
+    return !!p._bundle;
+  }
+
   // --- Map initialization ------------------------------------------------
   function initOrUpdateMap(sec) {
     console.log('[initOrUpdateMap] sec=', sec?.id, 'map exists=', !!state.map);
@@ -9650,7 +9662,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       for (const pin of pins) {
         if (pin._editingVertices) continue;   // shown via the vertex-edit overlay
         if (pin.kind && _layersVis[pin.kind] === false) continue;   // hidden via Layers panel
-        if (_hideBundle && pin._bundle) continue;                   // pre-walk data hidden
+        if (_hideBundle && _pinIsNonAecom(pin)) continue;            // non-AECOM data hidden
         const marker = buildPinLayer(pin);
         if (!marker) continue;
         // Double-stroke lines attach a non-interactive inner (white) sibling layer
@@ -10620,12 +10632,27 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         iconSize   = [24, 16];
         iconAnchor = [12, 8];
       }
-      return L.marker([lat, lng], {
+      const ptMarker = L.marker([lat, lng], {
         icon: L.divIcon({
           className: 'rw-pin ' + (pin.status || 'pending'),
           html, iconSize, iconAnchor,
         }),
+        draggable: true,
       });
+      // Drag to reposition a point feature. Updates the geometry, clears the
+      // stale station so it recomputes, persists, and re-renders.
+      ptMarker.on('dragend', function () {
+        const ll = ptMarker.getLatLng();
+        pin.geometry.coordinates = [ll.lng, ll.lat];
+        if (pin.lat != null) pin.lat = ll.lat;
+        if (pin.lng != null) pin.lng = ll.lng;
+        pin.sta_ft = null; pin.sta = null;          // recomputed on re-render
+        pin.attrs = pin.attrs || {};
+        pin.attrs._moved_at = new Date().toISOString();
+        if (typeof window.RWAutoSave === 'function') window.RWAutoSave();
+        if (window._RW && typeof window._RW.rerender === 'function') window._RW.rerender();
+      });
+      return ptMarker;
     }
 
     if (style.kind === 'line') {
@@ -13221,8 +13248,8 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       _sldHideBundle = !!_sldLs.hideBundle;
     } catch (_) { _sldLayersVis = {}; }
     const _sldKindVisible = k => _sldLayersVis[k] !== false;
-    // Pin-aware visibility — also drops pre-walk bundle pins when hidden.
-    const _sldPinVisible = p => _sldPinVisible(p) && !(_sldHideBundle && p._bundle);
+    // Pin-aware visibility — also drops non-AECOM pins when that toggle is off.
+    const _sldPinVisible = p => _sldKindVisible(p.kind) && !(_sldHideBundle && _pinIsNonAecom(p));
 
     // ── Pre-pass: project sta_ft for any pin that doesn't have it yet ──────────
     // Covers point pins and cross-type line features that skip the trackPins path.
@@ -16906,6 +16933,12 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     if (btn) btn.addEventListener('click', () => toggleFeaturePicker());
     const x = $('#fp-sheet-close');
     if (x) x.addEventListener('click', () => toggleFeaturePicker(false));
+    // Auto-close the sheet once a feature is picked, so the map is clear.
+    const list = $('#fp-list');
+    if (list) list.addEventListener('click', (e) => {
+      const fb = e.target.closest('.fp-btn');
+      if (fb && !e.target.closest('.fp-unfav')) toggleFeaturePicker(false);
+    });
   })();
 
   (function wireTallyToggle() {
@@ -20316,24 +20349,55 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
 
     list.innerHTML = '';   // clear any previous rows
 
-    // Special row — hide / show ALL pre-walk bundle features at once.
+    function _rerenderMap() {
+      if (window._RW && typeof window._RW.rerender === 'function') window._RW.rerender();
+    }
+
+    // ── Master row — turn EVERY layer (and the non-AECOM toggle) on/off ──────
     (function () {
-      const bundleOn = !lsLoad().hideBundle;
+      const st0 = lsLoad();
+      const allOn = MAP_LAYERS.every(function (l) {
+        return (st0.layersVis && st0.layersVis.hasOwnProperty(l.kind))
+          ? st0.layersVis[l.kind] !== false : l.active;
+      }) && !st0.hideBundle;
+      const mrow = document.createElement('div');
+      mrow.className = 'layer-row layer-row-all' + (allOn ? '' : ' layer-off');
+      mrow.title = allOn ? 'Hide all layers' : 'Show all layers';
+      mrow.innerHTML =
+        '<span class="layer-dot" style="background:var(--ink)"></span>'
+        + '<span class="layer-label">ALL LAYERS</span>'
+        + '<span class="layer-toggle"></span>';
+      mrow.addEventListener('click', function () {
+        const target = mrow.classList.contains('layer-off');   // off→on : show all
+        const st = lsLoad();
+        if (!st.layersVis) st.layersVis = {};
+        MAP_LAYERS.forEach(function (l) { st.layersVis[l.kind] = target; });
+        st.hideBundle = !target;
+        lsSave(st);
+        buildLayersPanel();   // rebuild every row to the new state
+        _rerenderMap();
+      });
+      list.appendChild(mrow);
+    })();
+
+    // ── Special row — hide / show ALL non-AECOM (pre-walk) features ──────────
+    (function () {
+      const aecomOnly = !lsLoad().hideBundle;
       const brow = document.createElement('div');
-      brow.className = 'layer-row' + (bundleOn ? '' : ' layer-off');
-      brow.title = (bundleOn ? 'Hide' : 'Show') + ' pre-walk bundle data';
+      brow.className = 'layer-row' + (aecomOnly ? '' : ' layer-off');
+      brow.title = (aecomOnly ? 'Hide' : 'Show') + ' non-AECOM (pre-walk) data';
       brow.innerHTML =
         '<span class="layer-dot" style="background:#5a6a88"></span>'
-        + '<span class="layer-label">Pre-walk data</span>'
+        + '<span class="layer-label">Non-AECOM data</span>'
         + '<span class="layer-toggle"></span>';
       brow.addEventListener('click', function () {
         const nowOn = brow.classList.contains('layer-off');   // off→on
         brow.classList.toggle('layer-off', !nowOn);
-        brow.title = (nowOn ? 'Hide' : 'Show') + ' pre-walk bundle data';
+        brow.title = (nowOn ? 'Hide' : 'Show') + ' non-AECOM (pre-walk) data';
         const st = lsLoad();
         st.hideBundle = !nowOn;
         lsSave(st);
-        if (window._RW && typeof window._RW.rerender === 'function') window._RW.rerender();
+        _rerenderMap();
       });
       list.appendChild(brow);
     })();
