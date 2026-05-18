@@ -487,6 +487,18 @@ a { color: inherit; text-decoration: none; }
 }
 .section-row:active { background: var(--paper-2); }
 .section-row:last-child { border-bottom: 1px solid var(--rule); }
+/* Field-added sections nest under their bundle section — indented + ticked */
+.section-row.section-child {
+  padding-left: 38px;
+  background: var(--paper-2);
+  border-left: 3px solid var(--blue);
+}
+.section-row.section-child .name { font-size: 13px; }
+.section-child-tick {
+  color: var(--blue);
+  font-weight: 700;
+  margin-right: -2px;
+}
 
 .section-row .top-line {
   display: flex;
@@ -9054,6 +9066,8 @@ body.mobile-mode #app {
       <span class="fp-ico">⊹</span><span class="fp-lbl">Move</span></button>
     <button class="fp-btn" id="fp-vertices" type="button">
       <span class="fp-ico">⬡</span><span class="fp-lbl">Edit Vertices</span></button>
+    <button class="fp-btn" id="fp-section" type="button" style="display:none">
+      <span class="fp-ico">↪</span><span class="fp-lbl">Section</span></button>
     <button class="fp-btn fp-danger" id="fp-del" type="button">
       <span class="fp-ico">✕</span><span class="fp-lbl">Delete</span></button>
   </div>
@@ -11990,6 +12004,48 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   // the full sheet.  Delete splices the pin and refreshes both views.
   let _fpPin = null, _fpSec = null;
 
+  // Point [lat,lng] inside polygon ring [[lat,lng],...] — ray-casting test.
+  function _pointInPolygonLL(pt, ring) {
+    if (!pt || !Array.isArray(ring) || ring.length < 3) return false;
+    var x = pt[1], y = pt[0], inside = false;
+    for (var i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      var xi = ring[i][1], yi = ring[i][0];
+      var xj = ring[j][1], yj = ring[j][0];
+      var denom = (yj - yi) || 1e-12;
+      if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / denom + xi)) {
+        inside = !inside;
+      }
+    }
+    return inside;
+  }
+  // Best-effort [lat,lng] for a pin (GeoJSON Point, or lat/lng fields).
+  function _pinLatLngOf(pin) {
+    if (!pin) return null;
+    var g = pin.geometry;
+    if (g && g.type === 'Point' && Array.isArray(g.coordinates)) {
+      return [g.coordinates[1], g.coordinates[0]];
+    }
+    if (typeof pin.lat === 'number' && typeof pin.lng === 'number') return [pin.lat, pin.lng];
+    if (pin.attrs && typeof pin.attrs.lat === 'number' && typeof pin.attrs.lng === 'number') {
+      return [pin.attrs.lat, pin.attrs.lng];
+    }
+    return null;
+  }
+  // The area-type section whose boundary polygon contains this pin, if any.
+  function _areaSectionContaining(pin) {
+    var ll = _pinLatLngOf(pin);
+    if (!ll) return null;
+    var secs = (typeof SECTIONS !== 'undefined' && SECTIONS) || [];
+    for (var i = 0; i < secs.length; i++) {
+      var s = secs[i];
+      if (s && s.type === 'area' && Array.isArray(s.alignment)
+          && _pointInPolygonLL(ll, s.alignment)) {
+        return s;
+      }
+    }
+    return null;
+  }
+
   function openFeaturePopup(pin, sec, e) {
     _fpPin = pin;
     _fpSec = sec;
@@ -12018,6 +12074,30 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     // With no Edit Vertices button, Delete sits alone on its row — span it wide.
     const delBtn = $('#fp-del');
     if (delBtn) delBtn.classList.toggle('fp-span', !isShape);
+
+    // Parking / overlook pins: a Section action — jump to the section whose
+    // boundary contains the pin, or start a New Section when none does.
+    const secBtn = $('#fp-section');
+    if (secBtn) {
+      if (pin.kind === 'parking' || pin.kind === 'overlook') {
+        const container = _areaSectionContaining(pin);
+        secBtn.style.display = '';
+        const lbl = secBtn.querySelector('.fp-lbl');
+        const ico = secBtn.querySelector('.fp-ico');
+        if (container) {
+          secBtn._rwSecTarget = { mode: 'jump', secId: container.id };
+          if (ico) ico.textContent = '↪';
+          if (lbl) lbl.textContent = 'Go to Section';
+        } else {
+          secBtn._rwSecTarget = { mode: 'new' };
+          if (ico) ico.textContent = '＋';
+          if (lbl) lbl.textContent = 'New Section';
+        }
+      } else {
+        secBtn.style.display = 'none';
+        secBtn._rwSecTarget = null;
+      }
+    }
 
     // Reset any open inline-confirm row
     const conf = $('#fp-confirm');
@@ -12077,6 +12157,17 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       closeFeaturePopup();
       if (!pin || !sec) return;
       openPinSheet(pin, sec);
+    });
+
+    // Section: jump to the section whose polygon contains this parking pin,
+    // or open the New Section picker when no section covers it.
+    $('#fp-section').addEventListener('click', () => {
+      const btn = $('#fp-section');
+      const tgt = btn && btn._rwSecTarget;
+      closeFeaturePopup();
+      if (!tgt || typeof showView !== 'function') return;
+      if (tgt.mode === 'jump' && tgt.secId) showView('field', tgt.secId);
+      else if (tgt.mode === 'new')          showView('ko-picker');
     });
 
     // Take Photo: snap a picture, attach it to the feature, then open the form.
@@ -16023,6 +16114,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     const newId = 's' + Date.now().toString(36);
     SECTIONS.push({
       id:             newId,
+      _userAdded:     true,   // field-created → nests under a bundle section
       name:           'New section',
       type:           secType,
       status:         'not',
@@ -16070,6 +16162,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     const newId = 's' + Date.now().toString(36);
     SECTIONS.push({
       id:           newId,
+      _userAdded:   true,   // field-created → nests under a bundle section
       name,
       type:         traceState.type,
       status:       'not',    // kickoff pending
@@ -19066,6 +19159,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       const newId = 's' + (Date.now() % 100000);
       SECTIONS.push({
         id: newId,
+        _userAdded: true,   // field-created → nests under a bundle section
         name: dk.answers.basics?.name || 'New section',
         type: dk.type,
         status: 'prog',
@@ -24134,6 +24228,37 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
    * Render or refresh the Dashboard section list.
    * @param {string} [filter='all'] — 'all' | 'active' | 'closed'
    */
+  // Project a [lat,lng] point onto a [[lat,lng],...] polyline. Returns
+  // { dist, along } in scaled-degree units (for relative comparison + STA).
+  function _rwProjectToPath(pt, path) {
+    if (!pt || !Array.isArray(path) || path.length < 2) return null;
+    var coslat = Math.cos((pt[0] || 0) * Math.PI / 180) || 1;
+    var Px = pt[1] * coslat, Py = pt[0];
+    var bestD = Infinity, bestAlong = 0, cum = 0;
+    for (var i = 0; i < path.length - 1; i++) {
+      var ax = path[i][1]   * coslat, ay = path[i][0];
+      var bx = path[i+1][1] * coslat, by = path[i+1][0];
+      var dx = bx - ax, dy = by - ay;
+      var segLen = Math.sqrt(dx * dx + dy * dy);
+      var t = 0;
+      if (segLen > 0) {
+        t = ((Px - ax) * dx + (Py - ay) * dy) / (segLen * segLen);
+        t = Math.max(0, Math.min(1, t));
+      }
+      var cx = ax + t * dx, cy = ay + t * dy;
+      var d = Math.sqrt((Px - cx) * (Px - cx) + (Py - cy) * (Py - cy));
+      if (d < bestD) { bestD = d; bestAlong = cum + t * segLen; }
+      cum += segLen;
+    }
+    return { dist: bestD, along: bestAlong };
+  }
+  // "Along" distance (scaled degrees) → an approximate STA string (~ft).
+  function _rwFmtSta(alongDeg) {
+    var ft  = Math.max(0, Math.round((alongDeg || 0) * 364000));   // ~364k ft/deg
+    var sta = Math.floor(ft / 100), rem = ft % 100;
+    return sta + '+' + (rem < 10 ? '0' + rem : '' + rem);
+  }
+
   function renderDashboard(filter) {
     filter = filter || 'all';
 
@@ -24155,18 +24280,19 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     if (dateEl)   dateEl.textContent   = window.PROJECT?.kickoffDate ? window.PROJECT.kickoffDate + ' kickoff' : '';
 
     // ── Section rows ────────────────────────────────────────────
+    // Bundle sections are parents; field-added sections nest under the
+    // bundle section whose centerline they sit closest to, ordered by STA.
     const list = document.getElementById('dash-section-list');
     if (!list) return;
     list.innerHTML = '';
 
-    const filtered = sections.filter(function (s) {
-      if (filter === 'all')    return true;
+    function passesFilter(s) {
       if (filter === 'active') return s.status === 'prog' || s.status === 'not';
       if (filter === 'closed') return s.status === 'done';
-      return true;
-    });
+      return true;   // 'all'
+    }
 
-    if (filtered.length === 0) {
+    if (!sections.some(passesFilter)) {
       const empty = document.createElement('li');
       empty.className = 'section-row empty';
       empty.style.cssText = 'text-align:center;color:var(--ink-3);font-family:"IBM Plex Mono",monospace;font-size:11px;padding:28px 20px;';
@@ -24178,36 +24304,75 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     const statusLabel = { not: 'Not started', prog: 'In progress', done: 'Closed' };
     const typeGlyph   = { linear: 'LIN', area: 'AREA' };
 
-    filtered.forEach(function (sec) {
+    function makeSectionRow(sec, isChild, childMeta) {
       const row = document.createElement('li');
-      row.className = 'section-row';
+      row.className = 'section-row' + (isChild ? ' section-child' : '');
       row.style.cursor = 'pointer';
       row.innerHTML =
         '<div class="top-line">'
+        + (isChild ? '<span class="section-child-tick">↳</span>' : '')
         + '<span class="type-glyph">' + (typeGlyph[sec.type] || sec.type) + '</span>'
-        + '<span class="name">' + sec.name + '</span>'
-        + '<span class="pill ' + (sec.status || 'prog') + '">' + (statusLabel[sec.status] || 'In progress') + '</span>'
+        + '<span class="name">' + _esc(sec.name || '') + '</span>'
+        + '<span class="pill ' + (sec.status || 'prog') + '">'
+        + (statusLabel[sec.status] || 'In progress') + '</span>'
         + '</div>'
         + '<div class="bottom-line">'
         + '<span class="item"><strong>' + (sec.featureCount || 0) + '</strong> features</span>'
-        + '<span class="item">' + (sec.meta || '') + '</span>'
+        + '<span class="item">' + _esc(childMeta || sec.meta || '') + '</span>'
         + (!sec.kickoff ? '<span class="item">— kickoff pending</span>' : '')
         + '</div>'
         + '<span class="arrow">›</span>';
-
       row.addEventListener('click', function () {
-        // Switch to Map module, then open this section's field view
         showModule('map');
-        // showView is defined in the main IIFE — call via the global reference
         if (typeof window.showView === 'function') {
           window.showView('field', sec.id);
         } else if (window._RW && typeof window._RW.showView === 'function') {
           window._RW.showView('field', sec.id);
         }
       });
-
       list.appendChild(row);
+    }
+
+    // Parents = bundle sections; children = field-added (_userAdded) sections.
+    const parents  = sections.filter(function (s) { return !s._userAdded; });
+    const children = sections.filter(function (s) { return  s._userAdded; });
+
+    // Resolve each child to the nearest linear bundle centerline + its STA.
+    children.forEach(function (c) {
+      c._dashParentId = null; c._dashAlong = 0; c._dashSta = '';
+      const cpt = Array.isArray(c.center) ? c.center : null;
+      if (!cpt) return;
+      let best = null;
+      parents.forEach(function (p) {
+        if (p.type !== 'linear' || !Array.isArray(p.alignment) || p.alignment.length < 2) return;
+        const proj = _rwProjectToPath(cpt, p.alignment);
+        if (proj && (!best || proj.dist < best.dist)) {
+          best = { id: p.id, name: p.name, dist: proj.dist, along: proj.along };
+        }
+      });
+      if (best) {
+        c._dashParentId = best.id;
+        c._dashAlong    = best.along;
+        c._dashSta      = '↳ STA ' + _rwFmtSta(best.along) + ' · ' + (best.name || 'section');
+      }
     });
+
+    // Render: each parent, then its children indented and STA-ordered.
+    const placed = new Set();
+    parents.forEach(function (p) {
+      const kids = children
+        .filter(function (c) { return c._dashParentId === p.id; })
+        .sort(function (a, b) { return a._dashAlong - b._dashAlong; })
+        .filter(passesFilter);
+      if (!passesFilter(p) && kids.length === 0) return;
+      makeSectionRow(p, false);
+      kids.forEach(function (c) { placed.add(c); makeSectionRow(c, true, c._dashSta); });
+    });
+
+    // Field-added sections with no resolvable parent → plain trailing rows.
+    children
+      .filter(function (c) { return !placed.has(c) && passesFilter(c); })
+      .forEach(function (c) { makeSectionRow(c, false); });
   }
 
   // Expose renderDashboard globally so the main IIFE can call it after bundle loads
