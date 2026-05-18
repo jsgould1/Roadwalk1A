@@ -10528,6 +10528,15 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     const lines = [];
     if (on('id'))         lines.push(`<b>${pin.id || '—'}</b>`);
     if (on('kind') && kindNice) lines.push(kindNice.replace(/\b\w/g, c => c.toUpperCase()));
+    // Sign panels — show each panel's MUTCD code + name (the sign description)
+    if (pin.kind === 'pt_sign' || pin.kind === 'sign') {
+      ((pin.attrs && pin.attrs.panels) || []).forEach(p => {
+        if (!p || !p.sign_code) return;
+        const m = (typeof MUTCD_SIGNS !== 'undefined') &&
+          MUTCD_SIGNS.find(s => s.c === p.sign_code);
+        lines.push(m ? `${p.sign_code} — ${m.n}` : p.sign_code);
+      });
+    }
     if (on('length_ft') && pin.attrs && pin.attrs.length_ft != null) {
       lines.push(`Length: ${Math.round(pin.attrs.length_ft)} ft`);
     }
@@ -11071,7 +11080,8 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       console.log('[RoadWalk] openPinSheet routing', pin.kind, '→ Data module. openDataForm type:', typeof window.openDataForm);
       if (typeof window.openDataForm === 'function') {
         if (typeof window.showModule === 'function') window.showModule('data');
-        window.openDataForm(pin, sec);
+        // Opened from the map → closing the form returns to the map module.
+        window.openDataForm(pin, sec, 'map');
         return;
       }
       console.warn('[RoadWalk] openDataForm not available — falling back to generic sheet');
@@ -22526,7 +22536,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   }
 
   // ── openDataForm ───────────────────────────────────────────────────────────
-  function openDataForm(pin, sec) {
+  function openDataForm(pin, sec, origin) {
     // Hide the preview pane so the full edit form takes over cleanly.
     _closePreviewPane();
 
@@ -22534,6 +22544,8 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     _dataState.pin     = merged;
     _dataState.sec     = sec;
     _dataState.dirty   = false;
+    // Where the form was opened from — closing returns there ('map' | 'data').
+    _dataState.origin  = origin || 'data';
     _dataState.signSubTab    = 'post';
     _dataState.culvertSubTab = 'location';
 
@@ -22702,6 +22714,12 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     var formPane = document.getElementById('data-form-pane');
     if (formPane) formPane.classList.remove('visible');
     _dataState.dirty = false;
+    // Return to wherever the form was opened from.
+    var origin = _dataState.origin;
+    _dataState.origin = null;
+    if (origin === 'map' && typeof window.showModule === 'function') {
+      window.showModule('map');
+    }
   }
 
   // ── Sub-tab builder (Signs) ────────────────────────────────────────────────
