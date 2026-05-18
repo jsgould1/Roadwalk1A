@@ -6891,14 +6891,20 @@ input.fs-slider::-webkit-slider-thumb {
   border: 1px solid #fff; background: #c0392b; color: #fff;
   font-size: 10px; line-height: 1; cursor: pointer;
 }
-/* Stack each field's label above its control inside the narrow columns */
-.sign-col .df-row { flex-direction: column; align-items: stretch; gap: 2px; padding: 4px 2px; }
-.sign-col .df-lbl { padding: 2px 0 0; }
-.sign-col .df-ctrl { width: 100%; }
+/* One compact line per attribute inside the narrow columns: label left, control right */
+.sign-col .df-row { display: flex; align-items: center; gap: 6px; padding: 3px 2px; }
+.sign-col .df-lbl { flex: 0 0 74px; padding: 0; }
+.sign-col .df-ctrl { flex: 1; min-width: 0; }
 .sign-col .df-select, .sign-col .df-input, .sign-col .df-textarea { width: 100%; box-sizing: border-box; }
+.sign-col .df-readonly { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sign-col .df-cond, .sign-col .df-flags { flex-wrap: wrap; }
 .sign-col .df-sec-hdr { padding: 8px 2px 4px; }
 .ds-code-search { margin-top: 4px; }
+.sign-photos-sep { border-top: 2px solid var(--rule, #d8dde2); margin: 12px 0 0; }
+.sign-retro-row { display: flex; gap: 6px; padding: 0 2px 4px; }
+.sign-retro-cell { flex: 1; min-width: 0; text-align: center; }
+.sign-retro-lbl { font: 700 8px 'IBM Plex Mono', monospace; color: var(--ink-3, #8a93a0); margin-bottom: 2px; }
+.sign-retro-cell .df-input { width: 100%; box-sizing: border-box; text-align: center; }
 /* Form sections */
 .df-sec { }
 .df-sec-hdr {
@@ -25617,13 +25623,39 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         postBlocks +
         '<div class="sign-add-row"><button class="sign-add-btn" data-add-post>＋ Add Post</button></div>' +
         _customFieldsSection(pin) +
+        '<div class="sign-photos-sep"></div>' +
+        '<div class="sign-col-hdr" style="margin-top:6px">POST PHOTOS</div>' +
+        _photoBlock('post') +
       '</div>';
 
-    // ── Panel direction column ───────────────────────────────────────────
+    // ── Photo block (reused by direction columns + the post column) ──────
+    function _photoBlock(dirKey) {
+      var thumbs = a.photos.map(function (ph, i) { return { ph: ph, i: i }; })
+        .filter(function (x) { return String(x.ph.dir) === String(dirKey); })
+        .map(function (x) {
+          return '<div class="sign-photo-card">' +
+            '<img class="sign-photo-thumb" src="' + x.ph.dataUrl + '" data-photo-idx="' + x.i + '" title="Tap to annotate">' +
+            '<button class="sign-photo-del" data-photo-del="' + x.i + '">✕</button></div>';
+        }).join('');
+      return '<div class="sign-photo-row">' +
+          '<button class="sign-ph-take" data-sign-photo data-dir="' + dirKey + '">📷 Photo</button>' +
+          '<button class="sign-ph-up" data-sign-upload data-dir="' + dirKey + '">⬆ Upload</button>' +
+        '</div><div class="sign-photos">' + thumbs + '</div>';
+    }
+
+    // ── Panel block ──────────────────────────────────────────────────────
+    function _retroCell(field, lbl, val) {
+      return '<div class="sign-retro-cell">' +
+        '<div class="sign-retro-lbl">' + lbl + '</div>' +
+        '<input class="df-input" type="number" inputmode="decimal" data-field="' + field + '" ' +
+        'value="' + _esc(val == null ? '' : val) + '"></div>';
+    }
     function _panelBlock(p, idx) {
       var code = p.sign_code || '';
       var meta = code && (window._RW.MUTCD_SIGNS || []).find(function (s) { return s.c === code; });
       var lbl  = meta ? code + ' — ' + meta.n : (code || '(tap to pick code)');
+      var backOpts = [{v:'',l:'—'},{v:'two_sided',l:'Two-sided'},{v:'galvanized',l:'Galvanized back'},
+        {v:'black',l:'Black'},{v:'brown',l:'Brown'},{v:'green',l:'Green'},{v:'white',l:'White'},{v:'other',l:'Other'}];
       return '<div class="sign-panel-block" data-panel-scope="' + idx + '">' +
         '<div class="sign-sub-hdr">PANEL ' + (idx + 1) +
           '<button class="sign-mini-del" data-del-panel="' + idx + '">✕</button>' +
@@ -25632,10 +25664,20 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
           '<button class="ds-sign-code-btn" data-panel-idx="' + idx + '">' + _esc(lbl) + '</button>' +
           '<div class="ds-code-search" data-panel-idx="' + idx + '" style="display:none"></div>' +
         '</span></div>' +
-        _condRow('Panel cond', 'panel_condition', p.panel_condition, conditions, 'data-panel-field') +
-        _condRow('Sheeting cond', 'sheeting_condition', p.sheeting_condition, conditions, 'data-panel-field') +
-        _selectRow('Sheeting type', 'sheeting_type', p.sheeting_type || '', sheetOpts) +
-        _flagRow('Damage', 'panel_damage_flags', p.damage_flags, damage) +
+        _inputRow ('Description',  'panel_description',  p.panel_description, 'text') +
+        _inputRow ('Common size',  'panel_size',         p.panel_size,        'text') +
+        _inputRow ('Install date', 'panel_install_date', p.panel_install_date,'month') +
+        _condRow  ('Panel cond',   'panel_condition',    p.panel_condition,    conditions, 'data-panel-field') +
+        _condRow  ('Sheeting cond','sheeting_condition', p.sheeting_condition, conditions, 'data-panel-field') +
+        _selectRow('Sheeting type','sheeting_type',      p.sheeting_type || '', sheetOpts) +
+        _selectRow('Back panel',   'back_panel',         p.back_panel || '',   backOpts) +
+        _flagRow  ('Damage',       'panel_damage_flags', p.damage_flags,       damage) +
+        '<div class="df-sec-hdr">RETRO · DAYTIME</div>' +
+        '<div class="sign-retro-row">' + _retroCell('retro_day_r1', 'Rater 1', p.retro_day_r1) +
+          _retroCell('retro_day_r2', 'Rater 2', p.retro_day_r2) + '</div>' +
+        '<div class="df-sec-hdr">RETRO · NIGHTTIME</div>' +
+        '<div class="sign-retro-row">' + _retroCell('retro_night_r1', 'Rater 1', p.retro_night_r1) +
+          _retroCell('retro_night_r2', 'Rater 2', p.retro_night_r2) + '</div>' +
         _textareaRow('Notes', 'notes', p.notes) +
       '</div>';
     }
@@ -25643,20 +25685,9 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       var panelHtml = a.panels.map(function (p, i) { return { p: p, i: i }; })
         .filter(function (x) { return Number(x.p.facing_degrees) === D; })
         .map(function (x) { return _panelBlock(x.p, x.i); }).join('');
-      var photoHtml = a.photos.map(function (ph, i) { return { ph: ph, i: i }; })
-        .filter(function (x) { return Number(x.ph.dir) === D; })
-        .map(function (x) {
-          return '<div class="sign-photo-card">' +
-            '<img class="sign-photo-thumb" src="' + x.ph.dataUrl + '" data-photo-idx="' + x.i + '" title="Tap to annotate">' +
-            '<button class="sign-photo-del" data-photo-del="' + x.i + '">✕</button></div>';
-        }).join('');
       return '<div class="sign-col sign-col-dir" data-dir="' + D + '">' +
         '<div class="sign-col-hdr">' + _esc(lbl) + '</div>' +
-        '<div class="sign-photo-row">' +
-          '<button class="sign-ph-take" data-sign-photo data-dir="' + D + '">📷 Photo</button>' +
-          '<button class="sign-ph-up" data-sign-upload data-dir="' + D + '">⬆ Upload</button>' +
-        '</div>' +
-        '<div class="sign-photos">' + photoHtml + '</div>' +
+        _photoBlock(D) +
         panelHtml +
         '<div class="sign-add-row"><button class="sign-add-btn" data-add-panel data-dir="' + D + '">＋ Add Panel</button></div>' +
       '</div>';
@@ -26817,7 +26848,14 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
             res.querySelectorAll('.df-sign-result').forEach(function (r) {
               r.addEventListener('click', function () {
                 if (!a.panels[pIdx]) a.panels[pIdx] = {};
-                a.panels[pIdx].sign_code = r.dataset.code;
+                var pn = a.panels[pIdx];
+                pn.sign_code = r.dataset.code;
+                // Pre-fill common size + description from the MUTCD entry (editable).
+                var m = (window._RW.MUTCD_SIGNS || []).find(function (s) { return s.c === r.dataset.code; });
+                if (m) {
+                  if (!pn.panel_size)        pn.panel_size = m.sz || '';
+                  if (!pn.panel_description) pn.panel_description = m.n || '';
+                }
                 _dataState.dirty = true;
                 _renderFormBody();
               });
@@ -26898,13 +26936,13 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       }
       scroll.querySelectorAll('[data-sign-photo]').forEach(function (b) {
         b.addEventListener('click', function () {
-          _pendDir = Number(b.dataset.dir);
+          _pendDir = b.dataset.dir;
           if (_signPhotoInput) _signPhotoInput.click();
         });
       });
       scroll.querySelectorAll('[data-sign-upload]').forEach(function (b) {
         b.addEventListener('click', function () {
-          _pendDir = Number(b.dataset.dir);
+          _pendDir = b.dataset.dir;
           if (_signUploadInput) _signUploadInput.click();
         });
       });
