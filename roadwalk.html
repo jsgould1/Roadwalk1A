@@ -9463,6 +9463,18 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
             ],
           },
           {
+            id: 'roadway', icon: '▦', title: 'Section info — surface',
+            subtitle: 'Width, slope & drainage', required: false,
+            fields: [
+              { id: 'avgWidth',          label: 'Average width (ft)',      type: 'number', placeholder: '60' },
+              { id: 'segLength',         label: 'Length (ft)',             type: 'number', placeholder: 'Auto from polygon if blank' },
+              { id: 'curbReveal',        label: 'Curb reveal (in)',        type: 'number', placeholder: '6' },
+              { id: 'crossSlope',        label: 'Average cross slope (%)', type: 'number', placeholder: '2.0' },
+              { id: 'drainageCondition', label: 'Drainage condition',      type: 'select',
+                options: ['G — Good', 'F — Fair', 'P — Poor'] },
+            ],
+          },
+          {
             id: 'distress', icon: '△', title: 'Distress impression', subtitle: 'What you see on arrival', required: true,
             fields: [
               { id: 'distressLoad', label: 'Load-related', type: 'chips',
@@ -9525,6 +9537,18 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
                 options: ['No', 'Yes — both sides', 'Yes — one side', 'Partial'] },
               { id: 'drainage', label: 'Drainage type', type: 'select', required: true,
                 options: ['Closed (inlets / catch basins)', 'Open (swales / ditches)', 'Combination', 'None observed'] },
+            ],
+          },
+          {
+            id: 'roadway', icon: '▦', title: 'Section info — roadway',
+            subtitle: 'Width, length, slope & drainage', required: false,
+            fields: [
+              { id: 'avgWidth',          label: 'Average roadway width (ft)', type: 'number', placeholder: '22' },
+              { id: 'segLength',         label: 'Section length (ft)',        type: 'number', placeholder: 'Auto from alignment if blank' },
+              { id: 'curbReveal',        label: 'Curb reveal (in)',           type: 'number', placeholder: '6' },
+              { id: 'crossSlope',        label: 'Average cross slope (%)',    type: 'number', placeholder: '2.0' },
+              { id: 'drainageCondition', label: 'Drainage condition',         type: 'select',
+                options: ['G — Good', 'F — Fair', 'P — Poor'] },
             ],
           },
           {
@@ -11055,6 +11079,19 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       lines.push(`Area: ${formatAreaSqFt(pin.attrs.area_sq_ft)}`);
     }
     if (on('sta') && pin.sta) lines.push(`STA: ${pin.sta}`);
+    // Parking / Overlook — show the spreadsheet facts in the hover label.
+    if (pin.kind === 'parking' || pin.kind === 'overlook') {
+      const pa = pin.attrs || {};
+      const g  = pin.geometry;
+      if (g && g.type === 'Point' && Array.isArray(g.coordinates)) {
+        lines.push(`GPS: ${(+g.coordinates[1]).toFixed(6)}, ${(+g.coordinates[0]).toFixed(6)}`);
+      }
+      if (pa.parking_spots != null && pa.parking_spots !== '') {
+        lines.push(`Spots: ${pa.parking_spots}`);
+      }
+      if (pa.material) lines.push(`Surface: ${pa.material}`);
+      if (pa.rip_id)   lines.push(`RIP: ${pa.rip_id}`);
+    }
     if (on('side') && pin.attrs && pin.attrs.side && pin.attrs.side !== 'on') {
       lines.push(`Side: ${pin.attrs.side}`);
     }
@@ -16293,18 +16330,12 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
 
   function _sectionInfoCardHtml(pin) {
     const a = pin.attrs || {};
+    // The on-map card carries only Name + Description; the rest of the
+    // spreadsheet facts live in the hover label, and roadway characteristics
+    // live in the Dashboard's Section Info form.
     const rows = [
-      ['NAME',  'loc_name',        a.loc_name,        true],
-      ['DESC',  'description',     a.description,     true],
-      ['STA',   null,              pin.sta,           false],
-      ['RIP',   'rip_id',          a.rip_id,          true],
-      ['SPOTS', 'parking_spots',   a.parking_spots,   true],
-      ['MAT',   'material',        a.material,        true],
-      ['AVG W', 'avg_width_ft',    a.avg_width_ft,    true],
-      ['LENGTH','length_ft',       a.length_ft,       true],
-      ['CURB R','curb_reveal_in',  a.curb_reveal_in,  true],
-      ['DRAIN', 'drain_condition', a.drain_condition, true],
-      ['X-SLP', 'cross_slope_pct', a.cross_slope_pct, true],
+      ['NAME', 'loc_name',    a.loc_name,    true],
+      ['DESC', 'description', a.description, true],
     ];
     const body = rows.map(([lbl, k, v, edit]) => {
       const val = (v == null || v === '') ? '—' : String(v);
@@ -16376,6 +16407,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       markers.push(m);
     }
     grp.addTo(state.map);
+    grp._rwMarkers = markers;
     state.mapLayers.sectionInfo = grp;
     markers.forEach(m => {
       const el = m.getElement();
@@ -16386,6 +16418,40 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         const cell = e.target.closest('.psc-val[data-k]');
         if (cell) _sectionInfoEdit(cell);
       });
+    });
+    _resolveCardOverlaps(markers);
+    // Re-run collision layout after the map settles.
+    if (state.map && !state.map._rwCardCollideWired) {
+      state.map._rwCardCollideWired = true;
+      state.map.on('moveend zoomend', () => {
+        const g = state.mapLayers.sectionInfo;
+        if (g && g._rwMarkers) _resolveCardOverlaps(g._rwMarkers);
+      });
+    }
+  }
+
+  // Conflict resolution — nudge overlapping section-info cards downward so
+  // two never sit on top of each other.
+  function _resolveCardOverlaps(markers) {
+    if (!markers || markers.length < 2) return;
+    const placed = [];
+    markers.forEach(m => {
+      const el = m.getElement && m.getElement();
+      if (!el) return;
+      const card = el.querySelector('.psc-card') || el;
+      card.style.marginTop = '';
+      let rect = card.getBoundingClientRect();
+      let shift = 0, guard = 0;
+      while (guard++ < 30) {
+        const hit = placed.find(r =>
+          rect.left < r.right && rect.right > r.left &&
+          rect.top  < r.bottom && rect.bottom > r.top);
+        if (!hit) break;
+        shift += (hit.bottom - rect.top) + 4;
+        card.style.marginTop = shift + 'px';
+        rect = card.getBoundingClientRect();
+      }
+      placed.push(card.getBoundingClientRect());
     });
   }
 
