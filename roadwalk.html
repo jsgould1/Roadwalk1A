@@ -10006,7 +10006,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     // ===== LINES =====
     { geom: 'line', name: 'Misc', items: [
       { value: 'ln_pvmt_change',   label: 'Pvmt Change',    code: 'PC', color: '#444444', dashArray: '4 3' },
-      { value: 'ln_pvmt_widening', label: 'Pvmt Widening',  code: 'PW', color: '#B5651D' },
+      { value: 'ln_pvmt_widening', label: 'Pvmt Widening',  code: 'PW', color: '#9CA3AF' },
       { value: 'ln_loops',        label: 'Loops',       code: 'LO', color: '#8A5A2B' },
       { value: 'ln_curb',         label: 'Curb',        code: 'CU', color: '#8A5A2B' },
       { value: 'ln_cg',           label: 'C&G',         code: 'CG', color: '#8A5A2B' },
@@ -18868,10 +18868,12 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   // ── Feature definitions — Phase 1: bundle line kinds ──────────────────────
   // Phase 2 will add point kinds and the quick-action description-type table.
   const FS_LINE_FEATURES = [
-    { kind: 'guardrail', label: 'Guardrails',      defColor: '#E8A838', defLT: 'guardrail',      defWt: 6, defOff: 3, defCode: 'GR' },
-    { kind: 'wall',      label: 'Retaining Walls', defColor: '#7B3F9E', defLT: 'retaining_wall', defWt: 5, defOff: 5, defCode: 'RW' },
-    { kind: 'culvert',   label: 'Culverts',        defColor: '#0B3D66', defLT: 'dashed',         defWt: 4, defOff: 2, defCode: 'CV' },
-    { kind: 'misc_line', label: 'Misc Lines',      defColor: '#8A5A2B', defLT: 'solid',          defWt: 3, defOff: 0, defCode: 'ML' },
+    { kind: 'guardrail',        label: 'Guardrails',      defColor: '#E8A838', defLT: 'guardrail',      defWt: 6, defOff: 3, defCode: 'GR' },
+    { kind: 'wall',             label: 'Retaining Walls', defColor: '#7B3F9E', defLT: 'retaining_wall', defWt: 5, defOff: 5, defCode: 'RW' },
+    { kind: 'culvert',          label: 'Culverts',        defColor: '#0B3D66', defLT: 'dashed',         defWt: 4, defOff: 2, defCode: 'CV' },
+    { kind: 'misc_line',        label: 'Misc Lines',      defColor: '#8A5A2B', defLT: 'solid',          defWt: 3, defOff: 0, defCode: 'ML' },
+    { kind: 'ln_paved_swale',   label: 'Paved Swale',     defColor: '#2563A8', defLT: 'solid',          defWt: 4, defOff: 7, defCode: 'PS' },
+    { kind: 'ln_pvmt_widening', label: 'Pvmt Widening',   defColor: '#9CA3AF', defLT: 'solid',          defWt: 4, defOff: 1, defCode: 'PW' },
   ];
 
   // ── Storage: featureStyles lives inside rw_v1 (same key as layersVis) ──────
@@ -20370,7 +20372,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     { label: 'NGS Monuments', kind: 'ngs_monument',  color: '#0EA5E9', active: false },
     // Drawn linear features — toggles key off the catalog `value` kind.
     { label: 'Paved Swales',  kind: 'ln_paved_swale',   color: '#2563A8', active: true },
-    { label: 'Pvmt Widening', kind: 'ln_pvmt_widening', color: '#B5651D', active: true },
+    { label: 'Pvmt Widening', kind: 'ln_pvmt_widening', color: '#9CA3AF', active: true },
   ];
 
   /**
