@@ -2695,6 +2695,69 @@ a { color: inherit; text-decoration: none; }
   border: 1px solid var(--blue, #1a5276); background: var(--blue, #1a5276);
   color: #fff; border-radius: 5px; cursor: pointer;
 }
+.dl-signlib {
+  margin-top: 6px; width: 100%; padding: 7px; cursor: pointer;
+  border: 1px dashed var(--blue, #1a5276); border-radius: 5px;
+  background: none; color: var(--blue, #1a5276);
+  font: 700 11px 'IBM Plex Sans', sans-serif;
+}
+/* Sign-library picker modal */
+.slp-overlay {
+  position: fixed; inset: 0; z-index: 1300;
+  background: rgba(0,0,0,0.4);
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+.slp-card {
+  width: min(460px, 96vw); max-height: 86vh;
+  background: var(--paper, #fff); border-radius: 8px;
+  display: flex; flex-direction: column; overflow: hidden;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+}
+.slp-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 14px; border-bottom: 1px solid var(--line, #d8dde2);
+}
+.slp-title { font: 700 14px 'IBM Plex Sans', sans-serif; color: var(--ink, #222); }
+.slp-x { border: none; background: none; font-size: 16px; cursor: pointer; color: var(--ink-2, #5a6470); }
+.slp-search {
+  margin: 10px 14px 6px; padding: 8px 10px;
+  border: 1px solid var(--line, #c7cfd8); border-radius: 6px;
+  font: 13px 'IBM Plex Sans', sans-serif;
+}
+.slp-list { flex: 1; overflow-y: auto; padding: 0 8px 8px; }
+.slp-cat {
+  position: sticky; top: 0; padding: 6px 6px 3px;
+  background: var(--paper, #fff);
+  font: 700 9px 'IBM Plex Mono', monospace; letter-spacing: 0.5px;
+  color: var(--ink-3, #8a93a0); text-transform: uppercase;
+}
+.slp-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 8px; border-radius: 5px; cursor: pointer;
+  font: 12px 'IBM Plex Sans', sans-serif;
+}
+.slp-row:hover  { background: var(--paper-2, #f1f3f5); }
+.slp-row.sel    { background: #e3eef7; }
+.slp-row.inlib  { opacity: 0.5; cursor: default; }
+.slp-chk  { flex: 0 0 14px; text-align: center; color: var(--blue, #1a5276); font-weight: 700; }
+.slp-code { flex: 0 0 66px; font: 700 11px 'IBM Plex Mono', monospace; color: var(--ink, #222); }
+.slp-name {
+  flex: 1; min-width: 0; color: var(--ink-2, #5a6470);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.slp-tag   { flex: 0 0 auto; font-size: 9px; color: var(--ink-3, #8a93a0); }
+.slp-empty { padding: 20px; text-align: center; color: var(--ink-3, #8a93a0); font-size: 12px; }
+.slp-foot {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px; border-top: 1px solid var(--line, #d8dde2);
+}
+.slp-count { flex: 1; font: 11px 'IBM Plex Mono', monospace; color: var(--ink-2, #5a6470); }
+.slp-cancel, .slp-add {
+  padding: 7px 14px; cursor: pointer; border-radius: 5px;
+  font: 700 12px 'IBM Plex Sans', sans-serif;
+}
+.slp-cancel { border: 1px solid var(--line, #c7cfd8); background: var(--paper, #fff); color: var(--ink, #222); }
+.slp-add    { border: 1px solid var(--blue, #1a5276); background: var(--blue, #1a5276); color: #fff; }
 
 /* --- Feature form — simple right slide-out --- */
 .ff-scrim {
@@ -11732,14 +11795,19 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         `<span class="dl-chip">${_ffEsc(v)}` +
         `<button data-dlkey="${key}" data-dlidx="${i}" title="Remove">✕</button></span>`).join('')
         || '<span style="font-size:11px;color:var(--ink-3,#8a93a0)">No values yet.</span>';
+      const signLink = key === 'sign_code'
+        ? '<button type="button" class="dl-signlib" data-signlib>🔖 Browse sign library…</button>'
+        : '';
       return `<div class="dl-list">
         <div class="dl-list-name">${META[key]}</div>
         <div class="dl-chips">${chips}</div>
         <div class="dl-add">
           <input type="text" placeholder="Add value…" data-dladd="${key}">
           <button type="button" data-dladdbtn="${key}">Add</button>
-        </div></div>`;
+        </div>${signLink}</div>`;
     }).join('');
+    host.querySelectorAll('[data-signlib]').forEach(btn =>
+      btn.addEventListener('click', _openSignLibPicker));
     host.querySelectorAll('[data-dlkey]').forEach(btn => {
       btn.addEventListener('click', () => {
         const lib2 = _getDropdownLib(), k = btn.dataset.dlkey, i = +btn.dataset.dlidx;
@@ -11758,6 +11826,77 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       }));
   }
   window._RW.renderDropdownLib = _renderDropdownLib;
+
+  // Sign-library picker — browse the MUTCD sign catalog and add codes to the
+  // Sign Codes dropdown list. Opened from the "Browse sign library" link.
+  function _openSignLibPicker() {
+    const signs = (typeof MUTCD_SIGNS !== 'undefined') ? MUTCD_SIGNS : [];
+    if (!signs.length) { _rwToast('Sign library not loaded.'); return; }
+    const existing = new Set(window._RW.dropdownGet('sign_code').map(c => String(c).toUpperCase()));
+    const sel = new Set();
+    const overlay = document.createElement('div');
+    overlay.className = 'slp-overlay';
+    overlay.innerHTML =
+      '<div class="slp-card">' +
+        '<div class="slp-head"><span class="slp-title">Sign Library — add codes</span>' +
+          '<button class="slp-x" id="slp-x" type="button">✕</button></div>' +
+        '<input class="slp-search" id="slp-search" type="text" placeholder="Filter by code or name…">' +
+        '<div class="slp-list" id="slp-list"></div>' +
+        '<div class="slp-foot"><span class="slp-count" id="slp-count">0 selected</span>' +
+          '<button class="slp-cancel" id="slp-cancel" type="button">Cancel</button>' +
+          '<button class="slp-add" id="slp-add" type="button">Add selected</button></div>' +
+      '</div>';
+    document.body.appendChild(overlay);
+
+    const listEl  = overlay.querySelector('#slp-list');
+    const countEl = overlay.querySelector('#slp-count');
+    function renderList(filter) {
+      const f = (filter || '').trim().toLowerCase();
+      const cats = {};
+      signs.forEach(s => {
+        if (f && !(String(s.c).toLowerCase().includes(f) ||
+                   String(s.n || '').toLowerCase().includes(f))) return;
+        (cats[s.cat || '?'] = cats[s.cat || '?'] || []).push(s);
+      });
+      let html = '';
+      Object.keys(cats).sort().forEach(cat => {
+        html += `<div class="slp-cat">${_ffEsc(cat)}</div>`;
+        cats[cat].forEach(s => {
+          const inLib = existing.has(String(s.c).toUpperCase());
+          const on = sel.has(s.c);
+          html += `<div class="slp-row${inLib ? ' inlib' : ''}${on ? ' sel' : ''}" data-code="${_ffEsc(s.c)}">` +
+            `<span class="slp-chk">${inLib ? '✓' : (on ? '●' : '')}</span>` +
+            `<span class="slp-code">${_ffEsc(s.c)}</span>` +
+            `<span class="slp-name">${_ffEsc(s.n || '')}</span>` +
+            (inLib ? '<span class="slp-tag">in list</span>' : '') + '</div>';
+        });
+      });
+      listEl.innerHTML = html || '<div class="slp-empty">No matching signs.</div>';
+    }
+    renderList('');
+
+    listEl.addEventListener('click', e => {
+      const row = e.target.closest('.slp-row');
+      if (!row || row.classList.contains('inlib')) return;
+      const code = row.dataset.code;
+      if (sel.has(code)) sel.delete(code); else sel.add(code);
+      row.classList.toggle('sel');
+      row.querySelector('.slp-chk').textContent = sel.has(code) ? '●' : '';
+      countEl.textContent = sel.size + ' selected';
+    });
+    overlay.querySelector('#slp-search').addEventListener('input', e => renderList(e.target.value));
+    const close = () => overlay.remove();
+    overlay.querySelector('#slp-x').addEventListener('click', close);
+    overlay.querySelector('#slp-cancel').addEventListener('click', close);
+    overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+    overlay.querySelector('#slp-add').addEventListener('click', () => {
+      let n = 0;
+      sel.forEach(code => { if (window._RW.dropdownAdd('sign_code', code)) n++; });
+      close();
+      _renderDropdownLib();
+      _rwToast(n ? `Added ${n} sign code${n !== 1 ? 's' : ''}` : 'No new codes added');
+    });
+  }
 
   // ══ Simple feature form — right slide-out for misc points / lines / polys ══
   // One universal form: every feature writes the SAME attr keys (condition,
