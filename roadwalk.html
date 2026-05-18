@@ -3425,8 +3425,14 @@ a { color: inherit; text-decoration: none; }
   padding: 3px 0;
   border-bottom: 1px solid var(--rule);
 }
-/* Tally visibility toggle menu — inside fp-left-stack */
+/* Tally visibility toggle menu — floats right of the left stack.
+   MUST be absolutely positioned (like .layers-panel / .photos-panel) so
+   showing it never reflows the flex button stack. `top` is set in JS to
+   line the menu up with the tally button. */
 .tally-vis-menu {
+  position: absolute;
+  left: calc(34px + 10px);   /* button width + gap — matches .layers-panel */
+  z-index: 600;
   background: var(--paper);
   border: 1px solid var(--rule);
   border-radius: 4px;
@@ -3434,6 +3440,7 @@ a { color: inherit; text-decoration: none; }
   min-width: 130px;
   overflow: hidden;
 }
+.tally-vis-menu[hidden] { display: none; }
 .tvm-title {
   font-family: 'IBM Plex Mono', monospace;
   font-size: 9px;
@@ -6878,7 +6885,7 @@ input.fs-slider::-webkit-slider-thumb {
 }
 .sign-ph-take { flex: 3; background: #d8463c; }
 .sign-ph-up   { flex: 1; background: #9aa3ad; }
-.sign-photos { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
+.sign-photos { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-bottom: 4px; }
 .sign-photo-card { display: flex; flex-direction: column; gap: 3px; width: 128px; }
 .sign-photo-imgwrap { position: relative; }
 .sign-photo-thumb {
@@ -19529,6 +19536,10 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const show = menu.hidden;
+      if (show) {
+        // Anchor the (absolutely-positioned) menu beside the tally button.
+        menu.style.top = btn.offsetTop + 'px';
+      }
       menu.hidden = !show;
       btn.classList.toggle('on', show);
     });
@@ -23143,6 +23154,10 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     const btn   = document.getElementById('layers-toggle-btn');
     const panel = document.getElementById('layers-panel');
     if (!btn || !panel) return;
+    // Idempotent — initLayersButton() is invoked both at script-execution time
+    // (below) and again from _startup(); the guard prevents double-wiring.
+    if (btn._rwLayersWired) return;
+    btn._rwLayersWired = true;
 
     btn.addEventListener('click', function (e) {
       e.stopPropagation();   // don't let the outside-click handler fire immediately
@@ -23169,6 +23184,12 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       }
     });
   }
+
+  // Wire the layers button now, at script-execution time — the static map
+  // controls already exist in the parsed body. _startup() also calls this,
+  // but the idempotency guard makes the second call a harmless no-op. This
+  // guarantees the button works even if _startup() is delayed or interrupted.
+  initLayersButton();
 
   // buildMapToolbar kept for backward compat — now a no-op since layers
   // moved to the floating panel. Module toolbar stays hidden for map module.
@@ -25867,8 +25888,11 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
           'data-photo-desc="' + i + '" value="' + _esc(ph.desc == null ? '' : ph.desc) + '">' +
       '</div>';
     }
-    // Two photos sit beside the buttons only when the column is wide enough.
-    function _photoTopCount(ci) { return (_colWidth(ci) >= 278) ? 2 : 1; }
+    // How many 128px photos fit across one row at the column's current width.
+    function _photoTopCount(ci) {
+      var inner = _colWidth(ci) - 16;            // .sign-col side padding (8 + 8)
+      return Math.max(1, Math.floor((inner + 8) / (128 + 8)));   // photo + gap
+    }
     // Head: Take / Upload buttons with the first photo(s) shown right below them.
     function _photoHead(dirKey, ci) {
       var list = _photoList(dirKey);
@@ -25897,6 +25921,9 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       var lbl  = meta ? code + ' — ' + meta.n : (code || '(tap to pick code)');
       var backOpts = [{v:'',l:'—'},{v:'two_sided',l:'Two-sided'},{v:'galvanized',l:'Galvanized back'},
         {v:'black',l:'Black'},{v:'brown',l:'Brown'},{v:'green',l:'Green'},{v:'white',l:'White'},{v:'other',l:'Other'}];
+      var mountOpts = [{v:'',l:'— select —'},{v:'angled_brackets',l:'Angled brackets'},
+        {v:'carriage_bolts',l:'Carriage bolts'},{v:'screws',l:'Screws'},
+        {v:'d_clamps',l:'D-clamps'},{v:'other',l:'Other'}];
       return '<div class="sign-panel-block" data-panel-scope="' + idx + '">' +
         '<div class="sign-sub-hdr">PANEL ' + (idx + 1) +
           '<button class="sign-mini-del" data-del-panel="' + idx + '">✕</button>' +
@@ -25912,6 +25939,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         _condRow  ('Sheeting cond','sheeting_condition', p.sheeting_condition, conditions, 'data-panel-field') +
         _selectRow('Sheeting type','sheeting_type',      p.sheeting_type || '', sheetOpts) +
         _selectRow('Back panel',   'back_panel',         p.back_panel || '',   backOpts) +
+        _selectRow('Mounting hardware', 'mounting_hardware', p.mounting_hardware || '', mountOpts) +
         _signFlagBlock('panel_damage_flags', p.damage_flags, damage) +
         '<div class="df-sec-hdr">RETRO · DAYTIME (E / G / F / P / X)</div>' +
         _condRow('Rater 1', 'retro_day_r1',   p.retro_day_r1,   retroRatings, 'data-panel-field') +
