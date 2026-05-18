@@ -3102,6 +3102,14 @@ a { color: inherit; text-decoration: none; }
 }
 .pp-btn:active { transform: scale(0.98); }
 .pp-show { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--ink-1); cursor: pointer; }
+.pp-opt { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--ink-1); }
+.pp-opt span { flex: 0 0 auto; }
+.pp-opt select {
+  flex: 1 1 auto; min-width: 0;
+  font: 400 11px/1.3 'IBM Plex Sans', sans-serif;
+  padding: 4px 5px; border: 1px solid var(--rule); border-radius: 5px;
+  background: var(--paper); color: var(--ink-1);
+}
 .pp-count { font: 700 10px/1.3 'IBM Plex Mono', monospace; color: var(--ink-3); }
 .pp-hint  { font: 400 10px/1.45 'IBM Plex Sans', sans-serif; color: var(--ink-4); }
 
@@ -7156,6 +7164,15 @@ body.mobile-mode #app {
             <div class="layers-panel-title">FIELD PHOTOS</div>
             <div class="pp-body">
               <button class="pp-btn" id="pp-upload" type="button">⬆ Upload Photos</button>
+              <label class="pp-opt"><span>Resize to</span>
+                <select id="pp-size">
+                  <option value="800">Small · 800 px</option>
+                  <option value="1200" selected>Medium · 1200 px</option>
+                  <option value="1600">Large · 1600 px</option>
+                  <option value="2400">X-Large · 2400 px</option>
+                </select>
+              </label>
+              <label class="pp-show"><input type="checkbox" id="pp-watermark"> Watermark (GPS + date/time)</label>
               <label class="pp-show"><input type="checkbox" id="pp-show" checked> Show markers on map</label>
               <div class="pp-count" id="pp-count">No photos yet.</div>
               <div class="pp-hint">Photos with GPS data drop at their location; others
@@ -25972,8 +25989,33 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   }
 
   /* ===================== image downscale ===================== */
-  function makeThumb(file) {
-    var MAX = 1600;
+  // Burn a GPS + date/time caption into the bottom of the photo canvas.
+  function drawWatermark(ctx, w, h, wm) {
+    var lines = [];
+    var l1 = [];
+    if (wm.lat != null && wm.lng != null && isFinite(wm.lat) && isFinite(wm.lng)) {
+      l1.push(wm.lat.toFixed(6) + ', ' + wm.lng.toFixed(6));
+    }
+    if (wm.bearing != null && isFinite(wm.bearing)) l1.push('brg ' + Math.round(wm.bearing) + '°');
+    if (l1.length) lines.push(l1.join('    '));
+    var d = new Date();
+    lines.push(d.toLocaleDateString() + '  ' + d.toLocaleTimeString());
+    var fs = Math.max(12, Math.round(w / 48));
+    var lh = Math.round(fs * 1.5);
+    var padX = Math.round(fs * 0.6), padY = Math.round(fs * 0.45);
+    var bandH = lines.length * lh + padY * 2;
+    ctx.fillStyle = 'rgba(0,0,0,0.58)';
+    ctx.fillRect(0, h - bandH, w, bandH);
+    ctx.font = 'bold ' + fs + 'px monospace';
+    ctx.fillStyle = '#ffffff';
+    ctx.textBaseline = 'top';
+    lines.forEach(function (ln, i) {
+      ctx.fillText(ln, padX, h - bandH + padY + i * lh);
+    });
+  }
+  // Downscale a photo to maxSize (longest edge) and optionally watermark it.
+  function makeThumb(file, maxSize, wm) {
+    var MAX = maxSize || 1200;
     if (window.createImageBitmap) {
       return createImageBitmap(file, { imageOrientation: 'from-image' }).then(function (bmp) {
         var s = Math.min(1, MAX / Math.max(bmp.width, bmp.height));
@@ -25981,8 +26023,10 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         var ch = Math.max(1, Math.round(bmp.height * s));
         var cv = document.createElement('canvas');
         cv.width = cw; cv.height = ch;
-        cv.getContext('2d').drawImage(bmp, 0, 0, cw, ch);
+        var ctx = cv.getContext('2d');
+        ctx.drawImage(bmp, 0, 0, cw, ch);
         if (bmp.close) bmp.close();
+        if (wm) { try { drawWatermark(ctx, cw, ch, wm); } catch (e) {} }
         return cv.toDataURL('image/jpeg', 0.82);
       });
     }
@@ -26172,6 +26216,10 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     var map = rwMap();
     var center = (map && map.getCenter) ? map.getCenter() : { lat: 0, lng: 0 };
     var countEl = $('pp-count');
+    // Resize + watermark options (from the photos panel).
+    var sizeEl = $('pp-size');
+    var maxSize = sizeEl ? (parseInt(sizeEl.value, 10) || 1200) : 1200;
+    var wmOn = !!($('pp-watermark') && $('pp-watermark').checked);
     var added = 0, noGpsIdx = 0, total = arr.length, done = 0;
     if (countEl) countEl.textContent = 'Importing 0 / ' + total + '…';
     var seq = Promise.resolve();
@@ -26180,7 +26228,10 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         if (!/^image\//.test(file.type || '')) { done++; return; }
         return file.arrayBuffer().then(function (buf) {
           var gps = parseExif(buf);
-          return makeThumb(file).then(function (dataUrl) {
+          var wm = wmOn ? {
+            lat: gps && gps.lat, lng: gps && gps.lng, bearing: gps && gps.bearing,
+          } : null;
+          return makeThumb(file, maxSize, wm).then(function (dataUrl) {
             var lat, lng, bearing = null;
             if (gps && isFinite(gps.lat) && isFinite(gps.lng)) {
               lat = gps.lat; lng = gps.lng;
@@ -26254,6 +26305,21 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         photosVisible = showChk.checked;
         persistVis();
         render();
+      });
+    }
+    // Resize + watermark options — restore and persist the choices.
+    var sizeSel = $('pp-size');
+    if (sizeSel) {
+      try { var sv = localStorage.getItem('rw_photo_maxsize'); if (sv) sizeSel.value = sv; } catch (e) {}
+      sizeSel.addEventListener('change', function () {
+        try { localStorage.setItem('rw_photo_maxsize', sizeSel.value); } catch (e) {}
+      });
+    }
+    var wmChk = $('pp-watermark');
+    if (wmChk) {
+      try { wmChk.checked = localStorage.getItem('rw_photo_watermark') === '1'; } catch (e) {}
+      wmChk.addEventListener('change', function () {
+        try { localStorage.setItem('rw_photo_watermark', wmChk.checked ? '1' : '0'); } catch (e) {}
       });
     }
     var upBtn = $('pp-upload'), fileInp = $('pp-file');
