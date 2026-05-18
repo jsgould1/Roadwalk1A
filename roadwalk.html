@@ -7842,6 +7842,15 @@ body.mobile-mode #app {
           <button class="tb-btn" id="draw-cancel-btn">✕ Cancel</button>
         </div>
 
+        <!-- Section-shape edit banner (drag / add / remove alignment vertices) -->
+        <div class="trace-banner" id="sec-edit-banner">
+          <span id="sec-edit-type">EDITING SECTION</span>
+          <span class="tb-sep">·</span>
+          <span>Drag a point to move · tap a segment to add · double-tap a point to remove</span>
+          <button class="tb-btn tb-done" id="sec-edit-done-btn">✓ Done</button>
+          <button class="tb-btn" id="sec-edit-cancel-btn">✕ Cancel</button>
+        </div>
+
         <!-- Multi-track GPS walk recorders — one stacked banner per active track -->
         <div class="walk-track-stack" id="walk-track-stack" hidden></div>
 
@@ -10531,6 +10540,23 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
           interactive: false,
           pane: 'overlayPane',
         }).addTo(state.map);
+        // Invisible fat boundary outline — tapping it opens shape-edit mode.
+        alignmentHit = L.polygon(sec.alignment, {
+          color: '#000',
+          weight: 26,
+          opacity: 0,          // invisible
+          fill: false,         // only the boundary stroke is the hit target
+          interactive: true,
+          bubblingMouseEvents: false,
+          className: 'rw-alignment-path',
+          pane: 'overlayPane',
+        }).addTo(state.map);
+        state.mapLayers.alignmentHit = alignmentHit;
+        alignmentHit.on('click', () => {
+          if (drawState && drawState.tool) return;
+          if (relocateState && relocateState.active) return;
+          startSectionVertexEdit(sec);
+        });
       } else {
         // Two-layer approach: a wide invisible "hit" polyline catches hover/click
         // within a generous corridor, and a narrower visible polyline renders the
@@ -10540,6 +10566,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
           weight: 40,
           opacity: 0,          // invisible
           interactive: true,
+          bubblingMouseEvents: false,   // clicks must not bubble out to the map
           lineCap: 'butt',
           className: 'rw-alignment-path',   // crosshair cursor
           pane: 'overlayPane',
@@ -10629,12 +10656,14 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       alignmentHit.on('click', (e) => {
         if (drawState && drawState.tool) return;
         if (relocateState && relocateState.active) return;
-        // Switch to this section if it isn't already active; the moveend sync
-        // handler will scroll the SLD to the clicked position automatically.
-        if (stripCurrentSec?.id !== sec.id) {
+        // A different section's centerline → select it first (scrolls the SLD).
+        if (stripCurrentSec && stripCurrentSec.id !== sec.id) {
           const [staFt] = projectOntoAlignment(e.latlng, sec.alignment);
           openStrip(sec, staFt ?? 0);
+          return;
         }
+        // Tapping the active section's centerline opens shape-edit mode.
+        startSectionVertexEdit(sec);
       });
       }  // end if (!isAreaSection)
 
@@ -20666,6 +20695,188 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     if (!vertexEditState.active) return;
     if (e.key === 'Escape' || e.key === 'Enter') exitVertexEdit();
   });
+
+  // ── Section-shape vertex editing ─────────────────────────────────────────
+  // Lets the user reshape a section's drawn alignment — the centerline of a
+  // linear section, or the boundary polygon of an area section — by dragging
+  // vertices, adding them (tap a segment or a midpoint dot) and removing them
+  // (double-tap / right-click a vertex). Entered by tapping the alignment.
+  const _secEditState = {
+    active: false, sec: null, isArea: false,
+    layer: null, shape: null, vMarkers: [], mMarkers: [], original: null,
+  };
+
+  function startSectionVertexEdit(sec) {
+    if (!sec || !Array.isArray(sec.alignment) || sec.alignment.length < 2) return;
+    if (!state.map) return;
+    if (drawState && drawState.tool) return;
+    if (relocateState && relocateState.active) return;
+    if (vertexEditState && vertexEditState.active) return;
+    if (_secEditState.active) {
+      if (_secEditState.sec === sec) return;
+      endSectionVertexEdit(true);
+    }
+    _secEditState.active   = true;
+    _secEditState.sec      = sec;
+    _secEditState.isArea   = (sec.type === 'area');
+    // Snapshot the alignment so Cancel can restore it (edits apply in place).
+    _secEditState.original = sec.alignment.map(function (p) { return [p[0], p[1]]; });
+    // Ghost the static alignment so the editable overlay reads cleanly on top.
+    if (state.mapLayers.alignment) {
+      try { state.mapLayers.alignment.setStyle({ opacity: 0.2, fillOpacity: 0.03 }); } catch (e) {}
+    }
+    if (state.mapLayers.alignmentHit) {
+      try { state.mapLayers.alignmentHit.setStyle({ opacity: 0 }); } catch (e) {}
+    }
+    _buildSecEditOverlay();
+    const banner = document.getElementById('sec-edit-banner');
+    if (banner) {
+      banner.classList.add('open');
+      const t = document.getElementById('sec-edit-type');
+      if (t) t.textContent = _secEditState.isArea ? 'EDITING BOUNDARY' : 'EDITING CENTERLINE';
+    }
+    if (state.map.doubleClickZoom) state.map.doubleClickZoom.disable();
+  }
+
+  function endSectionVertexEdit(commit) {
+    if (!_secEditState.active) return;
+    const sec = _secEditState.sec;
+    if (!commit && sec && _secEditState.original) {
+      sec.alignment = _secEditState.original;        // discard edits
+    }
+    if (_secEditState.layer) {
+      try { state.map.removeLayer(_secEditState.layer); } catch (e) {}
+    }
+    _secEditState.active = false;
+    _secEditState.sec = null;
+    _secEditState.layer = null;
+    _secEditState.shape = null;
+    _secEditState.vMarkers = [];
+    _secEditState.mMarkers = [];
+    _secEditState.original = null;
+    const banner = document.getElementById('sec-edit-banner');
+    if (banner) banner.classList.remove('open');
+    if (state.map && state.map.doubleClickZoom) state.map.doubleClickZoom.enable();
+    if (commit && sec) {
+      sec._edited_at = new Date().toISOString();
+      if (window._RW && typeof window._RW.persistSections === 'function') {
+        window._RW.persistSections();
+      }
+    }
+    if (sec) initOrUpdateMap(sec);    // re-render the section from the new shape
+  }
+
+  // (Re)build the editable overlay — called on start and after every change.
+  function _buildSecEditOverlay() {
+    if (!_secEditState.active || !state.map) return;
+    if (_secEditState.layer) {
+      try { state.map.removeLayer(_secEditState.layer); } catch (e) {}
+    }
+    const sec    = _secEditState.sec;
+    const isArea = _secEditState.isArea;
+    const pts    = sec.alignment;                    // [[lat,lng], ...]
+    const color  = isArea ? '#0B3D66' : '#C85A2B';
+    const minPts = isArea ? 3 : 2;
+    const group  = L.layerGroup();
+
+    // Editable shape — tapping a segment inserts a vertex at the tap point.
+    const shape = isArea
+      ? L.polygon(pts,  { color: color, weight: 3, fillColor: color, fillOpacity: 0.06,
+                          interactive: true, bubblingMouseEvents: false, pane: 'overlayPane' })
+      : L.polyline(pts, { color: color, weight: 6, opacity: 0.9, lineCap: 'round',
+                          interactive: true, bubblingMouseEvents: false, pane: 'overlayPane' });
+    shape.on('click', (e) => {
+      if (!e.latlng) return;
+      const cs = _secEditState.sec.alignment;
+      const clickPt  = state.map.latLngToLayerPoint(e.latlng);
+      const segCount = isArea ? cs.length : cs.length - 1;
+      let bestI = 0, bestD = Infinity;
+      for (let i = 0; i < segCount; i++) {
+        const a = state.map.latLngToLayerPoint(cs[i]);
+        const b = state.map.latLngToLayerPoint(cs[(i + 1) % cs.length]);
+        const d = L.LineUtil.pointToSegmentDistance(clickPt, a, b);
+        if (d < bestD) { bestD = d; bestI = i; }
+      }
+      cs.splice(bestI + 1, 0, [e.latlng.lat, e.latlng.lng]);
+      _buildSecEditOverlay();
+    });
+    group.addLayer(shape);
+    _secEditState.shape = shape;
+
+    // Draggable vertex markers.
+    const vMarkers = [];
+    pts.forEach((ll, i) => {
+      const m = L.marker(ll, {
+        draggable: true,
+        icon: L.divIcon({ className: 'rw-vertex-icon',
+          html: '<div class="rw-vertex"></div>', iconSize: [14, 14], iconAnchor: [7, 7] }),
+      });
+      m.on('drag', () => {
+        const p = m.getLatLng();
+        _secEditState.sec.alignment[i] = [p.lat, p.lng];
+        if (_secEditState.shape) _secEditState.shape.setLatLngs(_secEditState.sec.alignment);
+        const el = m.getElement();
+        if (el) { const v = el.querySelector('.rw-vertex'); if (v) v.classList.add('dragging'); }
+      });
+      m.on('dragend', () => {
+        const el = m.getElement();
+        if (el) { const v = el.querySelector('.rw-vertex'); if (v) v.classList.remove('dragging'); }
+        _buildSecEditOverlay();        // refresh the midpoint dots
+      });
+      const del = () => {
+        const cs = _secEditState.sec.alignment;
+        if (cs.length <= minPts) return;
+        cs.splice(i, 1);
+        _buildSecEditOverlay();
+      };
+      m.on('contextmenu', (e) => { if (e.originalEvent) e.originalEvent.preventDefault(); del(); });
+      m.on('dblclick',    (e) => { if (e.originalEvent) e.originalEvent.preventDefault(); del(); });
+      group.addLayer(m);
+      vMarkers.push(m);
+    });
+    _secEditState.vMarkers = vMarkers;
+
+    // Midpoint dots — tap inserts at the midpoint, drag inserts at the release.
+    const mMarkers = [];
+    const segCount = isArea ? pts.length : pts.length - 1;
+    for (let i = 0; i < segCount; i++) {
+      const a = pts[i], b = pts[(i + 1) % pts.length];
+      const mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+      const mm = L.marker(mid, {
+        draggable: true,
+        icon: L.divIcon({ className: 'rw-vertex-mid-icon',
+          html: '<div class="rw-vertex-mid"></div>', iconSize: [10, 10], iconAnchor: [5, 5] }),
+      });
+      const insertAt = (lat, lng) => {
+        _secEditState.sec.alignment.splice(i + 1, 0, [lat, lng]);
+        _buildSecEditOverlay();
+      };
+      mm.on('drag', () => {
+        const p = mm.getLatLng();
+        const draft = _secEditState.sec.alignment.slice();
+        draft.splice(i + 1, 0, [p.lat, p.lng]);
+        if (_secEditState.shape) _secEditState.shape.setLatLngs(draft);
+      });
+      mm.on('dragend', () => { const p = mm.getLatLng(); insertAt(p.lat, p.lng); });
+      mm.on('click',   () => insertAt(mid[0], mid[1]));
+      group.addLayer(mm);
+      mMarkers.push(mm);
+    }
+    _secEditState.mMarkers = mMarkers;
+
+    group.addTo(state.map);
+    _secEditState.layer = group;
+  }
+
+  // Enter commits, Escape cancels (discards back to the snapshot).
+  document.addEventListener('keydown', (e) => {
+    if (!_secEditState.active) return;
+    if (e.key === 'Enter')       endSectionVertexEdit(true);
+    else if (e.key === 'Escape') endSectionVertexEdit(false);
+  });
+  document.getElementById('sec-edit-done-btn')?.addEventListener('click', () => endSectionVertexEdit(true));
+  document.getElementById('sec-edit-cancel-btn')?.addEventListener('click', () => endSectionVertexEdit(false));
+  window._rwStartSectionVertexEdit = startSectionVertexEdit;
   // Click on empty map (not on a feature / vertex marker) → deselect:
   //   - exit vertex-edit if active (also closes the right panel)
   //   - otherwise dismiss the feature panel if it's open (point-pin case)
@@ -20689,6 +20900,10 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     state.map.on('zoomend', _updateLineLabelVisibility);
     _updateLineLabelVisibility();
     state.map.on('click', () => {
+      if (_secEditState.active) {
+        endSectionVertexEdit(true);   // tapping empty map commits the shape edit
+        return;
+      }
       if (vertexEditState.active) {
         exitVertexEdit();
         return;
