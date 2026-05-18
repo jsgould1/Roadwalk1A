@@ -18,19 +18,56 @@
 <link rel="icon" href="icon.svg">
 <meta name="apple-mobile-web-app-title" content="RoadWalk">
 <script>
-  /* Register the service worker (offline app-shell cache) and ask the browser
-     to keep RoadWalk's field data from being evicted under storage pressure.
-     Both are no-ops on insecure origins (e.g. file://) and degrade silently. */
+  /* Register the service worker (offline app-shell cache), surface an
+     "update available" banner when a newer version is deployed, and ask the
+     browser to keep RoadWalk's field data from being evicted under storage
+     pressure. All no-ops on insecure origins (e.g. file://) — degrade silently. */
   (function () {
+    function showUpdateBanner() {
+      var b = document.getElementById('rw-update-banner');
+      if (b) b.hidden = false;
+    }
+
     if ('serviceWorker' in navigator) {
+      // A controller already present at load means any later controller change
+      // is a genuine update (not the first-ever install claiming the page).
+      var hadController = !!navigator.serviceWorker.controller;
+      navigator.serviceWorker.addEventListener('controllerchange', function () {
+        if (hadController) showUpdateBanner();
+      });
+
       window.addEventListener('load', function () {
-        navigator.serviceWorker.register('sw.js').then(function () {
+        navigator.serviceWorker.register('sw.js').then(function (reg) {
           console.log('[RoadWalk] Service worker active — app shell cached for offline use.');
+          // A new worker installing while one is already active = an update.
+          reg.addEventListener('updatefound', function () {
+            var nw = reg.installing;
+            if (!nw) return;
+            nw.addEventListener('statechange', function () {
+              if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+                showUpdateBanner();
+              }
+            });
+          });
+          // Long field sessions: re-check for a newer version once an hour.
+          setInterval(function () { reg.update().catch(function () {}); }, 60 * 60 * 1000);
         }).catch(function (err) {
           console.warn('[RoadWalk] Service worker registration failed:', err);
         });
+
+        // Wire the update banner's buttons.
+        var reloadBtn  = document.getElementById('rw-update-reload');
+        var dismissBtn = document.getElementById('rw-update-dismiss');
+        if (reloadBtn) reloadBtn.addEventListener('click', function () {
+          location.reload();
+        });
+        if (dismissBtn) dismissBtn.addEventListener('click', function () {
+          var b = document.getElementById('rw-update-banner');
+          if (b) b.hidden = true;
+        });
       });
     }
+
     if (navigator.storage && navigator.storage.persist) {
       navigator.storage.persisted().then(function (already) {
         if (already) { console.log('[RoadWalk] Persistent storage already granted.'); return; }
@@ -5182,14 +5219,15 @@ input.fs-slider::-webkit-slider-thumb {
   align-items: center;
   gap: 2px;
 }
-/* Right cluster: status + action icons */
+/* Right cluster: save control. Sized to its content (flex:0 0 auto) so the
+   .nav-left grows to fill the slack and the module tabs sit hard to the right. */
 #app-nav .nav-right {
-  flex: 1 1 0;
-  min-width: 0;
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 1px;
+  padding-left: 6px;
 }
 /* AECOM logo · vertical divider · program name (left of the nav) */
 #app-nav .aecom-logo {
@@ -5284,6 +5322,54 @@ input.fs-slider::-webkit-slider-thumb {
   font-size: 13px;
   font-weight: 600;
 }
+/* --- Save pill: larger save control with last-save time + status colour --- */
+.nav-save-pill {
+  display: inline-flex; align-items: center; gap: 8px;
+  height: 42px; padding: 0 14px; margin-left: 4px;
+  border: none; border-radius: 9px; cursor: pointer;
+  background: rgba(255,255,255,0.16); color: #fff;
+  font-family: 'IBM Plex Sans', sans-serif; flex-shrink: 0;
+}
+.nav-save-pill:hover { filter: brightness(1.1); }
+.nav-save-pill:active { transform: scale(0.97); }
+.nav-save-pill .nsp-icon { font-size: 21px; line-height: 1; }
+.nav-save-pill .nsp-text {
+  display: flex; flex-direction: column; align-items: flex-start;
+  line-height: 1.18;
+}
+.nav-save-pill .nsp-state {
+  font-size: 12.5px; font-weight: 700; letter-spacing: 0.2px;
+}
+.nav-save-pill .nsp-time {
+  font: 600 9px 'IBM Plex Mono', monospace; opacity: 0.85; white-space: nowrap;
+}
+.nav-save-pill.saved   { background: #15803d; color: #fff; }   /* all saved   */
+.nav-save-pill.unsaved { background: #d97706; color: #fff; }   /* changes due */
+
+/* --- PWA "update available" banner — slim bar pinned to the bottom --- */
+#rw-update-banner {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 9500;
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 14px;
+  background: #0B3D66; color: #fff;
+  font: 600 12px 'IBM Plex Sans', sans-serif;
+  box-shadow: 0 -3px 14px rgba(0,0,0,0.32);
+}
+#rw-update-banner[hidden] { display: none; }
+#rw-update-banner .rub-msg { flex: 1; min-width: 0; }
+#rw-update-banner button {
+  flex-shrink: 0; cursor: pointer; border: none; border-radius: 5px;
+  font: 700 11px 'IBM Plex Sans', sans-serif;
+}
+#rw-update-reload {
+  background: #15803d; color: #fff; padding: 8px 16px;
+}
+#rw-update-reload:hover { background: #1a9a4b; }
+#rw-update-dismiss {
+  background: transparent; color: rgba(255,255,255,0.7);
+  font-size: 15px; padding: 6px 8px; line-height: 1;
+}
+#rw-update-dismiss:hover { color: #fff; }
 
 /* --- #app-tabs: module tabs, centered inside the combined nav row -----------
    Stacked icon-over-label buttons on the dark nav. Active = white text +
@@ -7534,26 +7620,26 @@ body.mobile-mode #app {
         <span class="app-tab-icon">⚙️</span><span class="app-tab-label">Settings</span></button>
     </div>
 
-    <!-- RIGHT: status + action icons -->
+    <!-- RIGHT: save control — bigger, shows last-save time, green when saved -->
     <div class="nav-right">
-      <!-- Auto-save badge — updated by doAutoSave() with last save time -->
-      <span id="autosave-nav-badge" title="Last auto-save time" aria-live="polite"></span>
-      <!-- Manual save button — triggers doAutoSave(true) -->
-      <button class="nav-btn nav-save-btn" id="nav-save-btn"
-              title="Save to browser storage now" aria-label="Save">💾</button>
-      <!-- Sync status chip -->
-      <span class="sync-chip" data-state="solo" id="sync-chip">
-        <span class="dot"></span>
-        <span id="sync-text">Solo</span>
-      </span>
-      <!-- Phone / desktop layout toggle -->
-      <button class="nav-btn" id="view-toggle-btn"
-              title="Switch between phone preview and desktop full-width">
-        <span id="view-toggle-label">📱</span>
+      <button class="nav-save-pill" id="nav-save-btn" type="button"
+              title="Save all field data to this device now" aria-label="Save">
+        <span class="nsp-icon">💾</span>
+        <span class="nsp-text">
+          <span class="nsp-state" id="nav-save-state">Save</span>
+          <span class="nsp-time" id="nav-save-time">not saved yet</span>
+        </span>
       </button>
     </div>
 
   </nav><!-- /#app-nav -->
+
+  <!-- PWA update banner — shown when the service worker has a newer version -->
+  <div id="rw-update-banner" hidden role="status" aria-live="polite">
+    <span class="rub-msg">A new version of RoadWalk is ready.</span>
+    <button id="rw-update-reload" type="button">Reload now</button>
+    <button id="rw-update-dismiss" type="button" aria-label="Dismiss">✕</button>
+  </div>
 
   <!-- ============================================================
        MODULE TOOLBAR (#module-toolbar, 34px, contextual)
@@ -19358,7 +19444,11 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     // Only toggles the phone-preview frame for dev/testing purposes.
     // Strip behavior is identical in all modes — no auto-open/close here.
     document.body.classList.toggle('phone-preview', mode === 'phone');
-    viewToggleLabel.textContent = mode === 'phone' ? '🖥 Desktop' : '📱 Phone';
+    // The phone/desktop toggle button was removed from the header — guard the
+    // label update so this still works (it is also called on startup).
+    if (viewToggleLabel) {
+      viewToggleLabel.textContent = mode === 'phone' ? '🖥 Desktop' : '📱 Phone';
+    }
     state.viewMode = mode;
     if (state.map) setTimeout(() => state.map.invalidateSize(), 250);
   }
@@ -23032,6 +23122,52 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
 
+  /** Format a Date for the header Save pill, e.g. "May 18, 9:42 AM". */
+  function _fmtSaveStamp(date) {
+    try {
+      return date.toLocaleString([], {
+        month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+      });
+    } catch (e) { return _fmtTime(date); }
+  }
+
+  /**
+   * Refresh the header Save pill: green "Saved" + last-save date/time when the
+   * data is clean, amber "Unsaved" when the data form has pending edits.
+   */
+  function _updateSaveWidget() {
+    var btn = document.getElementById('nav-save-btn');
+    if (!btn) return;
+    var stEl = document.getElementById('nav-save-state');
+    var tmEl = document.getElementById('nav-save-time');
+    var dirty = !!(window._RW && typeof window._RW.isDataFormDirty === 'function'
+                   && window._RW.isDataFormDirty());
+    var lastSaved = null;
+    try { lastSaved = (lsLoad() || {}).lastSavedAt || null; } catch (e) {}
+
+    if (dirty) {
+      btn.classList.remove('saved');
+      btn.classList.add('unsaved');
+      if (stEl) stEl.textContent = 'Unsaved';
+      if (tmEl) tmEl.textContent = 'tap to save';
+      btn.title = 'You have unsaved changes — tap to save to this device.';
+    } else if (lastSaved) {
+      btn.classList.remove('unsaved');
+      btn.classList.add('saved');
+      if (stEl) stEl.textContent = 'Saved';
+      if (tmEl) tmEl.textContent = _fmtSaveStamp(new Date(lastSaved));
+      btn.title = 'All field data saved to this device — last save '
+        + new Date(lastSaved).toLocaleString();
+    } else {
+      btn.classList.remove('saved', 'unsaved');
+      if (stEl) stEl.textContent = 'Save';
+      if (tmEl) tmEl.textContent = 'not saved yet';
+      btn.title = 'Save all field data to this device now.';
+    }
+  }
+  window._RW = window._RW || {};
+  window._RW.updateSaveWidget = _updateSaveWidget;
+
   /**
    * Tier 1 save — write lean state to localStorage, update the badge.
    * @param {boolean} [manual=false] — true when triggered by the user pressing Save
@@ -23045,13 +23181,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       var _pid = (window.PROJECT && window.PROJECT.id) || 'default';
       idbPut('safety', { sections: window.SECTIONS, saved_at: new Date().toISOString() },
              'rw_sections_' + _pid)
-        .then(function () {
-          const badge = document.getElementById('autosave-nav-badge');
-          if (badge) {
-            badge.textContent = '💾 ' + _fmtTime(new Date());
-            badge.title = 'Field data saved to device: ' + new Date().toLocaleString();
-          }
-        })
+        .then(function () { _updateSaveWidget(); })
         .catch(function (e) { console.warn('[RoadWalk] section persist failed:', e); });
     } catch (e) { console.warn('[RoadWalk] _persistSections error:', e); }
   }
@@ -23059,19 +23189,15 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   window._RW.persistSections = _persistSections;
 
   function doAutoSave(manual) {
-    const saved = lsSave({ activeModule: _activeModule });
+    lsSave({ activeModule: _activeModule });
     _persistSections();           // durably save all field data to IDB
-    const badge = document.getElementById('autosave-nav-badge');
-    if (badge) {
-      badge.textContent = '💾 ' + _fmtTime(new Date());
-      badge.title = 'Last saved: ' + new Date(saved.lastSavedAt).toLocaleString();
-    }
+    _updateSaveWidget();          // refresh the header Save pill
     if (manual) {
       // Brief visual flash on manual save to confirm action
       const btn = document.getElementById('nav-save-btn');
       if (btn) {
-        btn.style.opacity = '0.4';
-        setTimeout(function () { btn.style.opacity = ''; }, 300);
+        btn.style.opacity = '0.55';
+        setTimeout(function () { btn.style.opacity = ''; }, 250);
       }
     }
   }
@@ -28169,12 +28295,10 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     // b) Auto-save + backup timers
     restartAutoSave();
     restartAutoBackup();
-    // Restore last-saved badge from lean state
-    const saved = lsLoad();
-    const badge = document.getElementById('autosave-nav-badge');
-    if (badge && saved.lastSavedAt) {
-      badge.textContent = '💾 ' + _fmtTime(new Date(saved.lastSavedAt));
-    }
+    // Initialise the header Save pill, then keep it current on a light
+    // interval so it reflects the data form going dirty / clean.
+    _updateSaveWidget();
+    setInterval(_updateSaveWidget, 4000);
 
     // c) Wire the layers button, dashboard controls, and data module
     initLayersButton();
