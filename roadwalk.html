@@ -9571,6 +9571,12 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       state.mapLayers.alignment.remove();
       state.mapLayers.alignment = null;
     }
+    // Clear the invisible hit corridor (linear sections only — also prevents a
+    // stale corridor lingering when switching to an area section).
+    if (state.mapLayers.alignmentHit) {
+      state.mapLayers.alignmentHit.remove();
+      state.mapLayers.alignmentHit = null;
+    }
     // Clear sub-alignments (ramps / spurs)
     (state.mapLayers.subAlignments || []).forEach(l => { try { l.remove(); } catch (_) {} });
     state.mapLayers.subAlignments = [];
@@ -9580,28 +9586,44 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     }
 
     if (sec.alignment) {
-      // Two-layer approach: a wide invisible "hit" polyline catches hover/click
-      // within a generous corridor, and a narrower visible polyline renders the
-      // alignment on top. Same geometry, different weights.
-      const alignmentHit = L.polyline(sec.alignment, {
-        color: '#000',
-        weight: 40,
-        opacity: 0,          // invisible
-        interactive: true,
-        lineCap: 'butt',
-        className: 'rw-alignment-path',   // crosshair cursor
-        pane: 'overlayPane',
-      }).addTo(state.map);
-      const alignmentLayer = L.polyline(sec.alignment, {
-        color: '#C85A2B',     // roadway centerline — orange
-        weight: 4,
-        opacity: 0.9,
-        lineCap: 'butt',
-        interactive: false,   // hit events go through to hit layer
-        pane: 'overlayPane',
-      }).addTo(state.map);
-      state.mapLayers.alignment = alignmentLayer;
-      state.mapLayers.alignmentHit = alignmentHit;
+      // Area sections are not linear: the drawn boundary renders as a closed
+      // polygon outline — no centerline, no station logic, no SLD.
+      const isAreaSection = sec.type === 'area';
+      let alignmentHit = null;
+      if (isAreaSection) {
+        state.mapLayers.alignment = L.polygon(sec.alignment, {
+          color: '#0B3D66',
+          weight: 2.5,
+          fillColor: '#0B3D66',
+          fillOpacity: 0.07,
+          dashArray: '5 4',
+          interactive: false,
+          pane: 'overlayPane',
+        }).addTo(state.map);
+      } else {
+        // Two-layer approach: a wide invisible "hit" polyline catches hover/click
+        // within a generous corridor, and a narrower visible polyline renders the
+        // alignment on top. Same geometry, different weights.
+        alignmentHit = L.polyline(sec.alignment, {
+          color: '#000',
+          weight: 40,
+          opacity: 0,          // invisible
+          interactive: true,
+          lineCap: 'butt',
+          className: 'rw-alignment-path',   // crosshair cursor
+          pane: 'overlayPane',
+        }).addTo(state.map);
+        const alignmentLayer = L.polyline(sec.alignment, {
+          color: '#C85A2B',     // roadway centerline — orange
+          weight: 4,
+          opacity: 0.9,
+          lineCap: 'butt',
+          interactive: false,   // hit events go through to hit layer
+          pane: 'overlayPane',
+        }).addTo(state.map);
+        state.mapLayers.alignment = alignmentLayer;
+        state.mapLayers.alignmentHit = alignmentHit;
+      }
 
       // Sub-alignments: ramp / spur centerlines drawn dashed alongside the mainline.
       // Visibility mirrors the centerline toggle (off by default, shown when CL is on).
@@ -9618,6 +9640,9 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         rampLine._saName = sa.name;
         state.mapLayers.subAlignments.push(rampLine);
       }
+      // Centerline-only behavior (station ticks, STA tooltip, corridor click) —
+      // skipped for area sections, which have no linear centerline.
+      if (!isAreaSection) {
       // Build the station-tick layer (50' "+", 100' "55+00") tied to CL visibility
       buildStationTicks(sec);
       // Honor the user's last centerline-visibility preference (default off)
@@ -9680,6 +9705,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
           openStrip(sec, staFt ?? 0);
         }
       });
+      }  // end if (!isAreaSection)
 
       // --- Render real pre-walk pins (from prewalk-bundle.json) -----------
       // Line / polygon pins enter vertex-edit mode on click; point pins
@@ -9748,8 +9774,11 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
 
       if (state.mapLayers.me) state.mapLayers.me.setLatLng(sec.alignment[Math.floor(sec.alignment.length/2)]);
 
-      // Always open/update the SLD when switching to a new section
-      if (state.mapLayers._lastSecId !== sec.id) {
+      // Open the SLD only for linear sections; area sections have no
+      // centerline, so close the strip if it was left open.
+      if (isAreaSection) {
+        if (typeof closeStrip === 'function' && stripOpen) closeStrip();
+      } else if (state.mapLayers._lastSecId !== sec.id) {
         const midStaFt = ((sec.mpEnd - sec.mpStart) * 5280) / 2;
         openStrip(sec, midStaFt);
       }
