@@ -2609,6 +2609,31 @@ a { color: inherit; text-decoration: none; }
 .wt-btn.wt-x    { border-color: rgba(255,140,120,0.6); }
 .wt-row.wt-allrow { justify-content: center; padding: 4px 8px; background: rgba(11,61,102,0.94); }
 .wt-all-btn { padding: 3px 16px; }
+
+/* --- Roadway-width labels: map centerline + SLD strip --- */
+.rw-width-lbl {
+  background: #0B3D66;
+  color: #fff;
+  font: 700 9px 'IBM Plex Mono', monospace;
+  padding: 1px 4px;
+  border-radius: 2px;
+  white-space: nowrap;
+  border: 1px solid rgba(255,255,255,0.65);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.35);
+  transform: translate(-50%, -50%);
+}
+.strip-width-lbl {
+  position: absolute;
+  transform: translate(-50%, -150%);
+  background: #0B3D66;
+  color: #fff;
+  font: 700 8.5px 'IBM Plex Mono', monospace;
+  padding: 1px 3px;
+  border-radius: 2px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 5;
+}
 /* Walk-track start dialog — side picker */
 .wt-side-row { display: flex; gap: 6px; }
 .wt-side-btn {
@@ -9982,6 +10007,13 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       }).addTo(state.map);
     }
 
+    // Roadway-width labels — own layer, independent of the centerline toggle.
+    if (state.map && !state.map._rwWidthZoomWired) {
+      state.map._rwWidthZoomWired = true;
+      state.map.on('zoomend', _renderWidthLabels);
+    }
+    _renderWidthLabels();
+
     // Force a tile recalc — common gotcha when the container starts hidden
     setTimeout(() => state.map.invalidateSize(), 50);
   }
@@ -10767,17 +10799,42 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     return lines.join('<br>');
   }
 
+  // Edge-drop depth color scale — 6 bands, editable in the Style Guide.
+  // thresholds: 5 ascending inch cutoffs; colors: 6 band colors.
+  const EDGE_DROP_BANDS_DEFAULT = {
+    thresholds: [-2, 0, 2, 4, 6],
+    colors: ['#2b6cb0', '#7a3fb8', '#1f9c5a', '#e0b015', '#e07b1f', '#d8463c'],
+  };
+  let _edgeDropBands = null;
+  function _getEdgeDropBands() {
+    if (_edgeDropBands) return _edgeDropBands;
+    try {
+      const fn = (typeof lsLoad === 'function') ? lsLoad : window.RWLsLoad;
+      const s = fn && fn().edgeDropBands;
+      if (s && Array.isArray(s.thresholds) && s.thresholds.length === 5
+           && Array.isArray(s.colors) && s.colors.length === 6) {
+        _edgeDropBands = { thresholds: s.thresholds.slice(), colors: s.colors.slice() };
+      }
+    } catch (_) {}
+    if (!_edgeDropBands) _edgeDropBands = EDGE_DROP_BANDS_DEFAULT;
+    return _edgeDropBands;
+  }
+  // Called by the Style Guide after the depth bands are edited.
+  window._rwReloadEdgeDropBands = function () {
+    _edgeDropBands = null;
+    _getEdgeDropBands();
+    const sec = SECTIONS.find(s => s.id === state.sectionId);
+    if (sec && typeof initOrUpdateMap === 'function') initOrUpdateMap(sec);
+  };
   // Diverging color scale for an edge-drop depth (inches). Negative = lip
   // (shoulder above pavement), positive = drop-off (the hazard).
-  //   < -2  blue · -2–0 purple · 0–2 green · 2–4 yellow · 4–6 orange · 6+ red
   function _depthColor(d) {
     if (d == null || isNaN(d)) return '#9CA3AF';
-    if (d <  -2) return '#2b6cb0';   // blue
-    if (d <   0) return '#7a3fb8';   // purple
-    if (d <   2) return '#1f9c5a';   // green
-    if (d <   4) return '#e0b015';   // yellow
-    if (d <   6) return '#e07b1f';   // orange
-    return '#d8463c';                // red
+    const b = _getEdgeDropBands();
+    for (let i = 0; i < b.thresholds.length; i++) {
+      if (d < b.thresholds[i]) return b.colors[i];
+    }
+    return b.colors[b.colors.length - 1];
   }
 
   function buildPinLayer(pin) {
@@ -14233,6 +14290,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       };
       state.map.on('moveend', state.map._rwMapMoveHandler);
     }
+    _renderStripWidths();
   }
 
   // _stripDragWasMoved / _stripScrollTimer — set by the renderStrip scroll
@@ -15322,6 +15380,95 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     _rwToast(`Synced ${total} reading${total !== 1 ? 's' : ''} → ` +
              `${eds.length} Edge Drop feature${eds.length !== 1 ? 's' : ''}`);
   };
+
+  // ── Roadway-width labels (centerline + SLD) ─────────────────────────────
+  // Edge Drop panel 'Width' readings, snapped to the nearest quarter-station
+  // (x+25 / x+75) so labels sit on a tidy 50-ft grid — one per slot, latest
+  // reading wins. Shown on the map only at zoom 16+, and on the SLD strip.
+  const WIDTH_LABEL_MIN_ZOOM = 16;
+
+  function _collectSectionWidths(sec) {
+    if (!sec || !sec.alignment || sec.alignment.length < 2) return [];
+    const readings = (window.RWEdgeDrop && window.RWEdgeDrop.getReadings)
+                   ? window.RWEdgeDrop.getReadings() : [];
+    let totalLen = 0;
+    for (let i = 1; i < sec.alignment.length; i++) {
+      totalLen += havFt(sec.alignment[i-1], sec.alignment[i]);
+    }
+    const bySlot = new Map();
+    for (const rd of readings) {
+      if (rd.channel !== 'W' || rd.width_ft == null) continue;
+      let sta = null;
+      if (rd.lat != null && rd.lng != null) {
+        const pr = projectOntoAlignment({ lat: rd.lat, lng: rd.lng }, sec.alignment);
+        if (pr[1] <= 80) sta = pr[0];
+      }
+      if (sta == null && rd.sta_ft != null) sta = rd.sta_ft;
+      if (sta == null || sta < 0 || sta > totalLen) continue;
+      // Snap to the nearest x+25 / x+75 station (50-ft grid, offset by 25).
+      let slot = Math.round((sta - 25) / 50) * 50 + 25;
+      slot = Math.max(25, Math.min(totalLen, slot));
+      const prev = bySlot.get(slot);
+      if (!prev || (rd.ts && (!prev.ts || rd.ts > prev.ts))) {
+        bySlot.set(slot, { sta: slot, width_ft: +rd.width_ft, ts: rd.ts });
+      }
+    }
+    return Array.from(bySlot.values()).sort((a, b) => a.sta - b.sta);
+  }
+
+  // Map centerline width labels — own layer group, unaffected by the
+  // centerline layer toggle; only drawn at zoom 16+ to avoid clutter.
+  function _renderWidthLabels() {
+    if (!state.map) return;
+    if (state.mapLayers.widthLabels) {
+      state.map.removeLayer(state.mapLayers.widthLabels);
+      state.mapLayers.widthLabels = null;
+    }
+    const sec = SECTIONS.find(s => s.id === state.sectionId);
+    if (!sec || !sec.alignment || sec.alignment.length < 2) return;
+    if (state.map.getZoom() < WIDTH_LABEL_MIN_ZOOM) return;
+    const widths = _collectSectionWidths(sec);
+    if (!widths.length) return;
+    const grp = L.layerGroup();
+    for (const w of widths) {
+      let ll;
+      try { ll = pointAt(sec.alignment, w.sta); } catch (_) { continue; }
+      if (!ll) continue;
+      const icon = L.divIcon({
+        className: 'rw-width-lbl-wrap',
+        html: `<div class="rw-width-lbl">${w.width_ft.toFixed(1)}'</div>`,
+        iconSize: null, iconAnchor: [0, 0],
+      });
+      grp.addLayer(L.marker(ll, { icon, interactive: false, zIndexOffset: 600 }));
+    }
+    grp.addTo(state.map);
+    state.mapLayers.widthLabels = grp;
+  }
+
+  // SLD strip width labels — absolutely positioned in #strip-inner, same
+  // station→percent mapping the GPS dot uses. Rebuilt at the end of renderStrip.
+  function _renderStripWidths() {
+    const inner  = document.getElementById('strip-inner');
+    const canvas = document.getElementById('strip-canvas');
+    if (!inner || !canvas || !stripCurrentSec) return;
+    inner.querySelectorAll('.strip-width-lbl').forEach(el => el.remove());
+    const totalFt = parseFloat(canvas.dataset.totalFt) || 0;
+    if (!totalFt) return;
+    const widths = _collectSectionWidths(stripCurrentSec);
+    if (!widths.length) return;
+    const _pos  = document.getElementById('alignment-strip')?.dataset.pos || 'top';
+    const horiz = _pos === 'top' || _pos === 'bottom';
+    const axisKey  = horiz ? 'left' : 'top';
+    const crossKey = horiz ? 'top'  : 'left';
+    for (const w of widths) {
+      const el = document.createElement('div');
+      el.className = 'strip-width-lbl';
+      el.textContent = w.width_ft.toFixed(1) + "'";
+      el.style[axisKey]  = ((w.sta / totalFt) * 100) + '%';
+      el.style[crossKey] = '50%';
+      inner.appendChild(el);
+    }
+  }
 
   // --- Floating feature picker -------------------------------------------
   // Categories built from FEATURE_CATALOG. Each group is collapsible (click
@@ -20272,6 +20419,42 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       ].join('');
     }).join('');
 
+    // ── Build Edge Drop depth-band rows ──────────────────────────────────────
+    var edb = (function () {
+      try {
+        var s = window.RWLsLoad && window.RWLsLoad().edgeDropBands;
+        if (s && s.thresholds && s.thresholds.length === 5 && s.colors && s.colors.length === 6) {
+          return { thresholds: s.thresholds.slice(), colors: s.colors.slice() };
+        }
+      } catch (_) {}
+      return { thresholds: [-2, 0, 2, 4, 6],
+               colors: ['#2b6cb0', '#7a3fb8', '#1f9c5a', '#e0b015', '#e07b1f', '#d8463c'] };
+    })();
+    var edbLabels = ['Band 1 (lip)', 'Band 2', 'Band 3', 'Band 4', 'Band 5', 'Band 6 (deep)'];
+    var edbRows = '';
+    for (var _bi = 0; _bi < 6; _bi++) {
+      var _rangeCell = _bi < 5
+        ? 'under <input type="number" class="fs-num" id="fs-edb-th-' + _bi + '" value="' +
+          edb.thresholds[_bi] + '" step="0.5" style="width:62px"> in'
+        : '<span style="color:var(--ink-2)">' + edb.thresholds[4] + ' in and deeper</span>';
+      edbRows +=
+        '<tr class="fs-row">' +
+        '<td><span class="fs-kind-label">' + edbLabels[_bi] + '</span></td>' +
+        '<td><div class="fs-swatch" id="fs-edb-sw-' + _bi + '" style="background:' +
+        edb.colors[_bi] + '" title="' + edb.colors[_bi] + '">' +
+        '<input type="hidden" id="fs-edb-color-' + _bi + '" value="' + edb.colors[_bi] + '"></div></td>' +
+        '<td>' + _rangeCell + '</td>' +
+        '</tr>';
+    }
+    var edbSection =
+      '<div class="sg-section">' +
+      '<div class="sg-section-title">Edge Drop Depth Bands</div>' +
+      '<p class="sg-section-note">Color scale for the gradient depth dots on edge-drop ' +
+      'features. Each band colors readings below its cutoff (inches); changes apply live.</p>' +
+      '<table class="fs-table"><thead><tr class="fs-thead">' +
+      '<th>Band</th><th>Color</th><th>Applies to depth</th>' +
+      '</tr></thead><tbody>' + edbRows + '</tbody></table></div>';
+
     body.innerHTML =
       '<div class="sg-section">' +
       '<div class="sg-section-title">Line Feature Styles</div>' +
@@ -20284,7 +20467,40 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       '<p class="sg-section-note">Click the symbol cell to open the glyph picker. Changes apply live to map pins.</p>' +
       '<table class="fs-table"><thead><tr class="fs-thead">' +
       '<th>Feature</th><th>Color</th><th title="2-letter abbreviation shown on map badge + ID prefix">Code</th><th>Symbol</th><th>Size</th><th>SLD Pos</th><th>Preview</th>' +
-      '</tr></thead><tbody>' + ptRows + '</tbody></table></div>';
+      '</tr></thead><tbody>' + ptRows + '</tbody></table></div>' + edbSection;
+
+    // ── Wire Edge Drop depth-band controls ───────────────────────────────────
+    (function () {
+      function saveEdb() {
+        var th = [], co = [];
+        for (var i = 0; i < 5; i++) {
+          var el = document.getElementById('fs-edb-th-' + i);
+          var v = el ? parseFloat(el.value) : NaN;
+          th.push(isNaN(v) ? edb.thresholds[i] : v);
+        }
+        for (var j = 0; j < 6; j++) {
+          var ce = document.getElementById('fs-edb-color-' + j);
+          co.push((ce && ce.value) || edb.colors[j]);
+        }
+        edb = { thresholds: th, colors: co };
+        if (window.RWLsSave) window.RWLsSave({ edgeDropBands: edb });
+        if (typeof window._rwReloadEdgeDropBands === 'function') window._rwReloadEdgeDropBands();
+      }
+      for (var i = 0; i < 6; i++) {
+        (function (i) {
+          var sw = document.getElementById('fs-edb-sw-' + i);
+          var ci = document.getElementById('fs-edb-color-' + i);
+          if (sw && ci) {
+            sw.addEventListener('click', function (e) { e.stopPropagation(); _fcpOpen(sw, ci); });
+            ci.addEventListener('input', function () {
+              sw.style.background = ci.value; sw.title = ci.value; saveEdb();
+            });
+          }
+          var th = document.getElementById('fs-edb-th-' + i);
+          if (th) th.addEventListener('input', saveEdb);
+        })(i);
+      }
+    })();
 
     // ── Wire line controls ───────────────────────────────────────────────────
     FS_LINE_FEATURES.forEach(function (f) {
