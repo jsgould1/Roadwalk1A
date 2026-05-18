@@ -2809,8 +2809,8 @@ a { color: inherit; text-decoration: none; }
 /* Feature-picker: header fixed, only list scrolls → fixes unselectable bottom items */
 .feature-picker .fp-list {
   overflow-y: auto; overflow-x: hidden; flex: 1 1 auto;
-  display: grid; align-content: start;
-  grid-template-columns: repeat(auto-fill, minmax(212px, 1fr));
+  display: grid; align-content: start; align-items: start;
+  grid-template-columns: repeat(auto-fill, minmax(216px, 1fr));
   gap: 6px; padding: 8px;
 }
 .feature-picker .fp-group { border: 1px solid var(--rule); background: var(--paper); }
@@ -2828,7 +2828,7 @@ a { color: inherit; text-decoration: none; }
 .feature-picker .fp-group.collapsed .fp-collapse { transform: rotate(-90deg); }
 .feature-picker .fp-group-geom { font-size: 8.5px; background: var(--ink); color: var(--paper); padding: 1px 4px; letter-spacing: 0.5px; }
 .feature-picker .fp-group-name { text-transform: uppercase; flex: 1 1 auto; }
-.feature-picker .fp-group-items { display: grid; grid-template-columns: repeat(2,1fr); gap: 2px; padding: 4px; }
+.feature-picker .fp-group-items { display: grid; grid-template-columns: repeat(3,1fr); gap: 3px; padding: 4px; }
 .feature-picker .fp-group.collapsed .fp-group-items { display: none; }
 /* ── Favorites group ── */
 .feature-picker .fp-group.fp-favorites .fp-group-header {
@@ -2845,34 +2845,42 @@ a { color: inherit; text-decoration: none; }
 }
 /* ── Item buttons ── */
 .feature-picker .fp-btn {
-  display: flex; align-items: center; gap: 5px; padding: 3px 4px;
-  background: var(--paper-2); border: 1px solid transparent; cursor: pointer;
+  position: relative;
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+  gap: 3px; padding: 7px 2px 5px;
+  background: var(--paper-2); border: 1px solid transparent; border-radius: 4px;
+  cursor: pointer;
   font: 600 9.5px/1 'IBM Plex Mono',monospace; letter-spacing: 0.3px;
-  color: var(--ink); text-align: left; white-space: nowrap; min-width: 0;
+  color: var(--ink); text-align: center; min-width: 0;
 }
 .feature-picker .fp-btn[draggable="true"]        { cursor: grab; }
 .feature-picker .fp-btn[draggable="true"]:active { cursor: grabbing; }
 .feature-picker .fp-btn:hover  { background: var(--paper); border-color: var(--rule); }
 .feature-picker .fp-btn.active { background: var(--orange); color: #fff; border-color: var(--orange); }
 .feature-picker .fp-btn.fp-dragging { opacity: 0.4; }
-.feature-picker .fp-btn .lbl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1 1 auto; min-width: 0; font-size: 9px; }
+.feature-picker .fp-btn .lbl {
+  width: 100%; min-width: 0;
+  white-space: normal; line-height: 1.15; font-size: 8.5px;
+  text-align: center; word-break: break-word;
+}
 /* Code swatch — lines / polygons */
 .feature-picker .fp-code-swatch {
-  flex: 0 0 22px; width: 22px; height: 16px;
-  color: #fff; font-size: 8.5px; font-weight: 700; line-height: 16px;
-  text-align: center; border-radius: 2px; flex-shrink: 0;
+  flex: 0 0 auto; width: 32px; height: 23px;
+  color: #fff; font-size: 11px; font-weight: 700; line-height: 23px;
+  text-align: center; border-radius: 3px;
 }
 .feature-picker .fp-btn.line    .fp-code-swatch { border-radius: 0; border: 1px dashed rgba(255,255,255,.5); }
 .feature-picker .fp-btn.polygon .fp-code-swatch { border-radius: 0; border: 1px solid  rgba(255,255,255,.5); }
 /* Point glyph — colored text, no background */
-.feature-picker .fp-pt-glyph { flex: 0 0 20px; width: 20px; text-align: center; font-size: 14px; line-height: 1; flex-shrink: 0; }
+.feature-picker .fp-pt-glyph { flex: 0 0 auto; text-align: center; font-size: 25px; line-height: 1; }
 /* Marking word abbreviation */
-.feature-picker .fp-mark-word { flex: 0 0 auto; font-size: 7.5px; font-weight: 800; letter-spacing: 0.4px; white-space: nowrap; line-height: 1; flex-shrink: 0; }
+.feature-picker .fp-mark-word { flex: 0 0 auto; font-size: 11px; font-weight: 800; letter-spacing: 0.4px; white-space: nowrap; line-height: 1.6; }
 /* Remove-from-Favorites × */
 .feature-picker .fp-unfav {
-  flex: 0 0 12px; width: 12px; height: 12px; padding: 0; background: transparent; border: none;
+  position: absolute; top: 1px; right: 1px;
+  width: 15px; height: 15px; padding: 0; background: transparent; border: none;
   cursor: pointer; font-size: 9px; color: var(--ink-3); line-height: 1;
-  display: flex; align-items: center; justify-content: center; border-radius: 2px; margin-left: auto;
+  display: flex; align-items: center; justify-content: center; border-radius: 2px;
 }
 .feature-picker .fp-unfav:hover { color: #c0392b; background: rgba(192,57,43,.1); }
 /* Legacy swatch class — kept for any outside references */
@@ -10016,8 +10024,8 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     ]},
     { geom: 'line', name: 'Drainage', items: [
       { value: 'ln_culvert',      label: 'Culvert',     code: 'CV', color: '#0B3D66' },
-      { value: 'ln_swale',        label: 'Swale',       code: 'SL', color: '#0B3D66', lineStyle: 'swale' },
-      { value: 'ln_paved_swale',  label: 'Paved Swale', code: 'PS', color: '#2563A8' },
+      { value: 'ln_swale',        label: 'Unpaved Swale', code: 'SL', color: '#2563A8', dashArray: '5 4' },
+      { value: 'ln_paved_swale',  label: 'Paved Swale',   code: 'PS', color: '#2563A8' },
       { value: 'ln_box_culvert',  label: 'Box Culvert', code: 'BC', color: '#0B3D66' },
       { value: 'ln_drain_other',  label: 'Other',       code: 'OT', color: '#0B3D66' },
     ]},
@@ -14555,7 +14563,8 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       const favGroup  = document.createElement('div');
       favGroup.className = 'fp-group fp-favorites';
       favGroup.dataset.groupId = FAV_GID;
-      if (collapsed[FAV_GID]) favGroup.classList.add('collapsed');
+      // Groups render expanded in the bottom sheet (it has room); the stale
+      // collapsed state from the old narrow panel is intentionally ignored.
 
       const favHeader = document.createElement('div');
       favHeader.className = 'fp-group-header';
@@ -14585,7 +14594,6 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         const group = document.createElement('div');
         group.className = 'fp-group';
         group.dataset.groupId = gid;
-        if (collapsed[gid]) group.classList.add('collapsed');
 
         const header = document.createElement('div');
         header.className = 'fp-group-header';
@@ -25958,6 +25966,24 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     }
     return { lat: lat, lng: lng, bearing: bearing };
   }
+  // Read DateTimeOriginal (tag 0x9003) from the Exif SubIFD → JS Date | null.
+  function _parseDateTime(dv, exifIfd, tiff, le) {
+    try {
+      var off = null;
+      _eachEntry(dv, exifIfd, le, function (tag, count, valOff) {
+        if (tag === 0x9003 && off == null) off = dv.getUint32(valOff, le);
+      });
+      if (off == null) return null;
+      var p = tiff + off;
+      if (p + 19 > dv.byteLength) return null;
+      var s = '';
+      for (var i = 0; i < 19; i++) s += String.fromCharCode(dv.getUint8(p + i));
+      var m = s.match(/^(\d{4}):(\d{2}):(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/);
+      if (!m) return null;
+      var d = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]);
+      return isNaN(d.getTime()) ? null : d;
+    } catch (e) { return null; }
+  }
   function parseExif(buf) {
     try {
       var dv = new DataView(buf);
@@ -25976,11 +26002,17 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
           var le = bom === 0x4949;
           if ((le || bom === 0x4D4D) && dv.getUint16(tiff + 2, le) === 0x002A) {
             var ifd0 = tiff + dv.getUint32(tiff + 4, le);
-            var gpsPtr = null;
+            var gpsPtr = null, exifPtr = null;
             _eachEntry(dv, ifd0, le, function (tag, count, valOff) {
               if (tag === 0x8825) gpsPtr = dv.getUint32(valOff, le);
+              else if (tag === 0x8769) exifPtr = dv.getUint32(valOff, le);   // Exif SubIFD
             });
-            return gpsPtr == null ? null : _parseGps(dv, tiff + gpsPtr, tiff, le);
+            var res = gpsPtr != null ? _parseGps(dv, tiff + gpsPtr, tiff, le) : null;
+            var dt  = exifPtr != null ? _parseDateTime(dv, tiff + exifPtr, tiff, le) : null;
+            if (!res && !dt) return null;
+            res = res || {};
+            res.dateTime = dt;   // original capture time, or null
+            return res;
           }
           return null;
         }
@@ -26000,7 +26032,8 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     }
     if (wm.bearing != null && isFinite(wm.bearing)) l1.push('brg ' + Math.round(wm.bearing) + '°');
     if (l1.length) lines.push(l1.join('    '));
-    var d = new Date();
+    // Original capture time from EXIF when available, else the import time.
+    var d = (wm.dateTime instanceof Date) ? wm.dateTime : new Date();
     lines.push(d.toLocaleDateString() + '  ' + d.toLocaleTimeString());
     var fs = Math.max(12, Math.round(w / 48));
     var lh = Math.round(fs * 1.5);
@@ -26230,8 +26263,10 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         if (!/^image\//.test(file.type || '')) { done++; return; }
         return file.arrayBuffer().then(function (buf) {
           var gps = parseExif(buf);
+          var capTime = (gps && gps.dateTime instanceof Date) ? gps.dateTime : null;
           var wm = wmOn ? {
             lat: gps && gps.lat, lng: gps && gps.lng, bearing: gps && gps.bearing,
+            dateTime: capTime,
           } : null;
           return makeThumb(file, maxSize, wm).then(function (dataUrl) {
             var lat, lng, bearing = null;
@@ -26248,7 +26283,9 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
             var rec = {
               id: 'gp' + Date.now() + Math.random().toString(36).slice(2, 6),
               dataUrl: dataUrl, lat: lat, lng: lng, bearing: bearing,
-              description: '', ts: new Date().toISOString(),
+              description: '',
+              // Original capture time from EXIF when available, else import time.
+              ts: (capTime || new Date()).toISOString(),
             };
             PHOTOS.push(rec);
             added++;
