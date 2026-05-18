@@ -10225,7 +10225,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     { geom: 'line', name: 'Misc', items: [
       { value: 'ln_pvmt_change',   label: 'Pvmt Change',    code: 'PC', color: '#444444', dashArray: '4 3' },
       { value: 'ln_pvmt_widening', label: 'Pvmt Widening',  code: 'PW', color: '#9CA3AF' },
-      { value: 'ln_edge_drop',     label: 'Edge Drop',      code: 'ED', color: '#C85A2B', dashArray: '5 3' },
+      { value: 'ln_edge_drop',     label: 'Edge Drop',      code: 'ED', color: '#C85A2B', dashArray: '2 5' },
       { value: 'ln_loops',        label: 'Loops',       code: 'LO', color: '#8A5A2B' },
       { value: 'ln_curb',         label: 'Curb',        code: 'CU', color: '#8A5A2B' },
       { value: 'ln_cg',           label: 'C&G',         code: 'CG', color: '#8A5A2B' },
@@ -10767,6 +10767,19 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     return lines.join('<br>');
   }
 
+  // Diverging color scale for an edge-drop depth (inches). Negative = lip
+  // (shoulder above pavement), positive = drop-off (the hazard).
+  //   < -2  blue · -2–0 purple · 0–2 green · 2–4 yellow · 4–6 orange · 6+ red
+  function _depthColor(d) {
+    if (d == null || isNaN(d)) return '#9CA3AF';
+    if (d <  -2) return '#2b6cb0';   // blue
+    if (d <   0) return '#7a3fb8';   // purple
+    if (d <   2) return '#1f9c5a';   // green
+    if (d <   4) return '#e0b015';   // yellow
+    if (d <   6) return '#e07b1f';   // orange
+    return '#d8463c';                // red
+  }
+
   function buildPinLayer(pin) {
     const style = PIN_STYLE[pin.kind];
     if (!style) return null;
@@ -10989,6 +11002,25 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       // Default: line-only. Optional labels (length / offset / id) render
       // when their per-pin flags are set via the line-label popup.
       const labelLayers = [line];
+
+      // ── Edge Drop: gradient depth dots along the (dotted) line ──────────
+      // The base line is muted to a faint dotted connector; the colored
+      // dots carry the reading — see _depthColor() for the band scale.
+      if (pin.kind === 'ln_edge_drop') {
+        line.setStyle({ weight: Math.max(wt - 1.5, 2), opacity: status.opacity * 0.5 });
+        const eddSamples = (pin.attrs && pin.attrs._depth_samples) || [];
+        for (const s of eddSamples) {
+          if (s.depth_in == null) continue;
+          let ll;
+          try { ll = pointAt(latlngs, s.dist_along_ft); } catch (_) { continue; }
+          if (!ll) continue;
+          labelLayers.push(L.circleMarker(ll, {
+            radius: 5, color: '#ffffff', weight: 1.4,
+            fillColor: _depthColor(s.depth_in), fillOpacity: 0.95,
+            interactive: false,
+          }));
+        }
+      }
       const flags = pin.attrs?.labels || {};
       const makeChipMarker = (latlng, text) => {
         const icon = L.divIcon({
@@ -15153,7 +15185,9 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     // Edge Drop track: auto-attach the depth readings taken during this walk.
     let edN = 0;
     if (pin && t.kind === 'ln_edge_drop') {
-      const samples = _collectEdgeDropSamples(pin, {
+      pin.attrs = pin.attrs || {};
+      if (t.side === 'L' || t.side === 'R') pin.attrs.edge_side = t.side;
+      const samples = _collectEdgeDropSamples(pin, sec, {
         window: { from: t._startTs - 5000, to: Date.now() },
       });
       _applyDepthSummary(pin, samples);
@@ -15209,9 +15243,25 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     }
   }
 
-  // Build the depth-sample list for one ln_edge_drop line pin.
-  // opts.window {from,to} (ms epoch) limits to readings taken in that span.
-  function _collectEdgeDropSamples(pin, opts) {
+  // Which side ('L'/'R') an edge-drop line sits on — so only Left readings
+  // bind to a left line and Right to a right one. Prefers the stored
+  // edge_side; otherwise derives it from the geometry vs the centerline.
+  function _edgeDropSide(pin, sec) {
+    const es = pin.attrs && pin.attrs.edge_side;
+    if (es === 'L' || es === 'R') return es;
+    const cs = pin.geometry && pin.geometry.coordinates;
+    if (sec && sec.alignment && sec.alignment.length >= 2 && cs && cs.length) {
+      const mid = cs[Math.floor(cs.length / 2)];
+      const s = sideOfAlignment({ lat: mid[1], lng: mid[0] }, sec.alignment);
+      if (s === 'L' || s === 'R') return s;
+    }
+    return null;   // unknown → accepts both L and R
+  }
+
+  // Build the depth-sample list for one ln_edge_drop line pin. Width readings
+  // are ignored; Left readings only bind to a left edge-drop line and Right
+  // only to a right one. opts.window {from,to} (ms) limits the time span.
+  function _collectEdgeDropSamples(pin, sec, opts) {
     opts = opts || {};
     if (!pin || !pin.geometry || pin.geometry.type !== 'LineString') return [];
     const readings = (window.RWEdgeDrop && window.RWEdgeDrop.getReadings)
@@ -15221,10 +15271,13 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     if (line.length < 2) return [];
     let totalLen = 0;
     for (let i = 1; i < line.length; i++) totalLen += havFt(line[i-1], line[i]);
-    const maxPerp = opts.maxPerpFt || 60;
-    const win = opts.window || null;
+    const maxPerp  = opts.maxPerpFt || 60;
+    const win      = opts.window || null;
+    const featSide = _edgeDropSide(pin, sec);
     const samples = [];
     for (const rd of readings) {
+      if (rd.channel === 'W') continue;                     // width not used
+      if (featSide && rd.channel !== featSide) continue;    // L→left, R→right
       if (win && rd.ts) {
         const t = Date.parse(rd.ts);
         if (isFinite(t) && (t < win.from || t > win.to)) continue;
@@ -15242,8 +15295,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       samples.push({
         dist_along_ft: +along.toFixed(1),
         channel: rd.channel,
-        depth_in: rd.drop_in  != null ? +rd.drop_in  : null,
-        width_ft: rd.width_ft != null ? +rd.width_ft : null,
+        depth_in: rd.drop_in != null ? +rd.drop_in : null,
         sta: rd.sta, lat: rd.lat, lng: rd.lng, ts: rd.ts, manual: rd.manual,
       });
     }
@@ -15261,7 +15313,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     if (!eds.length) { _rwToast('No Edge Drop line features in this section'); return; }
     let total = 0;
     for (const pin of eds) {
-      const samples = _collectEdgeDropSamples(pin, {});
+      const samples = _collectEdgeDropSamples(pin, sec, {});
       _applyDepthSummary(pin, samples);
       total += samples.length;
     }
@@ -19837,7 +19889,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     { kind: 'misc_line',        label: 'Misc Lines',      defColor: '#8A5A2B', defLT: 'solid',          defWt: 3, defOff: 0, defCode: 'ML' },
     { kind: 'ln_paved_swale',   label: 'Paved Swale',     defColor: '#2563A8', defLT: 'solid',          defWt: 4, defOff: 7, defCode: 'PS' },
     { kind: 'ln_pvmt_widening', label: 'Pvmt Widening',   defColor: '#9CA3AF', defLT: 'solid',          defWt: 4, defOff: 1, defCode: 'PW' },
-    { kind: 'ln_edge_drop',     label: 'Edge Drop',       defColor: '#C85A2B', defLT: 'dashed',         defWt: 4, defOff: 2, defCode: 'ED' },
+    { kind: 'ln_edge_drop',     label: 'Edge Drop',       defColor: '#C85A2B', defLT: 'dashed',         defWt: 4, defOff: 0, defCode: 'ED' },
     { kind: 'ln_curb',          label: 'Curb',            defColor: '#000000', defLT: 'double',         defWt: 4, defOff: 0, defCode: 'CU' },
     { kind: 'pg_sidewalk',      label: 'Sidewalk',        defColor: '#9CA3AF', defLT: 'pipe',           defWt: 5, defOff: 6, defCode: 'SW' },
   ];
@@ -21345,6 +21397,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     { label: 'Paved Swales',  kind: 'ln_paved_swale',   color: '#2563A8', active: true },
     { label: 'Pvmt Widening', kind: 'ln_pvmt_widening', color: '#9CA3AF', active: true },
     { label: 'Curbs',         kind: 'ln_curb',          color: '#000000', active: true },
+    { label: 'Edge Drops',    kind: 'ln_edge_drop',     color: '#C85A2B', active: true },
     { label: 'Sidewalks',     kind: 'pg_sidewalk',      color: '#9CA3AF', active: true },
   ];
 
