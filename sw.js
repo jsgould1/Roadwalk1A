@@ -10,7 +10,7 @@
    ---------------------------------------------------------------- */
 'use strict';
 
-var CACHE_VERSION = 'roadwalk-v13';
+var CACHE_VERSION = 'roadwalk-v14';
 
 // Pre-cached on install so the app opens even on a fully cold start.
 var PRECACHE = ['./', './index.html', './roadwalk.html'];
@@ -45,6 +45,10 @@ self.addEventListener('fetch', function (e) {
 
   // Only manage our own origin — map tiles / fonts / CDNs go straight to network.
   if (url.origin !== self.location.origin) return;
+
+  // Cache-busted reload requests (?reload=…) bypass the cache entirely so a
+  // "Reload from published data" always reaches the network for fresh data.
+  if (url.search.indexOf('reload=') !== -1) return;
 
   // Stale-while-revalidate: serve the cached copy instantly, refresh it in the
   // background; fall back to the network (then the cached app shell) when the

@@ -9793,6 +9793,43 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   // showProjectPicker(statusMsg, cancellable)
   // cancellable = true adds a "Keep current" button (used by "Change project").
   // Returns a Promise that resolves to true (loaded) or false (cancelled).
+  // Reload the active project straight from its published bundle, discarding
+  // the cached bundle AND the local working copy. The IDB caches otherwise
+  // mask any change made to the bundle file — this is the only way to pick
+  // up updated published data without clearing browser storage by hand.
+  async function reloadProjectFromSource() {
+    if (!PROJECT || !PROJECT.id) throw new Error('No project is loaded.');
+    const pid = PROJECT.id;
+    // 1. drop the cached project bundle
+    try { await _clearProjectFromDB(); } catch (_) {}
+    // 2. drop the durable working copy for this project (the SECTIONS snapshot)
+    try {
+      if (window.RWIdb && window.RWIdb.openDB) {
+        const db = await window.RWIdb.openDB();
+        await new Promise(function (res) {
+          const tx = db.transaction('safety', 'readwrite');
+          tx.objectStore('safety').delete('rw_sections_' + pid);
+          tx.oncomplete = function () { res(); };
+          tx.onerror    = function () { res(); };
+        });
+      }
+    } catch (_) {}
+    // 3. re-fetch the bundle — cache-busted so the service worker cannot
+    //    serve a stale copy from its own cache.
+    const manifest = await _loadProjectManifest();
+    const projects = (manifest && manifest.projects) || [];
+    const proj = projects.find(function (p) { return p.id === pid; }) || projects[0];
+    if (!proj) throw new Error('Project not found in the manifest.');
+    const res = await fetch('./' + proj.file + '?reload=' + Date.now(), { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const bundle = await res.json();
+    if (!bundle.name)   bundle.name   = proj.name;
+    if (!bundle.client) bundle.client = proj.client || '';
+    if (!bundle.id)     bundle.id     = proj.id;
+    try { await _saveProjectToDB(bundle); } catch (_) {}
+    applyBundle(bundle);   // working copy was cleared above → loads pristine
+  }
+
   function showProjectPicker(statusMsg = '', cancellable = false) {
     return new Promise(resolve => {
       const picker  = $('#project-picker');
@@ -9818,6 +9855,31 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         cancelBtn.textContent = '✕ Keep current project';
         cancelBtn.onclick = () => { picker.hidden = true; resolve(false); };
         card.appendChild(cancelBtn);
+      }
+
+      // Reload button — re-reads the loaded project from its published bundle.
+      const reloadBtn = $('#pp-reload-btn');
+      if (reloadBtn) {
+        reloadBtn.hidden = !(PROJECT && PROJECT.id);
+        reloadBtn.onclick = async () => {
+          if (!window.confirm('Reload "' + ((PROJECT && PROJECT.name) || 'this project') +
+              '" from the published data?\n\nThis discards locally-stored edits for this ' +
+              'project on this device and re-reads the latest bundle.')) return;
+          status.textContent = 'Reloading from published data…';
+          status.className   = 'pp-status';
+          reloadBtn.disabled = true;
+          try {
+            await reloadProjectFromSource();
+            picker.hidden = true;
+            card.querySelector('.pp-cancel-btn')?.remove();
+            reloadBtn.disabled = false;
+            resolve(true);
+          } catch (err) {
+            status.textContent = '⚠ ' + err.message;
+            status.className   = 'pp-status pp-err';
+            reloadBtn.disabled = false;
+          }
+        };
       }
 
       // --- Apply a loaded bundle from inside the picker ---
@@ -21535,6 +21597,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       </div>
       <div class="pp-or">or</div>
       <button class="pp-file-btn" id="pp-file-btn">📂 Open project file from disk&hellip;</button>
+      <button class="pp-file-btn" id="pp-reload-btn" hidden style="margin-top:8px">↻ Reload current project from published data</button>
       <div class="pp-status" id="pp-status"></div>
     </div>
   </div>
