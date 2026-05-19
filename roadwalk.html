@@ -3501,6 +3501,30 @@ a { color: inherit; text-decoration: none; }
 }
 .tally-add-btn:active { background: var(--blue); color: var(--paper); }
 
+/* Editable accumulated-count fields — the running total in each tally
+   panel is an <input> so a mis-tally can be typed over and corrected.
+   Styled to read like the old number, with a hover/focus affordance. */
+.tally-edit-num {
+  -moz-appearance: textfield;
+  appearance: textfield;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  padding: 1px 2px;
+  cursor: text;
+  font: inherit;
+  color: inherit;
+}
+.tally-edit-num::-webkit-inner-spin-button,
+.tally-edit-num::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.tally-edit-num:hover  { border-color: var(--rule); }
+.tally-edit-num:focus  { border-color: var(--blue); background: var(--paper); outline: none; }
+.tally-edit-num:read-only { color: var(--ink-3); cursor: default; }
+.tally-edit-num:read-only:hover { border-color: transparent; }
+.tally-panel    .tp-num.tally-edit-num { width: 64px; }
+.parking-tally  .pt-cnt.tally-edit-num { width: 48px; }
+.curbstop-tally .cs-cnt.tally-edit-num { width: 32px; }
+
 /* Parking space tally panel — sits right of the crack-seal panel by default */
 .parking-tally { left: 228px; min-width: 260px; }
 .parking-tally .pt-rows { display: flex; flex-direction: column; padding: 4px 8px 6px; }
@@ -8153,7 +8177,9 @@ body.mobile-mode #app {
             <div class="tp-total">
               <div class="tp-label">Crack seal</div>
               <div class="tp-readout">
-                <span class="tp-num" id="tally-num">0</span>
+                <input class="tp-num tally-edit-num" id="tally-num" type="number"
+                       inputmode="numeric" min="0" step="1" value="0"
+                       data-tally="crack" aria-label="Crack seal total (editable)">
                 <span class="tp-unit">LF</span>
               </div>
             </div>
@@ -8183,21 +8209,21 @@ body.mobile-mode #app {
             </div>
             <div class="cs-row">
               <span class="cs-mat">Concrete</span>
-              <div class="cs-cell"><span class="cs-cnt" id="cs-concrete_p">0</span><input class="tally-custom-in cs-in" type="number" min="1" value="1" data-cs-for="concrete_p"><button class="cs-btn" data-cstype="concrete_p">+</button></div>
-              <div class="cs-cell"><span class="cs-cnt" id="cs-concrete_f">0</span><input class="tally-custom-in cs-in" type="number" min="1" value="1" data-cs-for="concrete_f"><button class="cs-btn" data-cstype="concrete_f">+</button></div>
-              <div class="cs-cell"><span class="cs-cnt" id="cs-concrete_d">0</span><input class="tally-custom-in cs-in" type="number" min="1" value="1" data-cs-for="concrete_d"><button class="cs-btn" data-cstype="concrete_d">+</button></div>
+              <div class="cs-cell"><input class="cs-cnt tally-edit-num" id="cs-concrete_p" type="number" inputmode="numeric" min="0" step="1" value="0" data-tally="curb" data-tkey="concrete_p" aria-label="Concrete pinned count (editable)"><input class="tally-custom-in cs-in" type="number" min="1" value="1" data-cs-for="concrete_p"><button class="cs-btn" data-cstype="concrete_p">+</button></div>
+              <div class="cs-cell"><input class="cs-cnt tally-edit-num" id="cs-concrete_f" type="number" inputmode="numeric" min="0" step="1" value="0" data-tally="curb" data-tkey="concrete_f" aria-label="Concrete free count (editable)"><input class="tally-custom-in cs-in" type="number" min="1" value="1" data-cs-for="concrete_f"><button class="cs-btn" data-cstype="concrete_f">+</button></div>
+              <div class="cs-cell"><input class="cs-cnt tally-edit-num" id="cs-concrete_d" type="number" inputmode="numeric" min="0" step="1" value="0" data-tally="curb" data-tkey="concrete_d" aria-label="Concrete damaged count (editable)"><input class="tally-custom-in cs-in" type="number" min="1" value="1" data-cs-for="concrete_d"><button class="cs-btn" data-cstype="concrete_d">+</button></div>
             </div>
             <div class="cs-row">
               <span class="cs-mat">Composite</span>
-              <div class="cs-cell"><span class="cs-cnt" id="cs-composite_p">0</span><input class="tally-custom-in cs-in" type="number" min="1" value="1" data-cs-for="composite_p"><button class="cs-btn" data-cstype="composite_p">+</button></div>
-              <div class="cs-cell"><span class="cs-cnt" id="cs-composite_f">0</span><input class="tally-custom-in cs-in" type="number" min="1" value="1" data-cs-for="composite_f"><button class="cs-btn" data-cstype="composite_f">+</button></div>
-              <div class="cs-cell"><span class="cs-cnt" id="cs-composite_d">0</span><input class="tally-custom-in cs-in" type="number" min="1" value="1" data-cs-for="composite_d"><button class="cs-btn" data-cstype="composite_d">+</button></div>
+              <div class="cs-cell"><input class="cs-cnt tally-edit-num" id="cs-composite_p" type="number" inputmode="numeric" min="0" step="1" value="0" data-tally="curb" data-tkey="composite_p" aria-label="Composite pinned count (editable)"><input class="tally-custom-in cs-in" type="number" min="1" value="1" data-cs-for="composite_p"><button class="cs-btn" data-cstype="composite_p">+</button></div>
+              <div class="cs-cell"><input class="cs-cnt tally-edit-num" id="cs-composite_f" type="number" inputmode="numeric" min="0" step="1" value="0" data-tally="curb" data-tkey="composite_f" aria-label="Composite free count (editable)"><input class="tally-custom-in cs-in" type="number" min="1" value="1" data-cs-for="composite_f"><button class="cs-btn" data-cstype="composite_f">+</button></div>
+              <div class="cs-cell"><input class="cs-cnt tally-edit-num" id="cs-composite_d" type="number" inputmode="numeric" min="0" step="1" value="0" data-tally="curb" data-tkey="composite_d" aria-label="Composite damaged count (editable)"><input class="tally-custom-in cs-in" type="number" min="1" value="1" data-cs-for="composite_d"><button class="cs-btn" data-cstype="composite_d">+</button></div>
             </div>
             <div class="cs-row">
               <span class="cs-mat">Timber</span>
-              <div class="cs-cell"><span class="cs-cnt" id="cs-timber_p">0</span><input class="tally-custom-in cs-in" type="number" min="1" value="1" data-cs-for="timber_p"><button class="cs-btn" data-cstype="timber_p">+</button></div>
-              <div class="cs-cell"><span class="cs-cnt" id="cs-timber_f">0</span><input class="tally-custom-in cs-in" type="number" min="1" value="1" data-cs-for="timber_f"><button class="cs-btn" data-cstype="timber_f">+</button></div>
-              <div class="cs-cell"><span class="cs-cnt" id="cs-timber_d">0</span><input class="tally-custom-in cs-in" type="number" min="1" value="1" data-cs-for="timber_d"><button class="cs-btn" data-cstype="timber_d">+</button></div>
+              <div class="cs-cell"><input class="cs-cnt tally-edit-num" id="cs-timber_p" type="number" inputmode="numeric" min="0" step="1" value="0" data-tally="curb" data-tkey="timber_p" aria-label="Timber pinned count (editable)"><input class="tally-custom-in cs-in" type="number" min="1" value="1" data-cs-for="timber_p"><button class="cs-btn" data-cstype="timber_p">+</button></div>
+              <div class="cs-cell"><input class="cs-cnt tally-edit-num" id="cs-timber_f" type="number" inputmode="numeric" min="0" step="1" value="0" data-tally="curb" data-tkey="timber_f" aria-label="Timber free count (editable)"><input class="tally-custom-in cs-in" type="number" min="1" value="1" data-cs-for="timber_f"><button class="cs-btn" data-cstype="timber_f">+</button></div>
+              <div class="cs-cell"><input class="cs-cnt tally-edit-num" id="cs-timber_d" type="number" inputmode="numeric" min="0" step="1" value="0" data-tally="curb" data-tkey="timber_d" aria-label="Timber damaged count (editable)"><input class="tally-custom-in cs-in" type="number" min="1" value="1" data-cs-for="timber_d"><button class="cs-btn" data-cstype="timber_d">+</button></div>
             </div>
             <div class="cs-total-row">
               <span class="cs-total-lbl">Total</span>
@@ -8220,7 +8246,10 @@ body.mobile-mode #app {
           <div class="pt-rows">
             <div class="pt-row">
               <span class="pt-lbl">Normal</span>
-              <span class="pt-cnt" id="pt-normal">0</span>
+              <input class="pt-cnt tally-edit-num" id="pt-normal" type="number"
+                     inputmode="numeric" min="0" step="1" value="0"
+                     data-tally="parking" data-tkey="normal"
+                     aria-label="Normal stall count (editable)">
               <button class="pt-btn" data-ptype="normal" data-add="1">+1</button>
               <button class="pt-btn" data-ptype="normal" data-add="10">+10</button>
               <input class="tally-custom-in" type="number" min="1" placeholder="n" data-custom-for="normal">
@@ -8228,7 +8257,10 @@ body.mobile-mode #app {
             </div>
             <div class="pt-row">
               <span class="pt-lbl">Bus</span>
-              <span class="pt-cnt" id="pt-bus">0</span>
+              <input class="pt-cnt tally-edit-num" id="pt-bus" type="number"
+                     inputmode="numeric" min="0" step="1" value="0"
+                     data-tally="parking" data-tkey="bus"
+                     aria-label="Bus stall count (editable)">
               <button class="pt-btn" data-ptype="bus" data-add="1">+1</button>
               <button class="pt-btn" data-ptype="bus" data-add="10">+10</button>
               <input class="tally-custom-in" type="number" min="1" placeholder="n" data-custom-for="bus">
@@ -8236,7 +8268,10 @@ body.mobile-mode #app {
             </div>
             <div class="pt-row">
               <span class="pt-lbl">HC</span>
-              <span class="pt-cnt" id="pt-hc">0</span>
+              <input class="pt-cnt tally-edit-num" id="pt-hc" type="number"
+                     inputmode="numeric" min="0" step="1" value="0"
+                     data-tally="parking" data-tkey="hc"
+                     aria-label="HC stall count (editable)">
               <button class="pt-btn" data-ptype="hc" data-add="1">+1</button>
               <button class="pt-btn" data-ptype="hc" data-add="10">+10</button>
               <input class="tally-custom-in" type="number" min="1" placeholder="n" data-custom-for="hc">
@@ -8244,7 +8279,10 @@ body.mobile-mode #app {
             </div>
             <div class="pt-row">
               <span class="pt-lbl">HC Van</span>
-              <span class="pt-cnt" id="pt-hcvan1">0</span>
+              <input class="pt-cnt tally-edit-num" id="pt-hcvan1" type="number"
+                     inputmode="numeric" min="0" step="1" value="0"
+                     data-tally="parking" data-tkey="hcvan1"
+                     aria-label="HC Van stall count (editable)">
               <button class="pt-btn" data-ptype="hcvan1" data-add="1">+1</button>
               <button class="pt-btn" data-ptype="hcvan1" data-add="10">+10</button>
               <input class="tally-custom-in" type="number" min="1" placeholder="n" data-custom-for="hcvan1">
@@ -18261,6 +18299,47 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     }
   })();
 
+  // --- Editable accumulated counts in the three tally panels --------------
+  // Each running total is an <input class="tally-edit-num">; typing a new
+  // value writes straight back to state so a mis-tally can be corrected.
+  (function wireTallyEditing() {
+    function commit(inp) {
+      if (inp.readOnly) return;
+      let v = parseInt(inp.value, 10);
+      if (isNaN(v) || v < 0) v = 0;
+      inp.value = v;
+      const kind = inp.dataset.tally;
+      if (kind === 'crack') {
+        state.tally = v;
+      } else if (kind === 'parking') {
+        state.parkingTally[inp.dataset.tkey] = v;
+        _refreshParkingTotal();
+      } else if (kind === 'curb') {
+        state.curbStopTally[inp.dataset.tkey] = v;
+        _refreshCurbStopDisplay();
+      }
+    }
+    document.addEventListener('change', (e) => {
+      if (e.target && e.target.classList && e.target.classList.contains('tally-edit-num')) {
+        commit(e.target);
+      }
+    });
+    // Tap to select the whole value so it can be overwritten in one go.
+    document.addEventListener('focusin', (e) => {
+      const t = e.target;
+      if (t && t.classList && t.classList.contains('tally-edit-num') && !t.readOnly) {
+        setTimeout(() => { try { t.select(); } catch (_) {} }, 0);
+      }
+    });
+    // Enter commits the edit and drops focus.
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && e.target && e.target.classList &&
+          e.target.classList.contains('tally-edit-num')) {
+        e.target.blur();
+      }
+    });
+  })();
+
   // Force numeric-only input on all tally custom-entry fields.
   // Delegated so it covers inputs that may be added later.
   document.addEventListener('input', (e) => {
@@ -19387,27 +19466,36 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   // --- Tally helpers -----------------------------------------------------
   function bumpTally(amount) {
     state.tally += amount;
-    els.tallyNum.textContent = state.tally.toLocaleString();
-    // small animation
-    els.tallyNum.animate(
-      [{ transform: 'scale(1)' }, { transform: 'scale(1.12)' }, { transform: 'scale(1)' }],
-      { duration: 220, easing: 'ease-out' }
-    );
+    // #tally-num is now an editable <input> — write .value, not textContent.
+    if (els.tallyNum) {
+      els.tallyNum.value = state.tally;
+      els.tallyNum.animate(
+        [{ transform: 'scale(1)' }, { transform: 'scale(1.12)' }, { transform: 'scale(1)' }],
+        { duration: 220, easing: 'ease-out' }
+      );
+    }
   }
 
   function bumpParking(type, amount) {
     state.parkingTally[type] = (state.parkingTally[type] || 0) + amount;
     const el = $(`#pt-${type}`);
     if (el) {
-      el.textContent = state.parkingTally[type].toLocaleString();
+      el.value = state.parkingTally[type];   // editable <input>
       el.animate([{transform:'scale(1)'},{transform:'scale(1.12)'},{transform:'scale(1)'}],{duration:220,easing:'ease-out'});
     }
     const total = Object.values(state.parkingTally).reduce((a, b) => a + b, 0);
     const totEl = $('#pt-total');
     if (totEl) {
-      totEl.textContent = total.toLocaleString();
+      totEl.textContent = total.toLocaleString();   // total stays a <span>
       totEl.animate([{transform:'scale(1)'},{transform:'scale(1.12)'},{transform:'scale(1)'}],{duration:220,easing:'ease-out'});
     }
+  }
+
+  // Recompute + show the Parking panel total (running totals are editable).
+  function _refreshParkingTotal() {
+    const total = Object.values(state.parkingTally).reduce((a, b) => a + (+b || 0), 0);
+    const totEl = $('#pt-total');
+    if (totEl) totEl.textContent = total.toLocaleString();
   }
 
   function bumpCurbStop(type, amount = 1) {
@@ -19426,16 +19514,22 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     ['concrete','composite','timber'].forEach(mat => {
       ['_p','_f'].forEach(suf => {
         const el = $(`#cs-${mat}${suf}`);
-        if (el) el.textContent = (t[mat + suf] || 0).toLocaleString();
+        if (el) el.value = (t[mat + suf] || 0);   // editable <input>
       });
       const dEl = $(`#cs-${mat}_d`);
       if (dEl) {
         const d = t[mat + '_d'] || 0;
         if (pct) {
+          // Percent mode shows a derived value — make it read-only so it
+          // can't be typed over (toggle %-off to edit the raw count).
           const base = (t[mat + '_p'] || 0) + (t[mat + '_f'] || 0);
-          dEl.textContent = base > 0 ? Math.round(d / base * 100) + '%' : (d ? String(d) : '0');
+          dEl.value    = base > 0 ? Math.round(d / base * 100) : d;
+          dEl.readOnly = true;
+          dEl.title    = 'Damaged shown as % — toggle % off to edit the count';
         } else {
-          dEl.textContent = d.toLocaleString();
+          dEl.value    = d;
+          dEl.readOnly = false;
+          dEl.title    = '';
         }
       }
     });
