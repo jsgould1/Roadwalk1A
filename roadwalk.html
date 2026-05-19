@@ -5415,6 +5415,16 @@ input.fs-slider::-webkit-slider-thumb {
   box-shadow: inset 0 0 0 2px #000;
 }
 .rw-cam-shutter:active { transform: scale(0.94); }
+.rw-cam-flip {
+  position: absolute; z-index: 2;
+  top: calc(12px + env(safe-area-inset-top, 0px)); right: 14px;
+  width: 46px; height: 46px; border-radius: 50%; cursor: pointer;
+  background: rgba(0,0,0,0.55); color: #fff;
+  border: 1px solid rgba(255,255,255,0.35);
+  font-size: 21px; line-height: 1;
+}
+.rw-cam-flip:hover { background: rgba(0,0,0,0.75); }
+.rw-cam-flip[hidden] { display: none; }
 
 /* --- #app-tabs: module tabs, centered inside the combined nav row -----------
    Stacked icon-over-label buttons on the dark nav. Active = white text +
@@ -12056,6 +12066,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     overlay.className = 'rw-cam-overlay';
     overlay.innerHTML =
       '<div class="rw-cam-stage"><video class="rw-cam-video" autoplay playsinline muted></video></div>' +
+      '<button type="button" class="rw-cam-flip" hidden aria-label="Switch camera">⟲</button>' +
       '<div class="rw-cam-msg">Point the camera at the asset, then tap the shutter.</div>' +
       '<div class="rw-cam-bar">' +
         '<button type="button" class="rw-cam-side rw-cam-cancel">Cancel</button>' +
@@ -12063,25 +12074,50 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         '<button type="button" class="rw-cam-side rw-cam-upload">Upload</button>' +
       '</div>';
     document.body.appendChild(overlay);
-    var video  = overlay.querySelector('.rw-cam-video');
-    var msgEl  = overlay.querySelector('.rw-cam-msg');
-    var stream = null, closed = false;
+    var video   = overlay.querySelector('.rw-cam-video');
+    var flipBtn = overlay.querySelector('.rw-cam-flip');
+    var stream  = null, closed = false;
+    var cams    = [];   // videoinput devices
+    var camIdx  = 0;
 
+    function stopStream() {
+      if (stream) { stream.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} }); stream = null; }
+    }
     function close() {
       if (closed) return;
       closed = true;
-      if (stream) stream.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} });
+      stopStream();
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
       document.removeEventListener('keydown', onKey);
     }
     function onKey(e) { if (e.key === 'Escape') close(); }
     document.addEventListener('keydown', onKey);
 
+    // (Re)open the camera stream with the given constraints.
+    function openStream(constraints) {
+      stopStream();
+      return md.getUserMedia(constraints).then(function (s) {
+        if (closed) { s.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} }); return; }
+        stream = s;
+        video.srcObject = s;
+      });
+    }
+    // Switch to a specific enumerated camera by index.
+    function applyCam(idx) {
+      if (!cams.length) return;
+      camIdx = (idx % cams.length + cams.length) % cams.length;
+      openStream({ video: { deviceId: { exact: cams[camIdx].deviceId } }, audio: false })
+        .catch(function () { openStream({ video: true, audio: false }).catch(function () {}); });
+    }
+    var BACK  = /(back|rear|environment|world)/i;
+    var FRONT = /(front|user|face|selfie)/i;
+
     overlay.querySelector('.rw-cam-cancel').addEventListener('click', close);
     overlay.querySelector('.rw-cam-upload').addEventListener('click', function () {
       close();
       pickFile();
     });
+    flipBtn.addEventListener('click', function () { applyCam(camIdx + 1); });
     overlay.querySelector('.rw-cam-shutter').addEventListener('click', function () {
       if (!stream || !video.videoWidth) return;
       var c = document.createElement('canvas');
@@ -12104,11 +12140,31 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       }, 'image/jpeg', 0.92);
     });
 
-    md.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false })
-      .then(function (s) {
-        if (closed) { s.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} }); return; }
-        stream = s;
-        video.srcObject = s;
+    // Start with the environment camera (also grants permission so device
+    // labels become readable), then enumerate and lock onto the real rear
+    // camera by label — facingMode alone is unreliable on Windows/Surface.
+    openStream({ video: { facingMode: { ideal: 'environment' } }, audio: false })
+      .then(function () {
+        md.enumerateDevices().then(function (devs) {
+          if (closed) return;
+          cams = (devs || []).filter(function (d) { return d.kind === 'videoinput'; });
+          if (cams.length < 2) return;            // only one camera — nothing to pick
+          flipBtn.hidden = false;                 // expose manual switching
+          var backI = -1;
+          for (var i = 0; i < cams.length; i++) {
+            if (BACK.test(cams[i].label)) { backI = i; break; }
+          }
+          if (backI < 0) {                        // no "rear" label — take first non-front
+            for (var j = 0; j < cams.length; j++) {
+              if (!FRONT.test(cams[j].label)) { backI = j; break; }
+            }
+          }
+          if (backI < 0) backI = cams.length - 1; // last enumerated is usually the rear
+          var curTrack = stream && stream.getVideoTracks && stream.getVideoTracks()[0];
+          var curId    = curTrack && curTrack.getSettings && curTrack.getSettings().deviceId;
+          if (cams[backI].deviceId && cams[backI].deviceId !== curId) applyCam(backI);
+          else camIdx = backI;
+        }).catch(function () { /* enumerate failed — keep the current stream */ });
       })
       .catch(function () {
         // No camera, permission denied, or insecure context → use the picker.
