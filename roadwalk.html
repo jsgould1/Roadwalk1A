@@ -5383,6 +5383,39 @@ input.fs-slider::-webkit-slider-thumb {
 }
 #rw-update-dismiss:hover { color: #fff; }
 
+/* --- In-app camera capture overlay (getUserMedia) ------------------------- */
+.rw-cam-overlay {
+  position: fixed; inset: 0; z-index: 9800;
+  background: #000; display: flex; flex-direction: column;
+}
+.rw-cam-stage {
+  flex: 1; min-height: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.rw-cam-video { width: 100%; height: 100%; object-fit: contain; background: #000; }
+.rw-cam-msg {
+  color: #fff; font: 12px 'IBM Plex Sans', sans-serif;
+  text-align: center; padding: 2px 8px;
+}
+.rw-cam-bar {
+  flex: 0 0 auto;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 14px 22px calc(14px + env(safe-area-inset-bottom, 0px));
+  background: #000;
+}
+.rw-cam-side {
+  background: rgba(255,255,255,0.16); color: #fff; border: none; border-radius: 7px;
+  padding: 11px 16px; min-width: 84px; cursor: pointer;
+  font: 600 13px 'IBM Plex Sans', sans-serif;
+}
+.rw-cam-side:hover { background: rgba(255,255,255,0.28); }
+.rw-cam-shutter {
+  width: 66px; height: 66px; border-radius: 50%; cursor: pointer; flex-shrink: 0;
+  background: #fff; border: 4px solid rgba(255,255,255,0.45);
+  box-shadow: inset 0 0 0 2px #000;
+}
+.rw-cam-shutter:active { transform: scale(0.94); }
+
 /* --- #app-tabs: module tabs, centered inside the combined nav row -----------
    Stacked icon-over-label buttons on the dark nav. Active = white text +
    white underline accent. Scrolls horizontally if the row gets tight.
@@ -12004,6 +12037,86 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   // the full sheet.  Delete splices the pin and refreshes both views.
   let _fpPin = null, _fpSec = null;
 
+  /* In-app camera capture (getUserMedia) — used by every "Take Photo" button.
+     The <input capture> attribute only triggers the camera on iOS/Android;
+     desktop browsers (e.g. Edge on a Surface Pro) ignore it and open the file
+     picker. This opens a live camera modal instead, captures a frame, and
+     hands the resulting File to the same hidden file input the form already
+     wires — so all existing change-handlers (watermark, resize, save) run
+     unchanged. Falls back to the file picker when no camera is available. */
+  window._RW = window._RW || {};
+  window._RW.cameraCapture = function (inputEl) {
+    function pickFile() { if (inputEl) inputEl.click(); }
+    var md = navigator.mediaDevices;
+    if (!md || !md.getUserMedia || typeof window.DataTransfer === 'undefined') {
+      pickFile();
+      return;
+    }
+    var overlay = document.createElement('div');
+    overlay.className = 'rw-cam-overlay';
+    overlay.innerHTML =
+      '<div class="rw-cam-stage"><video class="rw-cam-video" autoplay playsinline muted></video></div>' +
+      '<div class="rw-cam-msg">Point the camera at the asset, then tap the shutter.</div>' +
+      '<div class="rw-cam-bar">' +
+        '<button type="button" class="rw-cam-side rw-cam-cancel">Cancel</button>' +
+        '<button type="button" class="rw-cam-shutter" aria-label="Capture photo"></button>' +
+        '<button type="button" class="rw-cam-side rw-cam-upload">Upload</button>' +
+      '</div>';
+    document.body.appendChild(overlay);
+    var video  = overlay.querySelector('.rw-cam-video');
+    var msgEl  = overlay.querySelector('.rw-cam-msg');
+    var stream = null, closed = false;
+
+    function close() {
+      if (closed) return;
+      closed = true;
+      if (stream) stream.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} });
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      document.removeEventListener('keydown', onKey);
+    }
+    function onKey(e) { if (e.key === 'Escape') close(); }
+    document.addEventListener('keydown', onKey);
+
+    overlay.querySelector('.rw-cam-cancel').addEventListener('click', close);
+    overlay.querySelector('.rw-cam-upload').addEventListener('click', function () {
+      close();
+      pickFile();
+    });
+    overlay.querySelector('.rw-cam-shutter').addEventListener('click', function () {
+      if (!stream || !video.videoWidth) return;
+      var c = document.createElement('canvas');
+      c.width = video.videoWidth;
+      c.height = video.videoHeight;
+      c.getContext('2d').drawImage(video, 0, 0, c.width, c.height);
+      c.toBlob(function (blob) {
+        if (!blob) { close(); pickFile(); return; }
+        var file = new File([blob], 'photo_' + Date.now() + '.jpg', { type: 'image/jpeg' });
+        var ok = false;
+        try {
+          var dt = new DataTransfer();
+          dt.items.add(file);
+          inputEl.files = dt.files;
+          ok = !!(inputEl.files && inputEl.files.length === 1);
+        } catch (e) { ok = false; }
+        close();
+        if (ok) inputEl.dispatchEvent(new Event('change', { bubbles: true }));
+        else    pickFile();   // browser blocked input.files — use the picker
+      }, 'image/jpeg', 0.92);
+    });
+
+    md.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false })
+      .then(function (s) {
+        if (closed) { s.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} }); return; }
+        stream = s;
+        video.srcObject = s;
+      })
+      .catch(function () {
+        // No camera, permission denied, or insecure context → use the picker.
+        close();
+        pickFile();
+      });
+  };
+
   // Point [lat,lng] inside polygon ring [[lat,lng],...] — ray-casting test.
   function _pointInPolygonLL(pt, ring) {
     if (!pt || !Array.isArray(ring) || ring.length < 3) return false;
@@ -12180,7 +12293,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         photoBtn.addEventListener('click', () => {
           _photoPin = _fpPin; _photoSec = _fpSec;
           if (!_photoPin || !_photoSec) return;
-          photoInput.click();   // opens the device camera
+          window._RW.cameraCapture(photoInput);   // in-app camera (or file picker)
         });
         photoInput.addEventListener('change', () => {
           const file = photoInput.files && photoInput.files[0];
@@ -12877,7 +12990,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     const _ffPhotoBtn = document.getElementById('ff-photo');
     const _ffPhotoInput = document.getElementById('ff-photo-input');
     if (_ffPhotoBtn && _ffPhotoInput) {
-      _ffPhotoBtn.addEventListener('click', () => _ffPhotoInput.click());
+      _ffPhotoBtn.addEventListener('click', () => window._RW.cameraCapture(_ffPhotoInput));
       _ffPhotoInput.addEventListener('change', () => {
         const file = _ffPhotoInput.files && _ffPhotoInput.files[0];
         _ffPhotoInput.value = '';
@@ -13232,7 +13345,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     // read the image as a data URL, attach it to the pin's _added_photos
     // array, and re-render the sheet so the new thumbnail appears.
     const photoInput = $('#pin-add-photo-input');
-    $('#pin-add-photo')?.addEventListener('click', () => photoInput?.click());
+    $('#pin-add-photo')?.addEventListener('click', () => { if (photoInput) window._RW.cameraCapture(photoInput); });
     photoInput?.addEventListener('change', (e) => {
       const file = e.target.files && e.target.files[0];
       if (!file) return;
@@ -13638,7 +13751,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
 
       // Photo
       const photoInput = $('#sign-photo-input');
-      $('#sign-add-photo')?.addEventListener('click', () => photoInput?.click());
+      $('#sign-add-photo')?.addEventListener('click', () => { if (photoInput) window._RW.cameraCapture(photoInput); });
       photoInput?.addEventListener('change', e => {
         const file = e.target.files && e.target.files[0];
         if (!file) return;
@@ -13912,7 +14025,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         btn.addEventListener('click', () => {
           const fld = btn.dataset.photoField;
           const inp = overlay.querySelector(fld === 'photo_start_term' ? '#gr-photo-start-input' : '#gr-photo-end-input');
-          if (inp) inp.click();
+          if (inp) window._RW.cameraCapture(inp);
         }));
 
       // Photo clear (start/end terminal)
@@ -13927,8 +14040,10 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         }));
 
       // Repair photo add
-      overlay.querySelector('[data-gr-repair-add]')?.addEventListener('click', () =>
-        overlay.querySelector('#gr-photo-repair-input')?.click());
+      overlay.querySelector('[data-gr-repair-add]')?.addEventListener('click', () => {
+        const inp = overlay.querySelector('#gr-photo-repair-input');
+        if (inp) window._RW.cameraCapture(inp);
+      });
 
       // File → DataURL helpers
       const wirePhoto = (inputId, onLoad) => {
@@ -28065,7 +28180,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       scroll.querySelectorAll('[data-sign-photo]').forEach(function (b) {
         b.addEventListener('click', function () {
           _pendDir = b.dataset.dir;
-          if (_signPhotoInput) _signPhotoInput.click();
+          if (_signPhotoInput) window._RW.cameraCapture(_signPhotoInput);
         });
       });
       scroll.querySelectorAll('[data-sign-upload]').forEach(function (b) {
@@ -28233,7 +28348,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     var uploadInput = document.getElementById('df-misc-upload-input');
 
     if (takeBtn && takeInput) {
-      takeBtn.addEventListener('click', function () { takeInput.click(); });
+      takeBtn.addEventListener('click', function () { window._RW.cameraCapture(takeInput); });
       takeInput.addEventListener('change', function () {
         if (takeInput.files && takeInput.files[0]) _readAndAddPhoto(takeInput.files[0], true);
         takeInput.value = '';
