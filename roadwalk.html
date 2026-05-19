@@ -5922,6 +5922,47 @@ input.fs-slider::-webkit-slider-thumb {
   -webkit-overflow-scrolling: touch;
 }
 
+/* Parent (A-D) section rows stay pinned to the top while their nested
+   subsections scroll past — so you always see which section you're in. */
+#mod-dashboard .section-row.section-parent {
+  position: -webkit-sticky;
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  background: var(--paper);
+  box-shadow: 0 1px 0 var(--rule), 0 2px 6px rgba(0,0,0,0.06);
+}
+
+/* Surface-type tint on section tiles (subsections especially).
+   The 3-class selector beats the plain .section-child background. */
+.section-row.surf-gravel,
+.section-row.section-child.surf-gravel  { background: #F6E2C8; }   /* light orange */
+.section-row.surf-asphalt,
+.section-row.section-child.surf-asphalt { background: #E2EFDD; }   /* light green  */
+
+/* Give child rows clearance for the absolutely-positioned EDIT button */
+.section-row.section-child { padding-right: 92px; }
+
+/* EDIT-data button on a section row */
+.section-row .row-edit-btn {
+  position: absolute;
+  right: 36px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--blue);
+  background: var(--paper);
+  border: 1px solid var(--blue);
+  padding: 5px 8px;
+  cursor: pointer;
+  z-index: 1;
+}
+.section-row .row-edit-btn:active { background: var(--blue); color: #fff; }
+
 /* --- Full-export modal (#export-modal) ---------------------------------------------
    Centred card overlay. Shows a live pre-flight summary of each data
    category (inspections, logs, photos, etc.) with counts before the
@@ -7909,6 +7950,7 @@ body.mobile-mode #app {
           <span id="sec-edit-type">EDITING SECTION</span>
           <span class="tb-sep">·</span>
           <span>Drag a point to move · tap a segment to add · double-tap a point to remove</span>
+          <button class="tb-btn" id="sec-edit-data-btn">✎ Edit Data</button>
           <button class="tb-btn tb-done" id="sec-edit-done-btn">✓ Done</button>
           <button class="tb-btn" id="sec-edit-cancel-btn">✕ Cancel</button>
         </div>
@@ -10626,6 +10668,24 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     els.featureCount.textContent = SECTIONS.reduce((sum, s) => sum + s.featureCount, 0);
   }
 
+  // Open the Kickoff / setup form for an existing section so its data
+  // (name, surface / pavement type, stations, etc.) can be re-edited.
+  // Exposed for the Dashboard EDIT buttons and the on-map section-shape
+  // "Edit Data" action — both live outside this IIFE.
+  function editSectionData(secId) {
+    const sec = SECTIONS.find(s => s.id === secId);
+    if (!sec) return;
+    state.draftKickoff = {
+      sectionId: sec.id,
+      type:      sec.type || 'area',
+      answers:   sec.kickoffAnswers || { basics: { name: sec.name || '' } },
+    };
+    if (typeof window.showModule === 'function') window.showModule('map');
+    showView('kickoff');
+  }
+  // NOTE: window._RW is reassigned as a full object literal further down,
+  // so editSectionData is published as a member of that literal — not here.
+
   // Layer-toggle aliases: a feature kind that follows another kind's
   // visibility toggle (Curb & Gutter follows the Curb layer toggle).
   const LAYER_ALIAS = { ln_cg: 'ln_curb' };
@@ -11318,6 +11378,9 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   // Expose to external scripts (Style Guide panel, future panels).
   // These are live references — mutations are reflected immediately.
   window._RW = {
+    // Open an existing section's Kickoff / setup form (Dashboard EDIT
+    // buttons + on-map section-shape "Edit Data" both call this).
+    editSectionData: editSectionData,
     get FEATURE_CATALOG() { return FEATURE_CATALOG; },
     get PIN_STYLE()        { return PIN_STYLE; },
     // LINE_STYLE_MAP is built from LINE_STYLES by the style-guide script and injected
@@ -21475,6 +21538,13 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   });
   document.getElementById('sec-edit-done-btn')?.addEventListener('click', () => endSectionVertexEdit(true));
   document.getElementById('sec-edit-cancel-btn')?.addEventListener('click', () => endSectionVertexEdit(false));
+  // "Edit Data" — commit any shape edits, then open this section's Kickoff /
+  // setup form so its data (name, surface, stations, etc.) can be re-edited.
+  document.getElementById('sec-edit-data-btn')?.addEventListener('click', () => {
+    const sec = _secEditState.sec;
+    endSectionVertexEdit(true);
+    if (sec) editSectionData(sec.id);
+  });
   window._rwStartSectionVertexEdit = startSectionVertexEdit;
   // Click on empty map (not on a feature / vertex marker) → deselect:
   //   - exit vertex-edit if active (also closes the right panel)
@@ -24810,9 +24880,21 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     const statusLabel = { not: 'Not started', prog: 'In progress', done: 'Closed' };
     const typeGlyph   = { linear: 'LIN', area: 'AREA' };
 
+    // Surface tint: gravel → light orange, asphalt → light green.
+    // Pavement type is collected in the section's Kickoff form ("basics").
+    function surfClass(sec) {
+      const pt = ((sec.kickoffAnswers && sec.kickoffAnswers.basics &&
+                   sec.kickoffAnswers.basics.pavementType) || '').toLowerCase();
+      if (pt.indexOf('gravel')  !== -1) return ' surf-gravel';
+      if (pt.indexOf('asphalt') !== -1) return ' surf-asphalt';
+      return '';
+    }
+
     function makeSectionRow(sec, isChild, childMeta) {
       const row = document.createElement('li');
-      row.className = 'section-row' + (isChild ? ' section-child' : '');
+      row.className = 'section-row'
+        + (isChild ? ' section-child' : ' section-parent')
+        + surfClass(sec);
       row.style.cursor = 'pointer';
       row.innerHTML =
         '<div class="top-line">'
@@ -24827,6 +24909,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         + '<span class="item">' + _esc(childMeta || sec.meta || '') + '</span>'
         + (!sec.kickoff ? '<span class="item">— kickoff pending</span>' : '')
         + '</div>'
+        + (isChild ? '<button type="button" class="row-edit-btn">✎ Edit</button>' : '')
         + '<span class="arrow">›</span>';
       row.addEventListener('click', function () {
         showModule('map');
@@ -24836,21 +24919,60 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
           window._RW.showView('field', sec.id);
         }
       });
+      const editBtn = row.querySelector('.row-edit-btn');
+      if (editBtn) {
+        editBtn.addEventListener('click', function (ev) {
+          ev.stopPropagation();
+          if (window._RW && typeof window._RW.editSectionData === 'function') {
+            window._RW.editSectionData(sec.id);
+          }
+        });
+      }
       list.appendChild(row);
     }
 
-    // Parents = bundle sections; children = field-added (_userAdded) sections.
-    const parents  = sections.filter(function (s) { return !s._userAdded; });
-    const children = sections.filter(function (s) { return  s._userAdded; });
+    // Parents = the bundle's own sections (A-D); children = every other
+    // section (field-added parking lots / sub-sections). We key off the
+    // BUNDLE section ids rather than the _userAdded flag so that
+    // subsections created before that flag existed still nest correctly.
+    const bundleIds = {};
+    ((window.BUNDLE && window.BUNDLE.sections) || []).forEach(function (s) {
+      if (s && s.id != null) bundleIds[s.id] = true;
+    });
+    const haveBundleIds = Object.keys(bundleIds).length > 0;
+    function isParent(s) {
+      return haveBundleIds ? (bundleIds[s.id] === true) : !s._userAdded;
+    }
+    const parents  = sections.filter(isParent);
+    const children = sections.filter(function (s) { return !isParent(s); });
 
-    // Resolve each child to the nearest linear bundle centerline + its STA.
+    // Best-effort centroid for a child lacking an explicit .center —
+    // falls back to its alignment midpoint, then its first pin geometry.
+    function childCenter(c) {
+      if (Array.isArray(c.center) && c.center.length === 2 &&
+          isFinite(c.center[0]) && isFinite(c.center[1])) return c.center;
+      if (Array.isArray(c.alignment) && c.alignment.length) {
+        const m = c.alignment[Math.floor(c.alignment.length / 2)];
+        if (Array.isArray(m) && m.length === 2) return m;
+      }
+      const pins = c.pins || [];
+      for (let i = 0; i < pins.length; i++) {
+        let co = pins[i] && pins[i].geometry && pins[i].geometry.coordinates;
+        if (!co) continue;
+        while (Array.isArray(co) && Array.isArray(co[0])) co = co[0];
+        if (Array.isArray(co) && co.length >= 2) return [co[1], co[0]];  // [lng,lat]→[lat,lng]
+      }
+      return null;
+    }
+
+    // Resolve every child to the nearest parent alignment + its STA.
     children.forEach(function (c) {
       c._dashParentId = null; c._dashAlong = 0; c._dashSta = '';
-      const cpt = Array.isArray(c.center) ? c.center : null;
+      const cpt = childCenter(c);
       if (!cpt) return;
       let best = null;
       parents.forEach(function (p) {
-        if (p.type !== 'linear' || !Array.isArray(p.alignment) || p.alignment.length < 2) return;
+        if (!Array.isArray(p.alignment) || p.alignment.length < 2) return;
         const proj = _rwProjectToPath(cpt, p.alignment);
         if (proj && (!best || proj.dist < best.dist)) {
           best = { id: p.id, name: p.name, dist: proj.dist, along: proj.along };
@@ -24868,17 +24990,20 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     parents.forEach(function (p) {
       const kids = children
         .filter(function (c) { return c._dashParentId === p.id; })
-        .sort(function (a, b) { return a._dashAlong - b._dashAlong; })
-        .filter(passesFilter);
-      if (!passesFilter(p) && kids.length === 0) return;
+        .sort(function (a, b) { return a._dashAlong - b._dashAlong; });
+      const kidsShown = kids.filter(passesFilter);
+      if (!passesFilter(p) && kidsShown.length === 0) return;
       makeSectionRow(p, false);
-      kids.forEach(function (c) { placed.add(c); makeSectionRow(c, true, c._dashSta); });
+      kidsShown.forEach(function (c) { makeSectionRow(c, true, c._dashSta); });
     });
+    // Any child that resolved to a parent is considered placed, even if the
+    // current filter hid it — so it never doubles up as a trailing row.
+    children.forEach(function (c) { if (c._dashParentId) placed.add(c); });
 
-    // Field-added sections with no resolvable parent → plain trailing rows.
+    // Field-added sections with no resolvable parent → trailing subsections.
     children
       .filter(function (c) { return !placed.has(c) && passesFilter(c); })
-      .forEach(function (c) { makeSectionRow(c, false); });
+      .forEach(function (c) { makeSectionRow(c, true); });
   }
 
   // Expose renderDashboard globally so the main IIFE can call it after bundle loads
