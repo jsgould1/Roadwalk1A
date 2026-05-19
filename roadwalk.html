@@ -9373,12 +9373,12 @@ body.mobile-mode #app {
         <span class="exp-count" id="exp-count-logs">—</span>
       </div>
 
-      <!-- Safety row -->
+      <!-- Section working copy row (drawn features + all field edits) -->
       <div class="exp-row" id="exp-row-safety">
         <span class="exp-icon info">…</span>
         <div class="exp-row-body">
-          <div class="exp-row-label">Safety records</div>
-          <div class="exp-row-sub">Contacts, JSB, THA, incidents</div>
+          <div class="exp-row-label">Map features &amp; edits</div>
+          <div class="exp-row-sub">Drawn features, geometry edits, GPS tracks, kickoff</div>
         </div>
         <span class="exp-count" id="exp-count-safety">—</span>
       </div>
@@ -9788,6 +9788,28 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     return _ppManifest;
   }
 
+  // Convert a base64 data-URL ("data:image/jpeg;base64,…") back to a Blob.
+  // Used when re-importing an export file so photos restore as real blobs.
+  function _dataURLToBlob(dataUrl) {
+    try {
+      if (typeof dataUrl !== 'string' || dataUrl.indexOf('data:') !== 0) return null;
+      const comma = dataUrl.indexOf(',');
+      if (comma === -1) return null;
+      const header = dataUrl.slice(5, comma);
+      const isB64  = /;base64/i.test(header);
+      const mime   = header.split(';')[0] || 'application/octet-stream';
+      const body   = dataUrl.slice(comma + 1);
+      if (isB64) {
+        const bin = atob(body);
+        const len = bin.length;
+        const arr = new Uint8Array(len);
+        for (let i = 0; i < len; i++) arr[i] = bin.charCodeAt(i);
+        return new Blob([arr], { type: mime });
+      }
+      return new Blob([decodeURIComponent(body)], { type: mime });
+    } catch (_) { return null; }
+  }
+
   // Renders the project picker overlay and resolves when a project is loaded.
   // Returns a Promise that resolves to true once the user has picked a project.
   // showProjectPicker(statusMsg, cancellable)
@@ -9933,15 +9955,73 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
               if (fd.settings)       cur2.settings    = fd.settings;
               window.RWSave(cur2);
             }
-            // Restore inspections to IDB (best-effort; errors are non-fatal)
-            if (Array.isArray(fd.inspections) && fd.inspections.length && window.RWIdb) {
-              window.RWIdb.openDB().then(function (db) {
-                const tx = db.transaction('inspections', 'readwrite');
-                const st = tx.objectStore('inspections');
-                fd.inspections.forEach(function (r) { try { st.put(r); } catch (_) {} });
-              }).catch(function (err) {
-                console.warn('[RoadWalk] Export import: IDB inspection restore failed', err);
-              });
+            // Restore all field records to IDB — inspections, daily logs,
+            // the section working copy (drawn features / geometry edits /
+            // GPS tracks / kickoff) and photos. The working copy MUST land
+            // before applyBundle() runs, because applyBundle reads it back
+            // from the 'safety' store to supersede the pristine bundle — so
+            // this whole step is awaited.
+            if (window.RWIdb) {
+              const _pid = bundle.id || 'proj';
+              try {
+                await new Promise(function (res) {
+                  window.RWIdb.openDB().then(function (db) {
+                    const want   = ['inspections', 'daily_logs', 'safety', 'photos'];
+                    const stores = want.filter(function (n) {
+                      return db.objectStoreNames.contains(n);
+                    });
+                    if (!stores.length) { res(); return; }
+                    const tx = db.transaction(stores, 'readwrite');
+                    tx.oncomplete = function () { res(); };
+                    tx.onerror    = function () { res(); };
+                    tx.onabort    = function () { res(); };
+                    // Inspections (keyPath: ulid)
+                    if (stores.indexOf('inspections') !== -1 && Array.isArray(fd.inspections)) {
+                      const si = tx.objectStore('inspections');
+                      fd.inspections.forEach(function (r) { try { si.put(r); } catch (_) {} });
+                    }
+                    // Daily logs (keyPath: date)
+                    if (stores.indexOf('daily_logs') !== -1 && Array.isArray(fd.daily_logs)) {
+                      const sd = tx.objectStore('daily_logs');
+                      fd.daily_logs.forEach(function (r) { try { sd.put(r); } catch (_) {} });
+                    }
+                    // Section working copy → 'safety' store, keyed rw_sections_<pid>
+                    if (stores.indexOf('safety') !== -1 && fd.safety &&
+                        Array.isArray(fd.safety.sections) && fd.safety.sections.length) {
+                      try {
+                        tx.objectStore('safety').put(
+                          { sections: fd.safety.sections,
+                            saved_at: fd.safety.saved_at || new Date().toISOString() },
+                          'rw_sections_' + _pid);
+                      } catch (_) {}
+                    }
+                    // Photos — base64 data-URLs converted back to Blobs
+                    if (stores.indexOf('photos') !== -1 && Array.isArray(parsed.photos)) {
+                      const sp = tx.objectStore('photos');
+                      parsed.photos.forEach(function (ph) {
+                        if (!ph) return;
+                        const rec = {
+                          photo_id: ph.photo_id,
+                          pin_id:   ph.pin_id,
+                          caption:  ph.caption  || '',
+                          taken_at: ph.taken_at || null,
+                        };
+                        const b = _dataURLToBlob(ph.data_url);
+                        if (b)                 rec.blob     = b;
+                        else if (ph.data_url)  rec.data_url = ph.data_url;
+                        // photo_id may be null on legacy exports → let autoIncrement assign
+                        if (rec.photo_id == null) delete rec.photo_id;
+                        try { sp.put(rec); } catch (_) {}
+                      });
+                    }
+                  }).catch(function (err) {
+                    console.warn('[RoadWalk] Export import: IDB restore failed', err);
+                    res();
+                  });
+                });
+              } catch (err) {
+                console.warn('[RoadWalk] Export import: IDB restore error', err);
+              }
             }
           }
 
@@ -24887,7 +24967,8 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
        field_data: {
          inspections:  [...],   // IDB 'inspections' — keyed by pin_id
          daily_logs:   [...],   // IDB 'daily_logs'  — keyed by date
-         safety:       {...}|null, // IDB 'safety' singleton
+         safety:       {sections,saved_at}|null, // section working copy
+                                //   (IDB 'safety' store, key rw_sections_<pid>)
          pin_statuses: {...},   // localStorage rw_v1.pinStatuses
          layers_vis:   {...},   // localStorage rw_v1.layersVis
          settings:     {...},   // localStorage rw_v1.settings
@@ -24995,13 +25076,33 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     }
     onProgress(50);
 
-    // ── Step 4/6: Safety (IDB singleton) ────────────────────────
+    // ── Step 4/6: Section working copy (drawn features, edits, tracks) ──
+    // This is the durable working copy persisted by _persistSections() —
+    // every field edit (drawn pins, geometry moves, AECOM copies, walk
+    // tracks, kickoff answers) lives here, keyed rw_sections_<pid> in the
+    // 'safety' store. Capturing it is what makes an export fully restorable.
     try {
-      result.safety = await idbGet('safety', 'singleton');
-      const hasData = result.safety && Object.keys(result.safety).length > 0;
-      _expRowUpdate('safety', hasData ? 'ok' : 'info',
-        hasData ? '✓' : '○',
-        hasData ? 'Saved' : 'None yet');
+      const _pid = (window.PROJECT && window.PROJECT.id) || 'proj';
+      let wc = await idbGet('safety', 'rw_sections_' + _pid);
+      // Fall back to the live in-memory copy if nothing has persisted yet.
+      if ((!wc || !Array.isArray(wc.sections) || !wc.sections.length) &&
+          Array.isArray(window.SECTIONS) && window.SECTIONS.length) {
+        wc = { sections: window.SECTIONS, saved_at: new Date().toISOString() };
+      }
+      result.safety = (wc && Array.isArray(wc.sections)) ? wc : null;
+      let drawn = 0, secN = 0;
+      if (result.safety) {
+        secN = result.safety.sections.length;
+        result.safety.sections.forEach(function (s) {
+          ((s && s.pins) ? s.pins : []).forEach(function (p) {
+            if (p && !p._bundle) drawn++;
+          });
+        });
+      }
+      _expRowUpdate('safety', secN ? 'ok' : 'info',
+        secN ? '✓' : '○',
+        secN ? (drawn + ' added · ' + secN + ' section' + (secN !== 1 ? 's' : ''))
+             : 'None yet');
     } catch (e) {
       result.safety = null;
       _expRowUpdate('safety', 'warn', '⚠', 'Read error');
