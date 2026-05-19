@@ -14297,7 +14297,11 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       fillColor: STRIP_CENTER_COLOR,
       fillOpacity: 1,
       interactive: false,
-      pane: 'markerPane',
+      // Render in the same vector pane as the cross-section line. Forcing the
+      // dot into markerPane made it drift off the line at some zoom levels,
+      // because the SVG vector pane and markerPane transform independently
+      // (leaflet-rotate). Same pane → the dot stays locked on the line.
+      pane: 'overlayPane',
     });
     // Label sits at the midpoint of the cross-section line (on the CL),
     // floating just above it so it doesn't overlap the center dot.
