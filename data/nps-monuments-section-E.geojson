@@ -1,0 +1,90 @@
+{
+  "type": "FeatureCollection",
+  "metadata": {
+    "dataset": "monuments",
+    "section": "E",
+    "count": 1,
+    "tolerance_ft": 656.2,
+    "source": "Reports/NGS_MONUMENTS (1).geojson"
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 201,
+        "PID": "FB1223",
+        "STATE": "NC",
+        "STABILITY": "A",
+        "SETTING": "66 = SET IN ROCK OUTCROP",
+        "STAMPING": "TT STA 28 T 1928",
+        "FeatureId": 0,
+        "DATA_DATE": "20241207",
+        "DATA_SRCE": "http://www.ngs.noaa.gov/cgi-bin/ds_mark.prl?PidBox=FB1223",
+        "NAME": "TTS 28",
+        "HT_MOD": " ",
+        "COUNTY": "SWAIN",
+        "QUAD": "SMOKEMONT (2019)",
+        "LATITUDE": "35 30 58.38   (N)",
+        "LONGITUDE": "083 18 24.30   (W)",
+        "DEC_LAT": " 35.5162166667",
+        "DEC_LON": " -83.3067500000",
+        "ELLIP_HT": " ",
+        "POS_DATUM": "NAD 83",
+        "DATUM_TAG": "(1986)",
+        "POS_EPOCH": " ",
+        "POS_SRCE": "HD_HELD1",
+        "ORTHO_HT": "623.735",
+        "VERT_DATUM": "NAVD 88",
+        "VERT_SRCE": "ADJUSTED",
+        "GEOID_HT": "-28.689",
+        "GEOID_MOD": "GEOID18",
+        "DYNAMIC_HT": "623.082",
+        "MODEL_GRAV": "979567.1",
+        "N_ACC_HZ": " ",
+        "N_ACC_EH": " ",
+        "N_ACC_STDN": " ",
+        "N_ACC_STDE": " ",
+        "N_ACC_STDH": " ",
+        "N_ACC_CORR": " ",
+        "POS_ORDER": " ",
+        "VERT_ORDER": "2",
+        "VERT_CLASS": "0",
+        "ECEF_X": " ",
+        "ECEF_Y": " ",
+        "ECEF_Z": " ",
+        "SPC_ZONE": "NC",
+        "SPC_NORTH": "204399.5",
+        "SPC_EAST": "219099.1",
+        "SPC_CONV": " ",
+        "SPC_CSF": " ",
+        "UTM_ZONE": " ",
+        "UTM_NORTH": " ",
+        "UTM_EAST": " ",
+        "UTM_CONV": " ",
+        "UTM_CSF": " ",
+        "FIRST_RECV": "1928",
+        "LAST_RECV": "20030709",
+        "LAST_COND": "MARK NOT FOUND",
+        "LAST_RECBY": "NCGS",
+        "SAT_USE": " ",
+        "MARKER": "DD = SURVEY DISK",
+        "GlobalID": "bfa2f5ef-2e42-4183-8c23-916713ad1a03",
+        "_section": "E",
+        "_sta_ft": 732.4,
+        "_sta": "7+32.41",
+        "_dist_from_alignment_ft": 2.3,
+        "_reported_in": [
+          "NGS"
+        ],
+        "_report_cross_refs": {}
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -83.3067539870159,
+          35.5162235158807
+        ]
+      }
+    }
+  ]
+}
