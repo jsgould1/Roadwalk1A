@@ -10540,6 +10540,17 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   function fmtMp(mp) {
     return mp.toFixed(3);
   }
+  // Combined station + milepost label, e.g. "STA 5+67 (MP 12.241)". Falls
+  // back to just "STA X+XX" when the section has no MP range (e.g. an area
+  // subsection drawn in the field).
+  function fmtStaMp(staFt, sec) {
+    const s = fmtSta(staFt || 0);
+    if (sec && typeof sec.mpStart === 'number' && typeof sec.mpEnd === 'number') {
+      const mp = sec.mpStart + (staFt || 0) / 5280;
+      return 'STA ' + s + ' (MP ' + fmtMp(mp) + ')';
+    }
+    return 'STA ' + s;
+  }
   // Determine which side of the alignment a point sits on (L = left of
   // direction of travel, R = right, on = within ~5ft of centerline).
   function sideOfAlignment(cursorLL, coords) {
@@ -11052,11 +11063,9 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       });
       const showStaTooltip = (e) => {
         const [staFt, distFt] = projectOntoAlignment(e.latlng, sec.alignment);
-        const staStr = fmtSta(staFt);
-        const mpStr = fmtMp(sec.mpStart + (staFt / ((sec.mpEnd - sec.mpStart) * 5280)) * (sec.mpEnd - sec.mpStart));
         const sideOf = sideOfAlignment(e.latlng, sec.alignment);   // L/R/on
         const sideTag = sideOf === 'L' ? ' · L' : (sideOf === 'R' ? ' · R' : '');
-        staTooltip.setContent(`STA ${staStr} · MP ${mpStr}${sideTag}`);
+        staTooltip.setContent(fmtStaMp(staFt, sec) + sideTag);
         staTooltip.setLatLng(e.latlng);
         if (!staTooltip._rwOpen) {
           staTooltip.addTo(state.map);
@@ -16253,7 +16262,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     } else {
       clickmark.style.top = '50%';   // horizontal bar at current station %
     }
-    clickmark.dataset.sta = `STA ${fmtSta(stripCenterSta)}`;
+    clickmark.dataset.sta = fmtStaMp(stripCenterSta, sec);
     overlay.appendChild(clickmark);
 
     // ── Point pins (inner — scroll with content) ──────────────────────────────
@@ -16443,7 +16452,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       stripCenterSta = Math.max(STRIP_WINDOW_FT / 2,
         Math.min(totalFt - STRIP_WINDOW_FT / 2, (scroll + canvasPx / 2) / pxPerFt));
       updateHeader(stripCenterSta);
-      clickmark.dataset.sta = `STA ${fmtSta(stripCenterSta)}`;
+      clickmark.dataset.sta = fmtStaMp(stripCenterSta, sec);
       // If this scroll was driven by the map→SLD sync (e.g. the Locate
       // fly-to), don't echo a pan back — that's what snapped the map off
       // the GPS point onto the centerline.
@@ -16484,7 +16493,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
             Math.min(totalFt - STRIP_WINDOW_FT / 2, staFt));
           stripCenterSta = clamped;
           updateHeader(clamped);
-          clickmark.dataset.sta = `STA ${fmtSta(clamped)}`;
+          clickmark.dataset.sta = fmtStaMp(clamped, stripCurrentSec);
           updateStripCenterMapMarker(stripCurrentSec, clamped);
           const target = Math.max(0, Math.round((clamped - STRIP_WINDOW_FT / 2) * pxPerFt));
           _mapPanning = true;
