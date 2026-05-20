@@ -9920,20 +9920,32 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     });
 
     // ── Restore the field-edited working copy ────────────────────────────
-    // Every save persists the whole SECTIONS array to IDB. If a working copy
-    // exists it supersedes the pristine bundle so field edits survive reload.
+    // Every save persists the whole SECTIONS array to IDB. The working copy
+    // is authoritative for sections it already knows about — but any section
+    // newly added to the published bundle (e.g. a freshly-added Section E)
+    // gets MERGED in, so picking up new sections never requires the user to
+    // throw away their field edits on the existing ones.
     try {
       // idbGet lives in the Phase 1 IIFE — reach it via the exposed window.RWIdb.
       // (A bare idbGet here threw a ReferenceError, so the field working copy
       //  was never restored and reloads silently fell back to the pristine bundle.)
+      const _bundleSecs = SECTIONS.slice();   // fresh-from-bundle copy
       window.RWIdb.get('safety', 'rw_sections_' + (PROJECT.id || 'default')).then(function (saved) {
-        if (saved && Array.isArray(saved.sections) && saved.sections.length) {
-          SECTIONS = saved.sections;
-          window.SECTIONS = SECTIONS;
-          if (typeof renderSectionList === 'function') renderSectionList('all');
-          if (typeof window.renderDashboard === 'function') window.renderDashboard('all');
-          console.log('[RoadWalk] Restored field working copy —',
-                      SECTIONS.length, 'section(s), saved', saved.saved_at);
+        if (!saved || !Array.isArray(saved.sections) || !saved.sections.length) return;
+        const savedIds = new Set(saved.sections.map(function (s) { return s && s.id; }));
+        const added = _bundleSecs.filter(function (s) { return s && !savedIds.has(s.id); });
+        SECTIONS = saved.sections.concat(added);
+        window.SECTIONS = SECTIONS;
+        if (typeof renderSectionList === 'function') renderSectionList('all');
+        if (typeof window.renderDashboard === 'function') window.renderDashboard('all');
+        console.log('[RoadWalk] Restored field working copy —',
+          saved.sections.length, 'edited section(s), +' + added.length +
+          ' new from bundle [' + added.map(function (s) { return s.id; }).join(',') +
+          '], saved', saved.saved_at);
+        // Persist the merged copy so the new sections survive the next
+        // reload (and are included in any export).
+        if (added.length && window._RW && typeof window._RW.persistSections === 'function') {
+          window._RW.persistSections();
         }
       }).catch(function (e) { console.warn('[RoadWalk] working-copy restore failed:', e); });
     } catch (e) { console.warn('[RoadWalk] working-copy restore error:', e); }
@@ -9978,27 +9990,30 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   // showProjectPicker(statusMsg, cancellable)
   // cancellable = true adds a "Keep current" button (used by "Change project").
   // Returns a Promise that resolves to true (loaded) or false (cancelled).
-  // Reload the active project straight from its published bundle, discarding
-  // the cached bundle AND the local working copy. The IDB caches otherwise
-  // mask any change made to the bundle file — this is the only way to pick
-  // up updated published data without clearing browser storage by hand.
-  async function reloadProjectFromSource() {
+  // Reload the active project straight from its published bundle. Discards
+  // the cached bundle AND -- if discardEdits is true -- the local working
+  // copy. By default we KEEP the working copy: applyBundle then merges any
+  // newly-published sections into it (without losing field edits on the
+  // existing ones). Pass discardEdits=true for a full reset.
+  async function reloadProjectFromSource(discardEdits) {
     if (!PROJECT || !PROJECT.id) throw new Error('No project is loaded.');
     const pid = PROJECT.id;
     // 1. drop the cached project bundle
     try { await _clearProjectFromDB(); } catch (_) {}
-    // 2. drop the durable working copy for this project (the SECTIONS snapshot)
-    try {
-      if (window.RWIdb && window.RWIdb.openDB) {
-        const db = await window.RWIdb.openDB();
-        await new Promise(function (res) {
-          const tx = db.transaction('safety', 'readwrite');
-          tx.objectStore('safety').delete('rw_sections_' + pid);
-          tx.oncomplete = function () { res(); };
-          tx.onerror    = function () { res(); };
-        });
-      }
-    } catch (_) {}
+    // 2. (optional) drop the durable working copy for this project
+    if (discardEdits) {
+      try {
+        if (window.RWIdb && window.RWIdb.openDB) {
+          const db = await window.RWIdb.openDB();
+          await new Promise(function (res) {
+            const tx = db.transaction('safety', 'readwrite');
+            tx.objectStore('safety').delete('rw_sections_' + pid);
+            tx.oncomplete = function () { res(); };
+            tx.onerror    = function () { res(); };
+          });
+        }
+      } catch (_) {}
+    }
     // 3. re-fetch the bundle — cache-busted so the service worker cannot
     //    serve a stale copy from its own cache.
     const manifest = await _loadProjectManifest();
@@ -10012,7 +10027,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     if (!bundle.client) bundle.client = proj.client || '';
     if (!bundle.id)     bundle.id     = proj.id;
     try { await _saveProjectToDB(bundle); } catch (_) {}
-    applyBundle(bundle);   // working copy was cleared above → loads pristine
+    applyBundle(bundle);   // working copy is preserved by default and merged in
   }
 
   function showProjectPicker(statusMsg = '', cancellable = false) {
@@ -10043,18 +10058,29 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       }
 
       // Reload button — re-reads the loaded project from its published bundle.
+      // Default behaviour keeps your field edits and merges any newly-published
+      // sections in. Hold Shift while clicking for a full reset (discard edits).
       const reloadBtn = $('#pp-reload-btn');
       if (reloadBtn) {
         reloadBtn.hidden = !(PROJECT && PROJECT.id);
-        reloadBtn.onclick = async () => {
-          if (!window.confirm('Reload "' + ((PROJECT && PROJECT.name) || 'this project') +
-              '" from the published data?\n\nThis discards locally-stored edits for this ' +
-              'project on this device and re-reads the latest bundle.')) return;
-          status.textContent = 'Reloading from published data…';
+        reloadBtn.onclick = async (evt) => {
+          const projName = (PROJECT && PROJECT.name) || 'this project';
+          const discardEdits = !!(evt && evt.shiftKey);
+          const msg = discardEdits
+            ? 'RESET "' + projName + '" to published data?\n\n' +
+              'Shift-click was held — this DISCARDS your locally-stored edits ' +
+              'for this project on this device and re-reads the latest bundle.'
+            : 'Reload "' + projName + '" from published data?\n\n' +
+              'Your field edits on this device are KEPT. Any newly-published ' +
+              'sections (e.g. a freshly-added section) will appear after reload.\n\n' +
+              '(Hold Shift while clicking for a full reset that discards edits.)';
+          if (!window.confirm(msg)) return;
+          status.textContent = discardEdits ? 'Resetting from published data…'
+                                            : 'Reloading from published data…';
           status.className   = 'pp-status';
           reloadBtn.disabled = true;
           try {
-            await reloadProjectFromSource();
+            await reloadProjectFromSource(discardEdits);
             picker.hidden = true;
             card.querySelector('.pp-cancel-btn')?.remove();
             reloadBtn.disabled = false;
