@@ -4023,6 +4023,24 @@ a { color: inherit; text-decoration: none; }
    ~1000 ft (roughly zoom < 19). Transition is instant on zoom (no animation). */
 #map.rw-labels-off .rw-line-info-label { opacity: 0 !important; pointer-events: none !important; }
 
+/* Name chip centred on a ghosted parking-area subsection outline */
+.rw-sub-outline-label .sub-outline-chip {
+  display: inline-block;
+  transform: translate(-50%, -50%);
+  background: rgba(200, 90, 43, 0.92);
+  color: #fff;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  padding: 2px 6px;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 3px;
+  white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+}
+
 /* Editable vertex markers on the map */
 .rw-vertex {
   width: 14px; height: 14px;
@@ -10902,6 +10920,11 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       state.mapLayers.features.remove();
       state.mapLayers.features = null;
     }
+    // Clear ghosted parking-area subsection outlines (rebuilt below).
+    if (state.mapLayers.subOutlines) {
+      try { state.mapLayers.subOutlines.remove(); } catch (_) {}
+      state.mapLayers.subOutlines = null;
+    }
 
     if (sec.alignment) {
       // Area sections are not linear: the drawn boundary renders as a closed
@@ -11141,6 +11164,10 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       }).addTo(state.map);
     }
 
+    // Ghost the boundary outlines of parking-area subsections so they show
+    // beside the main section — outline only, tap one to jump to it.
+    _renderSubsectionOutlines(sec);
+
     // Roadway-width labels — own layer, independent of the centerline toggle.
     if (state.map && !state.map._rwWidthZoomWired) {
       state.map._rwWidthZoomWired = true;
@@ -11151,6 +11178,65 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
 
     // Force a tile recalc — common gotcha when the container starts hidden
     setTimeout(() => state.map.invalidateSize(), 50);
+  }
+
+  // Render faint, tappable boundary outlines for every parking-area
+  // subsection (field-added area section) other than the one in view, so
+  // the user can see them beside the main A-D sections and tap to jump.
+  // Outline only — the subsection's own pins/assets are not drawn here.
+  function _renderSubsectionOutlines(currentSec) {
+    if (state.mapLayers.subOutlines) {
+      try { state.mapLayers.subOutlines.remove(); } catch (_) {}
+      state.mapLayers.subOutlines = null;
+    }
+    if (!state.map || typeof SECTIONS === 'undefined' || !Array.isArray(SECTIONS)) return;
+    const curId = currentSec && currentSec.id;
+    // A section is a subsection when its id is not one of the bundle's own.
+    const bundleIds = {};
+    ((BUNDLE && BUNDLE.sections) || []).forEach(s => {
+      if (s && s.id != null) bundleIds[s.id] = true;
+    });
+    const haveIds = Object.keys(bundleIds).length > 0;
+    const esc = (s) => String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const grp = L.layerGroup();
+    let n = 0;
+    SECTIONS.forEach(sub => {
+      if (!sub || sub.id === curId) return;
+      const isSub = haveIds ? !bundleIds[sub.id] : !!sub._userAdded;
+      if (!isSub || sub.type !== 'area') return;            // parking-area subsections
+      const ring = sub.alignment;
+      if (!Array.isArray(ring) || ring.length < 3) return;  // need a real polygon
+      const poly = L.polygon(ring, {
+        color: '#C85A2B', weight: 2, dashArray: '5 4',
+        fillColor: '#C85A2B', fillOpacity: 0.12,
+        interactive: true, bubblingMouseEvents: false, pane: 'overlayPane',
+      });
+      poly.on('click', (e) => {
+        if (e && e.originalEvent && L.DomEvent) L.DomEvent.stopPropagation(e.originalEvent);
+        if (drawState && drawState.tool) return;
+        if (relocateState && relocateState.active) return;
+        showView('field', sub.id);
+      });
+      try {
+        poly.bindTooltip(esc(sub.name || 'Subsection') + ' — tap to open',
+          { sticky: true, direction: 'top', opacity: 0.95, className: 'rw-feature-tooltip' });
+      } catch (_) {}
+      grp.addLayer(poly);
+      // Name chip at the polygon centroid.
+      const cLat = ring.reduce((a, p) => a + p[0], 0) / ring.length;
+      const cLng = ring.reduce((a, p) => a + p[1], 0) / ring.length;
+      grp.addLayer(L.marker([cLat, cLng], {
+        interactive: false,
+        icon: L.divIcon({
+          className: 'rw-sub-outline-label',
+          html: '<div class="sub-outline-chip">' + esc(sub.name || 'Subsection') + '</div>',
+          iconSize: null, iconAnchor: [0, 0],
+        }),
+      }));
+      n++;
+    });
+    if (n) { grp.addTo(state.map); state.mapLayers.subOutlines = grp; }
   }
 
   // --- Basemap registry --------------------------------------------------
