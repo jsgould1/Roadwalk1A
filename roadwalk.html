@@ -3906,6 +3906,84 @@ a { color: inherit; text-decoration: none; }
   padding: 7px 9px; border-radius: 3px; cursor: pointer;
 }
 .tg-btn-secondary:hover { color: var(--ink); border-color: var(--ink-3); }
+/* Suggest-groups tool row sits under the filter chips */
+.tg-tools {
+  display: flex; gap: 6px; padding: 6px 10px;
+  border-bottom: 1px solid var(--rule); background: var(--paper);
+}
+.tg-suggest-btn {
+  flex: 1; font: 700 11px 'IBM Plex Sans', sans-serif;
+  background: var(--blue, #0B3D66); color: #fff; border: 1px solid var(--blue, #0B3D66);
+  padding: 7px 10px; border-radius: 4px; cursor: pointer;
+  letter-spacing: 0.2px;
+}
+.tg-suggest-btn:hover { filter: brightness(1.1); }
+.tg-suggest-btn.busy { opacity: 0.7; cursor: wait; }
+
+/* Time-gap dividers between cards in the time-sorted filmstrip. The
+   filmstrip is a CSS grid; a divider spans all columns. */
+.tg-gap {
+  grid-column: 1 / -1;
+  margin: 4px 6px;
+  display: flex; align-items: center; gap: 8px;
+  font: 600 9.5px 'IBM Plex Mono', monospace; color: var(--ink-3, #8a93a0);
+  letter-spacing: 0.4px; text-transform: uppercase;
+}
+.tg-gap::before, .tg-gap::after {
+  content: ''; flex: 1; height: 1px; background: var(--rule, #d8dde2);
+}
+.tg-gap.tg-gap-big { color: #c25a00; }   /* > 5 minute gaps stand out */
+
+/* Candidate-group rows shown while the user is reviewing the suggester output */
+.tg-candidates-head {
+  grid-column: 1 / -1;
+  display: flex; align-items: center; gap: 8px; padding: 8px 6px;
+  border-bottom: 1px solid var(--rule, #d8dde2);
+}
+.tg-candidates-head .tg-back {
+  background: none; border: 0; cursor: pointer;
+  font: 700 10px 'IBM Plex Mono', monospace; color: var(--blue, #0B3D66);
+  padding: 4px 6px;
+}
+.tg-candidates-head .tg-cand-sum {
+  flex: 1; font: 700 12px 'IBM Plex Sans', sans-serif; color: var(--ink);
+}
+.tg-candidates-head .tg-cand-accept-all {
+  background: #15803d; color: #fff; border: 1px solid #15803d;
+  font: 700 10px 'IBM Plex Mono', monospace;
+  padding: 5px 9px; border-radius: 3px; cursor: pointer;
+}
+.tg-cand {
+  grid-column: 1 / -1;
+  border: 2px solid var(--rule, #d8dde2); border-left-width: 6px;
+  border-radius: 5px; padding: 7px; margin-bottom: 6px;
+  background: #fff;
+  display: grid; grid-template-columns: 1fr auto; gap: 4px;
+  align-items: start;
+}
+.tg-cand-thumbs {
+  grid-column: 1 / -1;
+  display: flex; gap: 4px; overflow-x: auto; padding: 2px 0;
+}
+.tg-cand-thumbs img {
+  width: 56px; height: 42px; object-fit: cover; flex-shrink: 0;
+  border-radius: 3px; border: 1px solid var(--rule);
+}
+.tg-cand-info {
+  font: 600 10px 'IBM Plex Mono', monospace; color: var(--ink-3);
+  letter-spacing: 0.2px;
+}
+.tg-cand-info strong { color: var(--ink); font-weight: 700; }
+.tg-cand-btns { display: flex; gap: 4px; flex-shrink: 0; }
+.tg-cand-btns button {
+  font: 700 10px 'IBM Plex Mono', monospace;
+  padding: 5px 7px; border-radius: 3px; cursor: pointer;
+  background: #fff; border: 1px solid var(--rule); color: var(--ink-2);
+}
+.tg-cand-btns .tg-accept { background: #15803d; color: #fff; border-color: #15803d; }
+.tg-cand-btns .tg-accept:hover { filter: brightness(1.1); }
+.tg-cand-btns .tg-discard { color: #b91c1c; border-color: #fca5a5; }
+
 /* Mobile / narrow: stack vertically */
 @media (max-width: 640px) {
   .tg-wrap { flex-direction: column; }
@@ -8789,6 +8867,32 @@ body.mobile-mode #app {
         </div>
 
         <div class="settings-group">
+          <h3>Photo triage</h3>
+          <div class="settings-row">
+            <div>
+              <div class="s-label">Group time gap</div>
+              <div class="s-sub">Max seconds between two photos for them to be in the same suggested group.</div>
+            </div>
+            <div style="display:flex;gap:6px;align-items:center;min-width:170px">
+              <input id="s-triage-time-gap" type="range" min="15" max="180" step="5" value="60"
+                     style="flex:1">
+              <span id="s-triage-time-gap-val" style="font:600 12px 'IBM Plex Mono',monospace;width:42px;text-align:right">60 s</span>
+            </div>
+          </div>
+          <div class="settings-row">
+            <div>
+              <div class="s-label">Group max distance</div>
+              <div class="s-sub">Two photos beyond this many metres apart never join the same suggested group, even if shot seconds apart.</div>
+            </div>
+            <div style="display:flex;gap:6px;align-items:center;min-width:170px">
+              <input id="s-triage-max-dist" type="range" min="10" max="100" step="5" value="30"
+                     style="flex:1">
+              <span id="s-triage-max-dist-val" style="font:600 12px 'IBM Plex Mono',monospace;width:42px;text-align:right">30 m</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-group">
           <h3>GPS &amp; tracking</h3>
           <div class="settings-row">
             <div>
@@ -9268,8 +9372,14 @@ body.mobile-mode #app {
             <button class="tg-chip" data-filter="grouped">Grouped</button>
             <button class="tg-chip" data-filter="linked">Linked</button>
           </div>
+          <div class="tg-tools" id="tg-tools">
+            <button class="tg-suggest-btn" id="tg-suggest-btn" type="button"
+                    title="Suggest groups using capture time + GPS">
+              ✨ Suggest groups (time × GPS)
+            </button>
+          </div>
           <div class="tg-strip" id="tg-strip">
-            <!-- Cards injected by renderTriage() -->
+            <!-- Cards / candidate rows injected by renderTriage() -->
           </div>
         </aside>
 
@@ -10758,6 +10868,8 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       basemap: 'nearmap',  // default — Nearmap has better zoom resolution
       autosaveMin: 5,
       backupMin: 60,
+      triageTimeGapSec: 60,    // suggest-grouping: max ts gap between two photos
+      triageMaxDistM:   30,    // suggest-grouping: max metres between two photos
       streetViewEnabled: true,
       svCloseOnCommit: true,
       // GPS follow: window (ft) used by the satellite-LOCK + OFFSET mode.
@@ -20256,6 +20368,16 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     if ($('#s-gps-offset')) {
       $('#s-gps-offset').value = String(state.settings.gpsFollowOffsetFt || 100);
     }
+    if ($('#s-triage-time-gap')) {
+      const v = state.settings.triageTimeGapSec || 60;
+      $('#s-triage-time-gap').value = String(v);
+      $('#s-triage-time-gap-val').textContent = v + ' s';
+    }
+    if ($('#s-triage-max-dist')) {
+      const v = state.settings.triageMaxDistM || 30;
+      $('#s-triage-max-dist').value = String(v);
+      $('#s-triage-max-dist-val').textContent = v + ' m';
+    }
     if ($('#s-gps-walk-step')) {
       $('#s-gps-walk-step').value = String(state.settings.gpsWalkStepFt || 5);
     }
@@ -22253,6 +22375,19 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   });
   $('#s-backup').addEventListener('change', e => {
     state.settings.backupMin = parseInt(e.target.value, 10) || 0;
+  });
+  // Photo Triage thresholds
+  $('#s-triage-time-gap')?.addEventListener('input', e => {
+    const v = parseInt(e.target.value, 10) || 60;
+    state.settings.triageTimeGapSec = v;
+    const lbl = $('#s-triage-time-gap-val');
+    if (lbl) lbl.textContent = v + ' s';
+  });
+  $('#s-triage-max-dist')?.addEventListener('input', e => {
+    const v = parseInt(e.target.value, 10) || 30;
+    state.settings.triageMaxDistM = v;
+    const lbl = $('#s-triage-max-dist-val');
+    if (lbl) lbl.textContent = v + ' m';
   });
   $('#s-gps-offset')?.addEventListener('change', e => {
     state.settings.gpsFollowOffsetFt = parseInt(e.target.value, 10) || 100;
@@ -32062,6 +32197,9 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   var miniMap = null;
   var miniLayer = null;
   var miniMarkers = new Map();         // photoId → L.circleMarker
+  var viewMode = 'photos';             // 'photos' | 'candidates'
+  var candidateGroups = [];            // [{ id, color, photos[] }]
+  var photoCandidate = new Map();      // photoId → candidate index
 
   function $g(id) { return document.getElementById(id); }
   function api() { return (window._RW && window._RW.geophotos) || null; }
@@ -32100,26 +32238,67 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     return true;
   }
 
+  // Sort comparator: by photo capture timestamp (newest first not desired —
+  // chronological order = oldest first, since adjacency in time is the cluster
+  // signal).
+  function tsOf(p) { return Number(p.ts || 0); }
+  function _sortByTime(ps) {
+    return ps.slice().sort(function (a, b) { return tsOf(a) - tsOf(b); });
+  }
+  function _fmtGap(sec) {
+    if (sec < 60)      return Math.round(sec) + 's gap';
+    if (sec < 3600)    return Math.round(sec / 60) + 'm ' + Math.round(sec % 60) + 's gap';
+    return Math.floor(sec / 3600) + 'h ' + Math.round((sec % 3600) / 60) + 'm gap';
+  }
+  function _distMeters(a, b) {
+    var R = 6371000, rad = Math.PI / 180;
+    var p1 = a.lat * rad, p2 = b.lat * rad;
+    var dp = (b.lat - a.lat) * rad, dn = (b.lng - a.lng) * rad;
+    var x = Math.sin(dp / 2) * Math.sin(dp / 2) +
+            Math.cos(p1) * Math.cos(p2) * Math.sin(dn / 2) * Math.sin(dn / 2);
+    return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+  }
+  function _settingsRead() {
+    var s = (window.state && window.state.settings) || {};
+    return {
+      timeGap: Number(s.triageTimeGapSec) || 60,
+      maxDist: Number(s.triageMaxDistM)   || 30,
+    };
+  }
+
   function _markerStyle(p) {
     var sel = selectedIds.has(p.id);
-    var color = p.asset_group_id ? groupColor(p.asset_group_id)
-              : p.linked_pin_id  ? '#0B3D66'
-              : '#999';
+    var color;
+    // In candidates view, color by tentative candidate; in normal view, by
+    // confirmed group / link / nothing.
+    if (viewMode === 'candidates' && photoCandidate.has(p.id)) {
+      color = candidateGroups[photoCandidate.get(p.id)].color;
+    } else if (p.asset_group_id) {
+      color = groupColor(p.asset_group_id);
+    } else if (p.linked_pin_id) {
+      color = '#0B3D66';
+    } else {
+      color = '#999';
+    }
     return {
       radius: sel ? 9 : 5.5,
       color: sel ? '#fff' : color,
       weight: sel ? 3 : 2,
       fillColor: color,
       fillOpacity: 0.95,
+      // Dashed stroke in candidates view distinguishes "tentative" from "confirmed".
+      dashArray: viewMode === 'candidates' && photoCandidate.has(p.id) ? '2 3' : null,
     };
   }
 
   function renderStrip() {
     var strip = $g('tg-strip');
     if (!strip) return;
-    var ps = photos().filter(passesFilter);
-    $g('tg-count').textContent = ps.length;
     strip.innerHTML = '';
+    if (viewMode === 'candidates') return _renderCandidates(strip);
+
+    var ps = _sortByTime(photos().filter(passesFilter));
+    $g('tg-count').textContent = ps.length;
     if (!ps.length) {
       strip.innerHTML = '<div style="grid-column:1/-1;padding:20px;text-align:center;' +
         'color:var(--ink-3);font-size:12px">No photos here yet. Capture some via the map ' +
@@ -32127,7 +32306,23 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       updateActionBar();
       return;
     }
-    ps.forEach(function (p) {
+    var threshSec = _settingsRead().timeGap;
+    ps.forEach(function (p, i) {
+      // Time-gap divider between consecutive photos when the ts gap exceeds
+      // the threshold AND neither photo is already in the same confirmed
+      // asset group (the group ring already separates them visually).
+      if (i > 0) {
+        var prev = ps[i - 1];
+        var gapMs = tsOf(p) - tsOf(prev);
+        var inSameGroup = p.asset_group_id && prev.asset_group_id && p.asset_group_id === prev.asset_group_id;
+        if (gapMs > threshSec * 1000 && !inSameGroup) {
+          var gapSec = gapMs / 1000;
+          var div = document.createElement('div');
+          div.className = 'tg-gap' + (gapSec > 300 ? ' tg-gap-big' : '');
+          div.textContent = _fmtGap(gapSec);
+          strip.appendChild(div);
+        }
+      }
       var card = document.createElement('div');
       card.className = 'tg-card' + (selectedIds.has(p.id) ? ' selected' : '');
       card.dataset.photoId = p.id;
@@ -32146,6 +32341,178 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       strip.appendChild(card);
     });
     updateActionBar();
+  }
+
+  /* ============ time × GPS clusterer ============ */
+  function _runClusterer() {
+    var cfg = _settingsRead();
+    // Only cluster photos that aren't already in a confirmed group / linked.
+    var ps = _sortByTime(photos().filter(function (p) {
+      return !p.asset_group_id && !p.linked_pin_id;
+    }));
+    var groups = [];
+    ps.forEach(function (p) {
+      var open = groups[groups.length - 1];
+      var join = false;
+      if (open) {
+        var gap = (tsOf(p) - tsOf(open.photos[open.photos.length - 1])) / 1000;
+        if (gap <= cfg.timeGap) {
+          // Distance to ANY photo already in the open group must be ≤ maxDist.
+          var ok = open.photos.some(function (q) {
+            return _distMeters(p, q) <= cfg.maxDist;
+          });
+          if (ok) join = true;
+        }
+      }
+      if (join) open.photos.push(p);
+      else      groups.push({ photos: [p] });
+    });
+    // Keep groups of 2+ as candidates (singletons aren't worth a candidate row).
+    return groups.filter(function (g) { return g.photos.length >= 2; });
+  }
+
+  function suggestGroups() {
+    var btn = $g('tg-suggest-btn');
+    if (btn) { btn.classList.add('busy'); btn.textContent = 'Clustering…'; }
+    // Small timeout so the busy state actually paints before the work starts.
+    setTimeout(function () {
+      var raw = _runClusterer();
+      candidateGroups = raw.map(function (g, i) {
+        return {
+          id: 'cand-' + i,
+          color: 'hsl(' + ((i * 67) % 360) + ', 70%, 45%)',
+          photos: g.photos,
+        };
+      });
+      photoCandidate.clear();
+      candidateGroups.forEach(function (cg, i) {
+        cg.photos.forEach(function (p) { photoCandidate.set(p.id, i); });
+      });
+      viewMode = 'candidates';
+      if (btn) { btn.classList.remove('busy'); btn.textContent = '✨ Suggest groups (time × GPS)'; }
+      renderStrip();
+      renderMiniMarkers();
+    }, 30);
+  }
+
+  function _renderCandidates(strip) {
+    var head = document.createElement('div');
+    head.className = 'tg-candidates-head';
+    var totalPhotos = candidateGroups.reduce(function (n, g) { return n + g.photos.length; }, 0);
+    head.innerHTML =
+      '<button class="tg-back" id="tg-back-photos">‹ Back to photos</button>' +
+      '<span class="tg-cand-sum">' + candidateGroups.length + ' candidate group' +
+      (candidateGroups.length === 1 ? '' : 's') + ' · ' + totalPhotos + ' photos</span>';
+    var acceptAll = document.createElement('button');
+    acceptAll.className = 'tg-cand-accept-all';
+    acceptAll.textContent = '✓ Accept all';
+    acceptAll.addEventListener('click', _acceptAllCandidates);
+    head.appendChild(acceptAll);
+    strip.appendChild(head);
+
+    if (!candidateGroups.length) {
+      var empty = document.createElement('div');
+      empty.style.cssText = 'grid-column:1/-1;padding:18px 8px;color:var(--ink-3);font-size:12px;text-align:center';
+      empty.textContent = 'No candidate groups found. Tighten the Settings thresholds and try again, or tag photos manually.';
+      strip.appendChild(empty);
+      return;
+    }
+
+    candidateGroups.forEach(function (cg, idx) {
+      var row = document.createElement('div');
+      row.className = 'tg-cand';
+      row.style.borderLeftColor = cg.color;
+      var sortedPhotos = _sortByTime(cg.photos);
+      var t0 = tsOf(sortedPhotos[0]);
+      var t1 = tsOf(sortedPhotos[sortedPhotos.length - 1]);
+      var spanSec = (t1 - t0) / 1000;
+      var maxDist = 0;
+      for (var i = 0; i < sortedPhotos.length; i++) {
+        for (var j = i + 1; j < sortedPhotos.length; j++) {
+          var d = _distMeters(sortedPhotos[i], sortedPhotos[j]);
+          if (d > maxDist) maxDist = d;
+        }
+      }
+      var info = document.createElement('div');
+      info.className = 'tg-cand-info';
+      info.innerHTML =
+        '<strong>Group ' + (idx + 1) + '</strong> · ' + sortedPhotos.length + ' photos · ' +
+        Math.round(spanSec) + ' s span · ' + Math.round(maxDist) + ' m apart';
+      var btns = document.createElement('div');
+      btns.className = 'tg-cand-btns';
+      var acc = document.createElement('button');
+      acc.className = 'tg-accept';
+      acc.textContent = 'Accept';
+      acc.addEventListener('click', function (e) { e.stopPropagation(); _acceptCandidate(idx); });
+      var disc = document.createElement('button');
+      disc.className = 'tg-discard';
+      disc.textContent = 'Discard';
+      disc.addEventListener('click', function (e) { e.stopPropagation(); _discardCandidate(idx); });
+      btns.appendChild(acc);
+      btns.appendChild(disc);
+      var thumbs = document.createElement('div');
+      thumbs.className = 'tg-cand-thumbs';
+      sortedPhotos.slice(0, 12).forEach(function (p) {
+        var im = document.createElement('img');
+        im.src = p.dataUrl;
+        thumbs.appendChild(im);
+      });
+      row.appendChild(info);
+      row.appendChild(btns);
+      row.appendChild(thumbs);
+      // Tapping the row centers the mini-map on the candidate's first photo
+      row.addEventListener('click', function () {
+        if (!miniMap) return;
+        try {
+          miniMap.setView([sortedPhotos[0].lat, sortedPhotos[0].lng], 18);
+        } catch (e) {}
+      });
+      strip.appendChild(row);
+    });
+    var back = document.getElementById('tg-back-photos');
+    if (back) back.addEventListener('click', _exitCandidates);
+  }
+
+  function _acceptCandidate(idx) {
+    var A = api();
+    var cg = candidateGroups[idx];
+    if (!A || !cg) return;
+    var gid = A.newGroupId();
+    cg.photos.forEach(function (p) { p.asset_group_id = gid; });
+    A.saveMany(cg.photos).then(function () {
+      candidateGroups.splice(idx, 1);
+      A.refresh();
+      renderStrip();
+      renderMiniMarkers();
+    });
+  }
+  function _discardCandidate(idx) {
+    candidateGroups.splice(idx, 1);
+    renderStrip();
+    renderMiniMarkers();
+  }
+  function _acceptAllCandidates() {
+    var A = api(); if (!A) return;
+    var all = [];
+    candidateGroups.forEach(function (cg) {
+      var gid = A.newGroupId();
+      cg.photos.forEach(function (p) { p.asset_group_id = gid; all.push(p); });
+    });
+    if (!all.length) { _exitCandidates(); return; }
+    A.saveMany(all).then(function () {
+      candidateGroups = [];
+      photoCandidate.clear();
+      A.refresh();
+      _exitCandidates();
+    });
+  }
+  function _exitCandidates() {
+    viewMode = 'photos';
+    // Drop any leftover candidate state and re-render normally.
+    candidateGroups = [];
+    photoCandidate.clear();
+    renderStrip();
+    renderMiniMarkers();
   }
 
   function toggleSelection(id) {
@@ -32357,6 +32724,8 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     if (drop) drop.addEventListener('click', dropPinAtCentroid);
     var ung = $g('tg-ungroup');
     if (ung) ung.addEventListener('click', ungroupSelected);
+    var sg = $g('tg-suggest-btn');
+    if (sg) sg.addEventListener('click', suggestGroups);
   }
 
   // Exposed for showModule('triage')
