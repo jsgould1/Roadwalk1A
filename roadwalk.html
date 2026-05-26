@@ -2316,24 +2316,30 @@ a { color: inherit; text-decoration: none; }
 .strip-photos-btn:hover { background: var(--rule); }
 .strip-photos-btn.on { background: var(--blue); color: #fff; border-color: var(--blue); }
 
-/* Photo lane inside the SLD strip — sits below the side-R pins in horizontal
-   mode and to the right of the centerline in vertical mode. Each thumb is
-   absolute-positioned at axisPct(sta_ft) of the inner scroll content so the
-   photo lines up with the same STA the SLD's pin row uses. */
+/* Photo lane inside the SLD strip — always pinned to the bottom (or far
+   edge in vertical docks) of the visible canvas so it's never offscreen
+   regardless of strip height. Each thumb is absolute-positioned at
+   axisPct(sta_ft) of the inner scroll content so the photo lines up with
+   the same STA the SLD's pin row uses. The strip also gets a small
+   bottom padding when .photos-on so the lane doesn't sit on top of pins. */
 .strip-photo-lane {
   position: absolute;
   pointer-events: auto; z-index: 3;
+  background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0.75) 18%);
 }
 .alignment-strip[data-pos="top"]    .strip-photo-lane,
 .alignment-strip[data-pos="bottom"] .strip-photo-lane {
-  left: 0; right: 0;
-  top: calc(50% + 130px); height: 64px;
+  left: 0; right: 0; bottom: 4px; height: 56px;
 }
 .alignment-strip[data-pos="right"]  .strip-photo-lane,
 .alignment-strip[data-pos="left"]   .strip-photo-lane {
-  top: 0; bottom: 0;
-  left: calc(50% + 70px); width: 64px;
+  top: 0; bottom: 0; right: 4px; width: 56px;
 }
+/* When photos are on the strip widens its content area slightly so the lane
+   has its own real estate next to the pin row instead of overlapping. */
+.alignment-strip.photos-on .strip-canvas { padding-bottom: 60px; }
+.alignment-strip.photos-on[data-pos="right"] .strip-canvas,
+.alignment-strip.photos-on[data-pos="left"]  .strip-canvas { padding-right: 60px; padding-bottom: 0; }
 .strip-photo-thumb {
   position: absolute;
   width: 56px; height: 42px; object-fit: cover;
@@ -15883,6 +15889,10 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     try { localStorage.setItem('rw_sld_photos_on', next ? '1' : '0'); } catch (_) {}
     var b = $('#strip-photos-btn');
     if (b) b.classList.toggle('on', next);
+    // Toggle the .photos-on class on the strip so the canvas gets the
+    // bottom-padding that gives the lane its own row.
+    var strip = $('#alignment-strip');
+    if (strip) strip.classList.toggle('photos-on', next);
     if (typeof renderStrip === 'function') renderStrip();
   });
 
@@ -17262,6 +17272,10 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       try { _photosOn = localStorage.getItem('rw_sld_photos_on') === '1'; } catch (_) {}
       var _photoBtn = document.getElementById('strip-photos-btn');
       if (_photoBtn) _photoBtn.classList.toggle('on', !!_photosOn);
+      // Keep the strip's .photos-on class in sync — drives bottom-padding so
+      // the lane has its own row instead of sitting on top of the pins.
+      var _stripEl = document.getElementById('alignment-strip');
+      if (_stripEl) _stripEl.classList.toggle('photos-on', !!_photosOn);
       if (_photosOn && window._RW && window._RW.geophotos) {
         var _lane = document.createElement('div');
         _lane.className = 'strip-photo-lane';
