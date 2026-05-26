@@ -2306,6 +2306,68 @@ a { color: inherit; text-decoration: none; }
 .strip-zoom-btn:hover { background: var(--rule); }
 .strip-zoom-btn.zoom-wide { background: var(--ink-1); color: var(--paper-1); border-color: var(--ink-1); }
 
+/* Photos toggle in the SLD strip header — same look-and-feel as the zoom btn */
+.strip-photos-btn {
+  background: var(--paper); border: 1px solid var(--rule);
+  font: 600 12px/1 'IBM Plex Sans', sans-serif;
+  color: var(--ink-2); padding: 2px 6px; border-radius: 3px;
+  cursor: pointer; margin-left: 4px;
+}
+.strip-photos-btn:hover { background: var(--rule); }
+.strip-photos-btn.on { background: var(--blue); color: #fff; border-color: var(--blue); }
+
+/* Photo lane inside the SLD strip — sits below the side-R pins in horizontal
+   mode and to the right of the centerline in vertical mode. Each thumb is
+   absolute-positioned at axisPct(sta_ft) of the inner scroll content so the
+   photo lines up with the same STA the SLD's pin row uses. */
+.strip-photo-lane {
+  position: absolute;
+  pointer-events: auto; z-index: 3;
+}
+.alignment-strip[data-pos="top"]    .strip-photo-lane,
+.alignment-strip[data-pos="bottom"] .strip-photo-lane {
+  left: 0; right: 0;
+  top: calc(50% + 130px); height: 64px;
+}
+.alignment-strip[data-pos="right"]  .strip-photo-lane,
+.alignment-strip[data-pos="left"]   .strip-photo-lane {
+  top: 0; bottom: 0;
+  left: calc(50% + 70px); width: 64px;
+}
+.strip-photo-thumb {
+  position: absolute;
+  width: 56px; height: 42px; object-fit: cover;
+  border: 2px solid #fff; border-radius: 3px;
+  cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,0.55);
+  transform: translateX(-50%);
+  transition: transform 80ms, border-color 80ms, box-shadow 80ms;
+}
+.alignment-strip[data-pos="right"]  .strip-photo-thumb,
+.alignment-strip[data-pos="left"]   .strip-photo-thumb {
+  transform: translateY(-50%);
+  width: 56px; height: 42px;
+}
+.strip-photo-thumb:hover {
+  z-index: 12;
+  transform: translateX(-50%) scale(1.18);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.55);
+}
+.alignment-strip[data-pos="right"] .strip-photo-thumb:hover,
+.alignment-strip[data-pos="left"]  .strip-photo-thumb:hover {
+  transform: translateY(-50%) scale(1.18);
+}
+.strip-photo-thumb.grouped { border-color: var(--gp-group-color, #c85a2b); }
+.strip-photo-thumb.linked  { outline: 2px solid var(--blue); outline-offset: 1px; }
+/* Empty-state caption inside the lane when no photos match this section */
+.strip-photo-lane-empty {
+  position: absolute; left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  font: 600 9.5px 'IBM Plex Mono', monospace;
+  color: var(--ink-3); letter-spacing: 0.4px;
+  text-transform: uppercase; white-space: nowrap;
+  background: rgba(255, 255, 255, 0.85); padding: 2px 6px; border-radius: 2px;
+}
+
 /* Hide text labels + badges in the 1000′ view (only visible at 500′) */
 .alignment-strip[data-zoom="1000"] .strip-bar-badge,
 .alignment-strip[data-zoom="1000"] .strip-bar-label,
@@ -8971,6 +9033,8 @@ body.mobile-mode #app {
               <select id="strip-aerial-select"></select>
             </div>
             <button class="strip-zoom-btn" id="strip-zoom-btn" type="button" title="Toggle 500ft / 1000ft view window">500′</button>
+            <button class="strip-photos-btn" id="strip-photos-btn" type="button"
+                    title="Show / hide photo lane (photos along this section's alignment)">📷</button>
           </div>
           <div class="strip-canvas" id="strip-canvas">
             <!-- populated by renderStrip() -->
@@ -15768,6 +15832,60 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     setAerialChoiceFor(stripCurrentSec.id, e.target.value);
     renderStrip();
   });
+  // ── SLD photo lane: shared hover-preview using the #tk-hover-preview box ──
+  // The Tracks IIFE created that DOM element; we just position + populate it
+  // from here for SLD thumbs. pointer-events:none on the preview ensures the
+  // floating image never blocks a click on the thumb beneath.
+  function _sldShowHoverPreview(e) {
+    var img = e.currentTarget;
+    var box  = document.getElementById('tk-hover-preview');
+    var bImg = document.getElementById('tk-hover-preview-img');
+    var bMet = document.getElementById('tk-hover-preview-meta');
+    if (!box || !bImg) return;
+    bImg.src = img.src;
+    var d = img.dataset.hoverDesc || '';
+    var m = img.dataset.hoverMeta || '';
+    var esc = function (s) {
+      return String(s).replace(/[&<>"]/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+      });
+    };
+    if (bMet) bMet.innerHTML =
+      (d ? '<div>' + esc(d) + '</div>' : '') +
+      (m ? '<div style="color:var(--ink-3);font:600 9.5px IBM Plex Mono,monospace">' + esc(m) + '</div>' : '');
+    box.style.display = 'block';
+    _sldMoveHoverPreview(e);
+  }
+  function _sldMoveHoverPreview(e) {
+    var box = document.getElementById('tk-hover-preview');
+    if (!box || box.style.display !== 'block') return;
+    var pad = 18;
+    var r = box.getBoundingClientRect();
+    var w = r.width || 332, h = r.height || 280;
+    var x = e.clientX + pad;
+    var y = e.clientY - h - pad;
+    if (x + w > window.innerWidth)  x = e.clientX - w - pad;
+    if (y < 0)                      y = e.clientY + pad;
+    if (y + h > window.innerHeight) y = window.innerHeight - h - 4;
+    box.style.left = Math.max(4, x) + 'px';
+    box.style.top  = Math.max(4, y) + 'px';
+  }
+  function _sldHideHoverPreview() {
+    var box = document.getElementById('tk-hover-preview');
+    if (box) box.style.display = 'none';
+  }
+
+  // Photos toggle (📷) in the SLD header — flip localStorage + re-render.
+  $('#strip-photos-btn')?.addEventListener('click', () => {
+    var cur = false;
+    try { cur = localStorage.getItem('rw_sld_photos_on') === '1'; } catch (_) {}
+    var next = !cur;
+    try { localStorage.setItem('rw_sld_photos_on', next ? '1' : '0'); } catch (_) {}
+    var b = $('#strip-photos-btn');
+    if (b) b.classList.toggle('on', next);
+    if (typeof renderStrip === 'function') renderStrip();
+  });
+
   // SLD zoom toggle: 500′ ↔ 1000′ (labels hidden at 1000′ by CSS)
   $('#strip-zoom-btn')?.addEventListener('click', () => {
     STRIP_WINDOW_FT = STRIP_WINDOW_FT === 500 ? 1000 : 500;
@@ -17133,6 +17251,58 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         inner.appendChild(gpsDotEl);
       }
     }
+
+    // ── Photo lane (toggled by the 📷 button in the strip header) ───────────
+    // Phase A: a single lane showing every geophoto whose GPS projects onto
+    // this section's alignment within 300 ft perpendicular. Positioned by
+    // axisPct(sta_ft) on the same axis the pin row uses. Hover reuses the
+    // floating #tk-hover-preview element from the Tracks module.
+    try {
+      var _photosOn = false;
+      try { _photosOn = localStorage.getItem('rw_sld_photos_on') === '1'; } catch (_) {}
+      var _photoBtn = document.getElementById('strip-photos-btn');
+      if (_photoBtn) _photoBtn.classList.toggle('on', !!_photosOn);
+      if (_photosOn && window._RW && window._RW.geophotos) {
+        var _lane = document.createElement('div');
+        _lane.className = 'strip-photo-lane';
+        inner.appendChild(_lane);
+        var _allPhotos = window._RW.geophotos.list() || [];
+        var _added = 0;
+        _allPhotos.forEach(function (p) {
+          if (!p || typeof p.lat !== 'number' || typeof p.lng !== 'number') return;
+          var proj = projectOntoAlignment([p.lat, p.lng], sec.alignment);
+          if (!proj) return;
+          var staFt = proj[0], perpFt = proj[1];
+          if (perpFt > 300) return;
+          if (staFt < 0 || staFt > totalFt) return;
+          var im = document.createElement('img');
+          im.className = 'strip-photo-thumb' +
+            (p.asset_group_id ? ' grouped' : '') +
+            (p.linked_pin_id  ? ' linked'  : '');
+          im.src = p.dataUrl;
+          im.style[axisKey] = axisPct(staFt) + '%';
+          if (p.asset_group_id) {
+            im.style.setProperty('--gp-group-color',
+              window._RW.geophotos.groupColor(p.asset_group_id));
+          }
+          // Hover meta consumed by the existing tk-hover-preview handlers.
+          im.dataset.hoverDesc = p.description || '';
+          var staLbl = ((staFt / 100 | 0) + '+' + ('0' + Math.round(staFt % 100)).slice(-2));
+          im.dataset.hoverMeta = 'STA ' + staLbl + ' · ' + Math.round(perpFt) + ' ft off centerline';
+          im.addEventListener('mouseenter', _sldShowHoverPreview);
+          im.addEventListener('mousemove',  _sldMoveHoverPreview);
+          im.addEventListener('mouseleave', _sldHideHoverPreview);
+          _lane.appendChild(im);
+          _added++;
+        });
+        if (!_added) {
+          var _empty = document.createElement('div');
+          _empty.className = 'strip-photo-lane-empty';
+          _empty.textContent = 'No photos within 300 ft of this section';
+          _lane.appendChild(_empty);
+        }
+      }
+    } catch (_e) { /* lane is non-critical — never let it break the strip */ }
 
     // ── +250 / −250 ft navigation buttons (direct canvas children — z-index:6,
     //    above both inner content and the overlay, always viewport-fixed) ────────
