@@ -33532,30 +33532,38 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         lbl.innerHTML = _visitLabel(visit);
         row.appendChild(lbl);
 
-        // ── Build stacks ─────────────────────────────────────────────────
-        // Walk the visit's photos in STA order. Two photos within one
-        // thumb-width of each other (in STA-space) join the same stack.
-        // Within a stack, each asset_group_id collapses to ONE item (a
-        // group "pile") and each ungrouped photo is its own item. Items
-        // then render vertically offset so they never visually overlap.
+        // ── Build stacks via fixed STA bins ──────────────────────────────
+        // Each bin is one thumb-width wide in STA-feet. A photo drops into
+        // bin = floor(sta_ft / binFt). Bins never accumulate width, so a
+        // continuous walk no longer collapses into a single runaway stack
+        // — at high zoom levels the bins shrink and stacks naturally break
+        // apart into individually visible tiles. The cluster's render
+        // position is the centroid of its members' actual sta_ft, so
+        // photos land where their GPS says rather than at the bin centre.
         var photoH        = thumbSizePx * 0.75;
         var vertStep      = Math.max(14, Math.round(photoH * 0.28));
-        var stackTolerFt  = Math.max(1, thumbSizePx / pxPerFt);
+        var binFt         = Math.max(1, thumbSizePx / pxPerFt);
+        var bins          = new Map();
         var sorted        = visit.slice().sort(function (a, b) {
           var ma = thumbCache.get(a.id), mb = thumbCache.get(b.id);
           return (ma ? ma.sta_ft : 0) - (mb ? mb.sta_ft : 0);
         });
-        var clusters = [];
-        var open = null;
         sorted.forEach(function (p) {
           var m = thumbCache.get(p.id); if (!m) return;
-          if (!open || (m.sta_ft - open.maxSta) > stackTolerFt) {
-            open = { photos: [p], minSta: m.sta_ft, maxSta: m.sta_ft };
-            clusters.push(open);
-          } else {
-            open.photos.push(p);
-            open.maxSta = Math.max(open.maxSta, m.sta_ft);
-          }
+          var binId = Math.floor(m.sta_ft / binFt);
+          var b = bins.get(binId);
+          if (!b) { b = { photos: [], staSum: 0 }; bins.set(binId, b); }
+          b.photos.push(p);
+          b.staSum += m.sta_ft;
+        });
+        var clusters = [];
+        bins.forEach(function (b) {
+          clusters.push({
+            photos: b.photos,
+            minSta: b.photos[0] && thumbCache.get(b.photos[0].id).sta_ft,
+            maxSta: b.photos[b.photos.length - 1] && thumbCache.get(b.photos[b.photos.length - 1].id).sta_ft,
+            _centerSta: b.staSum / b.photos.length,
+          });
         });
 
         // ── Track max items per cluster so the row gets the right height ──
@@ -33563,7 +33571,9 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
 
         // ── Render each cluster ─────────────────────────────────────────
         clusters.forEach(function (cluster) {
-          var centerSta = (cluster.minSta + cluster.maxSta) / 2;
+          var centerSta = (typeof cluster._centerSta === 'number')
+            ? cluster._centerSta
+            : (cluster.minSta + cluster.maxSta) / 2;
           // Sub-divide: each distinct asset_group_id → one item; each
           // ungrouped photo → its own item.
           var groupBuckets = Object.create(null);
