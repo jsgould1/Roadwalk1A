@@ -3796,6 +3796,122 @@ a { color: inherit; text-decoration: none; }
   font: 700 9px 'IBM Plex Mono', monospace; letter-spacing: 0.4px;
   background: var(--blue); color: #fff; padding: 1px 4px; border-radius: 3px;
 }
+
+/* ───────────────────────────── Photo Triage module ───────────────────────── */
+#mod-triage { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+.tg-wrap { display: flex; flex: 1; min-height: 0; }
+.tg-side {
+  width: 340px; max-width: 45vw; flex: 0 0 auto;
+  border-right: 1px solid var(--rule);
+  display: flex; flex-direction: column; background: var(--paper, #fbfaf6);
+}
+.tg-side-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px; border-bottom: 1px solid var(--rule);
+  font: 700 12px 'IBM Plex Sans', sans-serif; color: var(--ink);
+}
+.tg-side-title { letter-spacing: 0.3px; text-transform: uppercase; font-size: 10px; color: var(--ink-3); }
+.tg-count {
+  font: 700 11px 'IBM Plex Mono', monospace; background: var(--blue); color: #fff;
+  padding: 1px 6px; border-radius: 3px;
+}
+.tg-btn-tiny {
+  margin-left: auto; background: none; border: 1px solid var(--rule);
+  font: 700 10px 'IBM Plex Mono', monospace; padding: 3px 7px; border-radius: 3px;
+  color: var(--ink-3); cursor: pointer;
+}
+.tg-btn-tiny:hover { color: var(--ink); border-color: var(--ink-3); }
+.tg-filters {
+  display: flex; gap: 4px; padding: 6px 10px; border-bottom: 1px solid var(--rule);
+  background: var(--paper);
+}
+.tg-chip {
+  flex: 1 1 auto; background: #fff; border: 1px solid var(--rule);
+  font: 600 10px 'IBM Plex Mono', monospace; padding: 4px 6px; border-radius: 3px;
+  color: var(--ink-2); cursor: pointer;
+}
+.tg-chip.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+.tg-strip {
+  flex: 1; overflow-y: auto; padding: 8px;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px;
+  align-content: start;
+}
+.tg-card {
+  position: relative; background: #fff; border: 2px solid var(--rule);
+  border-radius: 5px; overflow: hidden; cursor: pointer;
+  transition: transform 80ms ease-out, border-color 80ms;
+}
+.tg-card.selected { border-color: var(--blue); transform: scale(0.97); }
+.tg-card.selected::after {
+  content: '✓'; position: absolute; right: 5px; top: 5px;
+  background: var(--blue); color: #fff;
+  width: 22px; height: 22px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font: 700 13px 'IBM Plex Sans', sans-serif;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.35);
+}
+.tg-card img {
+  display: block; width: 100%; height: 100px; object-fit: cover;
+}
+.tg-card .tg-meta {
+  padding: 4px 6px; font: 600 9px 'IBM Plex Mono', monospace;
+  color: var(--ink-3); display: flex; gap: 4px; align-items: center;
+}
+.tg-card .tg-meta .tg-group-dot {
+  width: 8px; height: 8px; border-radius: 50%; display: inline-block;
+  flex-shrink: 0;
+}
+.tg-card .tg-meta .tg-linked { color: var(--blue); font-weight: 700; }
+.tg-card .tg-type-tag {
+  position: absolute; left: 5px; top: 5px;
+  background: var(--blue); color: #fff;
+  font: 700 8.5px 'IBM Plex Mono', monospace; letter-spacing: 0.3px;
+  padding: 1px 5px; border-radius: 2px; box-shadow: 0 1px 3px rgba(0,0,0,0.35);
+}
+.tg-main {
+  flex: 1; min-width: 0; min-height: 0; position: relative; background: #e7e6e2;
+}
+.tg-mini-map { width: 100%; height: 100%; }
+/* Action bar pinned to the bottom of the module */
+.tg-action-bar {
+  flex: 0 0 auto; background: #fff;
+  border-top: 1px solid var(--rule);
+  padding: 8px 12px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  box-shadow: 0 -3px 12px rgba(0,0,0,0.08);
+}
+.tg-action-bar[hidden] { display: none; }
+.tg-sel-count {
+  font: 700 12px 'IBM Plex Sans', sans-serif; color: var(--ink);
+  background: var(--blue); color: #fff; padding: 4px 9px; border-radius: 3px;
+}
+.tg-type-row { display: flex; gap: 4px; flex-wrap: wrap; flex: 1; }
+.tg-type {
+  font: 700 10px 'IBM Plex Mono', monospace; letter-spacing: 0.4px;
+  background: #fff; border: 1px solid var(--rule); color: var(--ink-2);
+  padding: 6px 9px; border-radius: 3px; cursor: pointer;
+}
+.tg-type:hover { border-color: var(--blue); color: var(--blue); }
+.tg-type.assigned { background: var(--blue); color: #fff; border-color: var(--blue); }
+.tg-action-final { display: flex; gap: 6px; }
+.tg-drop {
+  font: 700 11px 'IBM Plex Sans', sans-serif;
+  background: #15803d; color: #fff; border: 1px solid #15803d;
+  padding: 7px 12px; border-radius: 4px; cursor: pointer;
+}
+.tg-drop:disabled { background: #9ca3af; border-color: #9ca3af; cursor: not-allowed; }
+.tg-btn-secondary {
+  font: 700 10px 'IBM Plex Mono', monospace;
+  background: #fff; border: 1px solid var(--rule); color: var(--ink-2);
+  padding: 7px 9px; border-radius: 3px; cursor: pointer;
+}
+.tg-btn-secondary:hover { color: var(--ink); border-color: var(--ink-3); }
+/* Mobile / narrow: stack vertically */
+@media (max-width: 640px) {
+  .tg-wrap { flex-direction: column; }
+  .tg-side { width: 100%; max-width: none; max-height: 55%; border-right: none; border-bottom: 1px solid var(--rule); }
+  .tg-strip { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+}
 .parking-tally .pt-total-row {
   display: flex;
   align-items: baseline;
@@ -7910,6 +8026,9 @@ body.mobile-mode #app {
       <button class="app-tab" data-module="data" role="tab" aria-selected="false"
               title="Data entry &amp; table">
         <span class="app-tab-icon">📋</span><span class="app-tab-label">Data</span></button>
+      <button class="app-tab" data-module="triage" role="tab" aria-selected="false"
+              title="Photo triage — tag photos to assets &amp; drop pins">
+        <span class="app-tab-icon">📷</span><span class="app-tab-label">Triage</span></button>
       <button class="app-tab app-tab-gear" id="header-styleguide-btn" type="button"
               title="Style Guide &amp; Labels" aria-label="Style Guide">
         <span class="app-tab-icon">◈</span><span class="app-tab-label">Style</span></button>
@@ -9122,6 +9241,71 @@ body.mobile-mode #app {
       </div><!-- /#data-content -->
 
     </div><!-- /#mod-data -->
+
+    <!-- ============================================================
+         MODULE: TRIAGE  (Photo triage workflow)
+         Two-pane: a scrollable filmstrip of all geophotos on the left,
+         a map preview on the right. Tap photos in either pane to add
+         them to a selection. Tag the selection as a type (Sign,
+         Guardrail, Swale, Milepost, Parking, Edge drop, Sidewalk,
+         Other) -- they get an asset_group_id + group_type. "Drop pin
+         at centroid" then creates the actual asset pin in the
+         nearest section and links the selected photos to it. Photos
+         stay loose in the photo layer AND get linked.
+         ============================================================ -->
+    <div id="mod-triage" class="module-view">
+      <div class="tg-wrap">
+        <!-- LEFT: filmstrip + filter chips -->
+        <aside class="tg-side">
+          <div class="tg-side-head">
+            <span class="tg-side-title">Photos</span>
+            <span class="tg-count" id="tg-count">0</span>
+            <button class="tg-btn-tiny" id="tg-select-clear" type="button" title="Clear selection">✕ Clear</button>
+          </div>
+          <div class="tg-filters" id="tg-filters">
+            <button class="tg-chip active" data-filter="all">All</button>
+            <button class="tg-chip" data-filter="untagged">Untagged</button>
+            <button class="tg-chip" data-filter="grouped">Grouped</button>
+            <button class="tg-chip" data-filter="linked">Linked</button>
+          </div>
+          <div class="tg-strip" id="tg-strip">
+            <!-- Cards injected by renderTriage() -->
+          </div>
+        </aside>
+
+        <!-- RIGHT: shared map (reuses the geophoto layer + bundle alignments) -->
+        <section class="tg-main">
+          <div class="tg-mini-map" id="tg-map"></div>
+        </section>
+      </div>
+
+      <!-- Sticky action bar — appears when 1+ photos are selected -->
+      <div class="tg-action-bar" id="tg-action-bar" hidden>
+        <span class="tg-sel-count" id="tg-sel-count">0 selected</span>
+        <div class="tg-type-row" id="tg-type-row">
+          <button class="tg-type" data-type="sign">Sign</button>
+          <button class="tg-type" data-type="guardrail">Guardrail</button>
+          <button class="tg-type" data-type="wall">Ret. Wall</button>
+          <button class="tg-type" data-type="swale">Swale</button>
+          <button class="tg-type" data-type="mile_marker">Milepost</button>
+          <button class="tg-type" data-type="parking">Parking</button>
+          <button class="tg-type" data-type="edge_drop">Edge drop</button>
+          <button class="tg-type" data-type="sidewalk">Sidewalk</button>
+          <button class="tg-type" data-type="culvert">Culvert</button>
+          <button class="tg-type" data-type="other">Other</button>
+        </div>
+        <div class="tg-action-final">
+          <button class="tg-drop" id="tg-drop-pin" type="button" disabled
+                  title="Drop a pin at the centroid of the selected photos">
+            ⊕ Drop pin
+          </button>
+          <button class="tg-btn-secondary" id="tg-ungroup" type="button"
+                  title="Remove asset_group_id from the selection">
+            Ungroup
+          </button>
+        </div>
+      </div>
+    </div>
 
     <!-- ============================================================
          MODULE: SAFETY  (Phase 4 — scaffold placeholder)
@@ -24883,7 +25067,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
 
   function showModule(name) {
     // Guard: ignore unknown module names
-    const VALID = ['map', 'dashboard', 'data', 'safety', 'log', 'settings', 'project'];
+    const VALID = ['map', 'dashboard', 'data', 'safety', 'log', 'settings', 'project', 'triage'];
     if (!VALID.includes(name)) {
       console.warn('[RoadWalk] showModule: unknown module "' + name + '"');
       return;
@@ -24952,6 +25136,11 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     // ── Daily Log module: rebuild the day cards on tab switch ──
     if (name === 'log' && typeof renderDailyLog === 'function') {
       renderDailyLog();
+    }
+
+    // ── Photo Triage module: rebuild the filmstrip + mini-map on tab switch ──
+    if (name === 'triage' && typeof window.renderTriage === 'function') {
+      window.renderTriage();
     }
 
     // ── Map module switch: resize + re-render once the panel is visible ──
@@ -31832,6 +32021,355 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     document.addEventListener('DOMContentLoaded', init);
   } else {
     init();
+  }
+
+  /* ===================== Public API for the Triage module =====================
+     Exposed so the cross-IIFE Photo Triage module can read photos, write
+     edits + groupings back, and re-render the map layer after bulk changes. */
+  window._RW = window._RW || {};
+  window._RW.geophotos = {
+    list:        function () { return PHOTOS.slice(); },
+    get:         function (id) { return PHOTOS.find(function (p) { return p.id === id; }) || null; },
+    save:        function (p) { return dbPut(p); },
+    saveMany:    function (ps) { return Promise.all(ps.map(dbPut)); },
+    newGroupId:  _newGroupId,
+    groupColor:  _groupColor,
+    members:     _groupMembers,
+    resolveLink: _resolveLink,
+    refresh:     function () { render(); updateCount(); },
+    centroid:    function (ids) {
+      var sel = PHOTOS.filter(function (p) { return ids.indexOf(p.id) !== -1; });
+      if (!sel.length) return null;
+      var la = 0, lo = 0;
+      sel.forEach(function (p) { la += p.lat; lo += p.lng; });
+      return { lat: la / sel.length, lng: lo / sel.length, count: sel.length };
+    },
+  };
+})();
+
+/* ============================================================================
+   PHOTO TRIAGE module — filmstrip + mini-map for bulk tagging
+   ----------------------------------------------------------------------------
+   Reads photos via window._RW.geophotos; writes back via the same API.
+   Tap photo cards in the filmstrip OR markers on the mini-map to toggle
+   selection. Tagging the selection mints (or merges) an asset_group_id and
+   stamps a group_type on each photo. "Drop pin" creates a real asset pin
+   at the centroid in the nearest bundle section and links the photos.
+   ========================================================================== */
+(function wireTriage() {
+  var selectedIds = new Set();
+  var currentFilter = 'all';
+  var miniMap = null;
+  var miniLayer = null;
+  var miniMarkers = new Map();         // photoId → L.circleMarker
+
+  function $g(id) { return document.getElementById(id); }
+  function api() { return (window._RW && window._RW.geophotos) || null; }
+  function photos() { return api() ? api().list() : []; }
+  function groupColor(gid) { return api() ? api().groupColor(gid) : '#c85a2b'; }
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+  var TYPE_LABELS = {
+    sign: 'SIGN', guardrail: 'GUARD', wall: 'WALL', swale: 'SWALE',
+    mile_marker: 'MILE', parking: 'PARK', edge_drop: 'EDGE',
+    sidewalk: 'SIDEWLK', culvert: 'CULV', other: 'OTHER',
+  };
+  // Best-fit pin kind for each tag type. Line/polygon kinds become POINT
+  // pt_misc_other pins for now; the user can promote them via vertex edit.
+  var TYPE_TO_KIND = {
+    sign: 'sign', guardrail: 'guardrail', wall: 'wall',
+    swale: 'pt_misc_other', mile_marker: 'mile_marker',
+    parking: 'parking', edge_drop: 'pt_misc_other',
+    sidewalk: 'pt_misc_other', culvert: 'culvert', other: 'pt_misc_other',
+  };
+  var TYPE_TO_PREFIX = {
+    sign: 'SIG', guardrail: 'GUA', wall: 'WAL', swale: 'SWL',
+    mile_marker: 'MIL', parking: 'PAR', edge_drop: 'EDG',
+    sidewalk: 'SDW', culvert: 'CUL', other: 'OTH',
+  };
+
+  function passesFilter(p) {
+    if (currentFilter === 'all')      return true;
+    if (currentFilter === 'untagged') return !p.asset_group_id && !p.linked_pin_id;
+    if (currentFilter === 'grouped')  return !!p.asset_group_id;
+    if (currentFilter === 'linked')   return !!p.linked_pin_id;
+    return true;
+  }
+
+  function _markerStyle(p) {
+    var sel = selectedIds.has(p.id);
+    var color = p.asset_group_id ? groupColor(p.asset_group_id)
+              : p.linked_pin_id  ? '#0B3D66'
+              : '#999';
+    return {
+      radius: sel ? 9 : 5.5,
+      color: sel ? '#fff' : color,
+      weight: sel ? 3 : 2,
+      fillColor: color,
+      fillOpacity: 0.95,
+    };
+  }
+
+  function renderStrip() {
+    var strip = $g('tg-strip');
+    if (!strip) return;
+    var ps = photos().filter(passesFilter);
+    $g('tg-count').textContent = ps.length;
+    strip.innerHTML = '';
+    if (!ps.length) {
+      strip.innerHTML = '<div style="grid-column:1/-1;padding:20px;text-align:center;' +
+        'color:var(--ink-3);font-size:12px">No photos here yet. Capture some via the map ' +
+        'or import via the Photos panel, then come back.</div>';
+      updateActionBar();
+      return;
+    }
+    ps.forEach(function (p) {
+      var card = document.createElement('div');
+      card.className = 'tg-card' + (selectedIds.has(p.id) ? ' selected' : '');
+      card.dataset.photoId = p.id;
+      var bits = [];
+      if (p.group_type) bits.push('<div class="tg-type-tag">' + escapeHtml(TYPE_LABELS[p.group_type] || p.group_type.toUpperCase()) + '</div>');
+      bits.push('<img src="' + p.dataUrl + '" alt="">');
+      var meta = [];
+      if (p.asset_group_id) {
+        meta.push('<span class="tg-group-dot" style="background:' + groupColor(p.asset_group_id) + '"></span>Group');
+      }
+      if (p.linked_pin_id) meta.push('<span class="tg-linked">🔗</span>');
+      if (!meta.length) meta.push('<span style="color:#bbb">untagged</span>');
+      bits.push('<div class="tg-meta">' + meta.join(' · ') + '</div>');
+      card.innerHTML = bits.join('');
+      card.addEventListener('click', function () { toggleSelection(p.id); });
+      strip.appendChild(card);
+    });
+    updateActionBar();
+  }
+
+  function toggleSelection(id) {
+    if (selectedIds.has(id)) selectedIds.delete(id);
+    else                     selectedIds.add(id);
+    document.querySelectorAll('.tg-card').forEach(function (c) {
+      c.classList.toggle('selected', selectedIds.has(c.dataset.photoId));
+    });
+    photos().forEach(function (p) {
+      var m = miniMarkers.get(p.id);
+      if (m) m.setStyle(_markerStyle(p));
+    });
+    updateActionBar();
+  }
+
+  function updateActionBar() {
+    var bar = $g('tg-action-bar');
+    if (!bar) return;
+    var n = selectedIds.size;
+    if (!n) { bar.hidden = true; return; }
+    bar.hidden = false;
+    $g('tg-sel-count').textContent = n + ' selected';
+    $g('tg-drop-pin').disabled = false;
+    // Highlight the type button matching the selection's common group_type
+    var common = null;
+    photos().forEach(function (p) {
+      if (!selectedIds.has(p.id)) return;
+      var t = p.group_type || '';
+      if (common === null) common = t;
+      else if (common !== t) common = '__mixed__';
+    });
+    document.querySelectorAll('.tg-type').forEach(function (b) {
+      b.classList.toggle('assigned', common && common !== '__mixed__' && b.dataset.type === common);
+    });
+  }
+
+  function ensureMiniMap() {
+    if (miniMap || !window.L) return miniMap;
+    var div = $g('tg-map');
+    if (!div) return null;
+    miniMap = L.map('tg-map', { zoomControl: true, attributionControl: false });
+    L.tileLayer(
+      'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      { maxZoom: 20 }
+    ).addTo(miniMap);
+    miniLayer = L.layerGroup().addTo(miniMap);
+    // Default view — first section's center if available
+    var ctr = [35.68, -83.52];
+    try {
+      if (window.SECTIONS && window.SECTIONS[0] && Array.isArray(window.SECTIONS[0].center))
+        ctr = window.SECTIONS[0].center;
+    } catch (e) {}
+    miniMap.setView(ctr, 14);
+    return miniMap;
+  }
+
+  function renderMiniMarkers() {
+    var map = ensureMiniMap();
+    if (!map) return;
+    miniLayer.clearLayers();
+    miniMarkers.clear();
+    var ps = photos().filter(passesFilter);
+    var bounds = [];
+    ps.forEach(function (p) {
+      var m = L.circleMarker([p.lat, p.lng], _markerStyle(p));
+      m.on('click', function () { toggleSelection(p.id); });
+      m.bindTooltip(
+        '<img src="' + p.dataUrl + '" alt="" style="width:140px;height:105px;' +
+        'object-fit:cover;display:block;border-radius:3px">',
+        { direction: 'top', className: 'gp-tooltip', opacity: 0.98, sticky: true }
+      );
+      miniLayer.addLayer(m);
+      miniMarkers.set(p.id, m);
+      bounds.push([p.lat, p.lng]);
+    });
+    if (bounds.length) {
+      try { map.fitBounds(bounds, { padding: [30, 30], maxZoom: 18 }); } catch (e) {}
+    }
+    setTimeout(function () { try { map.invalidateSize(); } catch (e) {} }, 50);
+  }
+
+  function tagSelectedAs(type) {
+    var A = api(); if (!A || !selectedIds.size) return;
+    var sel = A.list().filter(function (p) { return selectedIds.has(p.id); });
+    if (!sel.length) return;
+    // Reuse a common group_id if all selected already share one; else mint a new one.
+    var gids = new Set();
+    sel.forEach(function (p) { if (p.asset_group_id) gids.add(p.asset_group_id); });
+    var gid = gids.size === 1 ? gids.values().next().value : A.newGroupId();
+    sel.forEach(function (p) { p.asset_group_id = gid; p.group_type = type; });
+    A.saveMany(sel).then(function () {
+      A.refresh();
+      renderStrip();
+      renderMiniMarkers();
+    });
+  }
+
+  function ungroupSelected() {
+    var A = api(); if (!A || !selectedIds.size) return;
+    var sel = A.list().filter(function (p) { return selectedIds.has(p.id); });
+    sel.forEach(function (p) { delete p.asset_group_id; delete p.group_type; });
+    A.saveMany(sel).then(function () { A.refresh(); renderStrip(); renderMiniMarkers(); });
+  }
+
+  function dropPinAtCentroid() {
+    var A = api(); if (!A || !selectedIds.size) return;
+    var ids = Array.from(selectedIds);
+    var c = A.centroid(ids);
+    if (!c) return;
+    if (!window.SECTIONS || !window.SECTIONS.length) {
+      window.alert('No project sections loaded yet — pick a project first.');
+      return;
+    }
+    // Nearest section by min distance from centroid to any alignment vertex.
+    var R = 6371000, rad = Math.PI / 180;
+    function dM(la1, lo1, la2, lo2) {
+      var p1 = la1 * rad, p2 = la2 * rad;
+      var dp = (la2 - la1) * rad, dn = (lo2 - lo1) * rad;
+      var x = Math.sin(dp / 2) ** 2 + Math.cos(p1) * Math.cos(p2) * Math.sin(dn / 2) ** 2;
+      return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+    }
+    var nearest = null, bestD = Infinity;
+    window.SECTIONS.forEach(function (sec) {
+      if (!Array.isArray(sec.alignment)) return;
+      sec.alignment.forEach(function (v) {
+        var d = dM(c.lat, c.lng, v[0], v[1]);
+        if (d < bestD) { bestD = d; nearest = sec; }
+      });
+    });
+    if (!nearest) { window.alert('No nearby section found.'); return; }
+
+    // Decide kind from common group_type, default 'other'.
+    var types = new Set();
+    A.list().forEach(function (p) {
+      if (selectedIds.has(p.id) && p.group_type) types.add(p.group_type);
+    });
+    var t = types.size === 1 ? types.values().next().value : 'other';
+    var pinKind = TYPE_TO_KIND[t] || 'pt_misc_other';
+    var prefix  = TYPE_TO_PREFIX[t] || 'OTH';
+    // Sequential id like "E-SIG-068". Find next free number for this prefix.
+    var used = new Set((nearest.pins || []).map(function (p) {
+      var m = /^([A-Z]+)-([A-Z]+)-(\d+)$/.exec(p && p.id || '');
+      return m ? m[2] + '-' + parseInt(m[3], 10) : '';
+    }));
+    var n = 1;
+    while (used.has(prefix + '-' + n)) n++;
+    var pinId = nearest.id + '-' + prefix + '-' + String(n).padStart(3, '0');
+    var newPin = {
+      id: pinId,
+      kind: pinKind,
+      source: 'photo_triage',
+      status: 'pending',
+      _userAdded: true,
+      geometry: { type: 'Point', coordinates: [c.lng, c.lat] },
+      attrs: {
+        name: (TYPE_LABELS[t] || t) + ' (from photo triage)',
+        notes: 'Created from ' + ids.length + ' tagged photo' + (ids.length === 1 ? '' : 's'),
+        _photo_centroid_count: ids.length,
+      },
+    };
+    nearest.pins = nearest.pins || [];
+    nearest.pins.push(newPin);
+    if (window._RW && typeof window._RW.persistSections === 'function') {
+      window._RW.persistSections();
+    }
+    // Tag photos with linked_pin_id
+    var sel = A.list().filter(function (p) { return selectedIds.has(p.id); });
+    sel.forEach(function (p) { p.linked_pin_id = nearest.id + '::' + newPin.id; });
+    A.saveMany(sel).then(function () {
+      A.refresh();
+      if (window._RW && typeof window._RW.rerender === 'function') window._RW.rerender();
+      window.alert(
+        'Dropped ' + pinId + ' in section "' + nearest.name + '".\n' +
+        ids.length + ' photo' + (ids.length === 1 ? ' is' : 's are') + ' now linked to it.'
+      );
+      selectedIds.clear();
+      renderStrip();
+      renderMiniMarkers();
+    });
+  }
+
+  function initTriage() {
+    if (!$g('tg-strip')) return;       // module HTML not present
+    // Filter chips
+    document.querySelectorAll('#tg-filters .tg-chip').forEach(function (b) {
+      b.addEventListener('click', function () {
+        document.querySelectorAll('#tg-filters .tg-chip').forEach(function (x) { x.classList.remove('active'); });
+        b.classList.add('active');
+        currentFilter = b.dataset.filter;
+        renderStrip();
+        renderMiniMarkers();
+      });
+    });
+    // Clear selection
+    var clr = $g('tg-select-clear');
+    if (clr) clr.addEventListener('click', function () {
+      selectedIds.clear();
+      document.querySelectorAll('.tg-card').forEach(function (c) { c.classList.remove('selected'); });
+      photos().forEach(function (p) {
+        var m = miniMarkers.get(p.id); if (m) m.setStyle(_markerStyle(p));
+      });
+      updateActionBar();
+    });
+    // Type buttons
+    document.querySelectorAll('.tg-type').forEach(function (b) {
+      b.addEventListener('click', function () { tagSelectedAs(b.dataset.type); });
+    });
+    var drop = $g('tg-drop-pin');
+    if (drop) drop.addEventListener('click', dropPinAtCentroid);
+    var ung = $g('tg-ungroup');
+    if (ung) ung.addEventListener('click', ungroupSelected);
+  }
+
+  // Exposed for showModule('triage')
+  window.renderTriage = function () {
+    if (!$g('tg-strip')) return;
+    renderStrip();
+    renderMiniMarkers();
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initTriage);
+  } else {
+    initTriage();
   }
 })();
 </script>
