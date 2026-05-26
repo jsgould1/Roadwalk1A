@@ -4053,26 +4053,60 @@ a { color: inherit; text-decoration: none; }
   border-right: 1px solid var(--rule);
 }
 .tk-row-lbl b { color: var(--ink); font-weight: 700; }
-/* Thumbs are absolutely positioned at left = sta_ft × scale, top = 24px */
+/* Thumbs are absolutely positioned at left = sta_ft × scale, top = 24px.
+   Width is driven by the --tk-thumb-w custom property so the user can
+   resize them at runtime from the header slider. Height tracks 3:4 aspect. */
+.tk-row { --tk-thumb-w: 84px; }
 .tk-thumb {
   position: absolute; top: 24px;
-  width: 48px; height: 36px; object-fit: cover;
-  border: 2px solid transparent; border-radius: 3px;
+  width: var(--tk-thumb-w, 84px);
+  height: calc(var(--tk-thumb-w, 84px) * 0.75);
+  object-fit: cover;
+  border: 3px solid transparent; border-radius: 3px;
   cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.35);
   transition: transform 80ms;
 }
-.tk-thumb:hover { transform: scale(1.15); z-index: 5; }
+.tk-thumb:hover { transform: scale(1.08); z-index: 5; box-shadow: 0 4px 12px rgba(0,0,0,0.45); }
 .tk-thumb.selected {
   border-color: var(--blue); transform: scale(1.1);
-  box-shadow: 0 0 0 2px #fff, 0 2px 6px rgba(0,0,0,0.45);
+  box-shadow: 0 0 0 2px #fff, 0 4px 10px rgba(0,0,0,0.55); z-index: 6;
 }
-.tk-thumb.grouped {
-  border-color: var(--gp-group-color, #c85a2b);
+.tk-thumb.selected::after {
+  content: '✓'; position: absolute; right: -8px; top: -8px;
+  background: var(--blue); color: #fff;
+  width: 22px; height: 22px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font: 700 13px 'IBM Plex Sans', sans-serif;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.4); pointer-events: none;
 }
-.tk-thumb.linked::after {
-  content: '🔗'; position: absolute; right: -3px; bottom: -3px;
-  background: #fff; border-radius: 50%; padding: 1px 3px; font-size: 9px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+/* Above is a pseudo-element that won't render on a real <img>. Real check
+   badge is drawn by a separate <span> sibling created in JS so it sits on
+   top of the image rather than nested. */
+.tk-thumb-check {
+  position: absolute; z-index: 7; width: 24px; height: 24px;
+  background: var(--blue); color: #fff; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font: 800 13px 'IBM Plex Sans', sans-serif;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.45); pointer-events: none;
+}
+.tk-thumb.grouped { border-color: var(--gp-group-color, #c85a2b); }
+.tk-thumb.linked-mark {   /* class added in JS — :after on a replaced element doesn't render */
+  outline: 2px solid var(--blue); outline-offset: 1px;
+}
+/* Floating large preview used on hover ----------------------------------- */
+#tk-hover-preview {
+  position: fixed; pointer-events: none; z-index: 14000;
+  display: none; background: #fff;
+  border: 1px solid var(--rule, #d8dde2); border-radius: 6px;
+  padding: 4px; box-shadow: 0 6px 22px rgba(0,0,0,0.45);
+}
+#tk-hover-preview img {
+  display: block; width: 320px; height: 240px; object-fit: cover; border-radius: 3px;
+}
+#tk-hover-preview-meta {
+  margin-top: 4px; padding: 0 2px 2px;
+  font: 600 10.5px 'IBM Plex Sans', sans-serif; color: var(--ink-2, #44516b);
+  max-width: 320px;
 }
 /* Unmapped strip at the bottom */
 .tk-unmapped {
@@ -4115,9 +4149,19 @@ a { color: inherit; text-decoration: none; }
   box-shadow: 0 -3px 12px rgba(0,0,0,0.08);
 }
 .tk-action-bar[hidden] { display: none; }
+/* Disabled visual state when nothing's selected — the bar stays visible so
+   the Group button is always discoverable. */
+.tk-action-bar.is-empty .tk-sel-count {
+  background: transparent; color: var(--ink-3); border: 1px dashed var(--rule);
+}
+.tk-action-bar.is-empty .tk-type,
+.tk-action-bar.is-empty .tk-group,
+.tk-action-bar.is-empty .tk-drop {
+  opacity: 0.4; pointer-events: none;
+}
 .tk-sel-count {
   font: 700 12px 'IBM Plex Sans', sans-serif; color: #fff;
-  background: var(--blue); padding: 4px 9px; border-radius: 3px;
+  background: var(--blue); padding: 5px 11px; border-radius: 3px;
 }
 .tk-type-row { display: flex; gap: 4px; flex-wrap: wrap; flex: 1; }
 .tk-type {
@@ -8303,6 +8347,13 @@ body.mobile-mode #app {
     <button id="gp-group-banner-cancel" type="button">Cancel</button>
   </div>
 
+  <!-- Hover-preview element used by the Tracks tab — populated + positioned
+       by mouseenter on any tk-thumb, hidden by mouseleave. Cursor-followable. -->
+  <div id="tk-hover-preview" aria-hidden="true">
+    <img id="tk-hover-preview-img" alt="">
+    <div id="tk-hover-preview-meta"></div>
+  </div>
+
   <!-- SVG fill patterns for hatched polygon feature kinds. A polygon path
        elsewhere references these by id via fill="url(#…)" — the browser
        resolves the reference document-wide, so the patterns can live here
@@ -9594,9 +9645,12 @@ body.mobile-mode #app {
             <option value="3600">1 hour</option>
             <option value="day">Per-day</option>
           </select>
-          <label class="tk-head-lbl">Zoom</label>
-          <input id="tk-zoom" type="range" min="0.05" max="2" step="0.05" value="0.3"
-                 title="Pixels per foot of station">
+          <label class="tk-head-lbl">STA zoom</label>
+          <input id="tk-zoom" type="range" min="0.1" max="8" step="0.1" value="0.6"
+                 title="Pixels per foot of station — slide right to spread photos apart">
+          <label class="tk-head-lbl">Thumb</label>
+          <input id="tk-thumb-size" type="range" min="48" max="160" step="8" value="84"
+                 title="Photo thumbnail size in pixels">
           <span id="tk-stats" class="tk-stats">—</span>
         </div>
       </div>
@@ -9616,8 +9670,8 @@ body.mobile-mode #app {
         <div class="tk-unmapped-strip" id="tk-um-strip"></div>
       </div>
 
-      <div class="tk-action-bar" id="tk-action-bar" hidden>
-        <span class="tk-sel-count" id="tk-sel-count">0 selected</span>
+      <div class="tk-action-bar" id="tk-action-bar">
+        <span class="tk-sel-count" id="tk-sel-count">Tap photos to select</span>
         <div class="tk-type-row" id="tk-type-row">
           <button class="tk-type" data-type="sign">Sign</button>
           <button class="tk-type" data-type="guardrail">Guardrail</button>
@@ -32989,7 +33043,8 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   var selectedIds = new Set();
   var currentSectionId = null;
   var visitGapMode     = '1800';   // seconds, or 'day'
-  var pxPerFt          = 0.3;       // zoom; updated by the slider
+  var pxPerFt          = 0.6;       // zoom; updated by the STA-zoom slider
+  var thumbSizePx      = 84;        // updated by the thumb-size slider
   var PERP_TOL_FT      = 300;
   var thumbCache       = new Map(); // photoId → mapping {sta_ft, sec_id, perp_ft} or null
 
@@ -33213,6 +33268,9 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         var row = document.createElement('div');
         row.className = 'tk-row';
         row.style.width = rowWidth + 'px';
+        row.style.setProperty('--tk-thumb-w', thumbSizePx + 'px');
+        // Set a min-height so the row always fits its thumbs.
+        row.style.minHeight = (24 + thumbSizePx * 0.75 + 8) + 'px';
         var lbl = document.createElement('span');
         lbl.className = 'tk-row-lbl';
         lbl.innerHTML = _visitLabel(visit);
@@ -33223,20 +33281,22 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
           var img = document.createElement('img');
           img.className = 'tk-thumb' +
             (selectedIds.has(p.id) ? ' selected' : '') +
-            (p.asset_group_id ? ' grouped' : '') +
-            (p.linked_pin_id ? ' linked' : '');
+            (p.asset_group_id ? ' grouped' : '');
           img.src = p.dataUrl;
           img.alt = p.description || '';
-          img.title = (p.description || '') + ' · STA ' + ((m.sta_ft / 100 | 0) + '+' + ('0' + Math.round(m.sta_ft % 100)).slice(-2)) +
-            ' · ' + Math.round(m.perp_ft) + ' ft off';
+          var staLbl = ((m.sta_ft / 100 | 0) + '+' + ('0' + Math.round(m.sta_ft % 100)).slice(-2));
+          img.dataset.photoId = p.id;
+          img.dataset.hoverDesc = p.description || '';
+          img.dataset.hoverMeta = 'STA ' + staLbl + ' · ' + Math.round(m.perp_ft) + ' ft off centerline';
           img.style.left = (labelW + m.sta_ft * pxPerFt) + 'px';
           if (p.asset_group_id && api()) {
             img.style.setProperty('--gp-group-color', api().groupColor(p.asset_group_id));
           }
-          img.addEventListener('click', function (e) {
-            // Shift-click to range-select within this visit's thumbs (handy for big rows)
-            toggleSelection(p.id);
-          });
+          img.addEventListener('click', function () { toggleSelection(p.id); });
+          // Hover preview (mouse devices only — touch never fires mouseenter).
+          img.addEventListener('mouseenter', _showHoverPreview);
+          img.addEventListener('mousemove',  _moveHoverPreview);
+          img.addEventListener('mouseleave', _hideHoverPreview);
           row.appendChild(img);
         });
         grid.appendChild(row);
@@ -33276,6 +33336,40 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     if (grid) grid.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-3);font-size:12px">' + escapeHtml(msg) + '</div>';
   }
 
+  /* ---------- Hover preview helpers ---------- */
+  function _showHoverPreview(e) {
+    var img = e.currentTarget;
+    var box = document.getElementById('tk-hover-preview');
+    var bImg = document.getElementById('tk-hover-preview-img');
+    var bMeta = document.getElementById('tk-hover-preview-meta');
+    if (!box || !bImg) return;
+    bImg.src = img.src;
+    var desc = img.dataset.hoverDesc || '';
+    var meta = img.dataset.hoverMeta || '';
+    if (bMeta) bMeta.innerHTML = (desc ? '<div>' + escapeHtml(desc) + '</div>' : '') +
+                                  (meta ? '<div style="color:var(--ink-3);font:600 9.5px IBM Plex Mono,monospace">' + escapeHtml(meta) + '</div>' : '');
+    box.style.display = 'block';
+    _moveHoverPreview(e);
+  }
+  function _moveHoverPreview(e) {
+    var box = document.getElementById('tk-hover-preview');
+    if (!box || box.style.display !== 'block') return;
+    var pad = 18;
+    var rect = box.getBoundingClientRect();
+    var w = rect.width || 332, h = rect.height || 280;
+    var x = e.clientX + pad;
+    var y = e.clientY - h - pad;     // above-right of cursor by default
+    if (x + w > window.innerWidth)  x = e.clientX - w - pad;
+    if (y < 0)                      y = e.clientY + pad;
+    if (y + h > window.innerHeight) y = window.innerHeight - h - 4;
+    box.style.left = Math.max(4, x) + 'px';
+    box.style.top  = Math.max(4, y) + 'px';
+  }
+  function _hideHoverPreview() {
+    var box = document.getElementById('tk-hover-preview');
+    if (box) box.style.display = 'none';
+  }
+
   function toggleSelection(id) {
     if (selectedIds.has(id)) selectedIds.delete(id);
     else                     selectedIds.add(id);
@@ -33285,11 +33379,15 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   function updateActionBar() {
     var bar = $g('tk-action-bar');
     if (!bar) return;
+    bar.hidden = false;   // always visible — buttons grey out when empty
     var n = selectedIds.size;
-    if (!n) { bar.hidden = true; return; }
-    bar.hidden = false;
-    $g('tk-sel-count').textContent = n + ' selected';
-    $g('tk-drop-pin').disabled = false;
+    bar.classList.toggle('is-empty', n === 0);
+    var ct = $g('tk-sel-count');
+    if (ct) ct.textContent = n === 0
+      ? 'Tap photos to select'
+      : n + ' selected · click Group to combine';
+    var dp = $g('tk-drop-pin');
+    if (dp) dp.disabled = n === 0;
     // Highlight the type button matching the selection's common group_type
     var common = null;
     photos().forEach(function (p) {
@@ -33390,7 +33488,12 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     });
     var zm = $g('tk-zoom');
     if (zm) zm.addEventListener('input', function (e) {
-      pxPerFt = parseFloat(e.target.value) || 0.3;
+      pxPerFt = parseFloat(e.target.value) || 0.6;
+      renderTracks();
+    });
+    var ts = $g('tk-thumb-size');
+    if (ts) ts.addEventListener('input', function (e) {
+      thumbSizePx = parseInt(e.target.value, 10) || 84;
       renderTracks();
     });
     var clr = $g('tk-clear');
