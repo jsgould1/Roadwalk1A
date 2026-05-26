@@ -9764,8 +9764,8 @@ body.mobile-mode #app {
             <option value="day">Per-day</option>
           </select>
           <label class="tk-head-lbl">STA zoom</label>
-          <input id="tk-zoom" type="range" min="0.1" max="8" step="0.1" value="0.6"
-                 title="Pixels per foot of station — slide right to spread photos apart">
+          <input id="tk-zoom" type="range" min="0.4" max="10" step="0.2" value="2.4"
+                 title="Pixels per foot — at 2.4 a 500 ft window is 10 bins (50 ft each)">
           <label class="tk-head-lbl">Thumb</label>
           <input id="tk-thumb-size" type="range" min="64" max="240" step="8" value="120"
                  title="Photo thumbnail size in pixels">
@@ -33290,8 +33290,15 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   var selectedIds = new Set();
   var currentSectionId = null;
   var visitGapMode     = '1800';   // seconds, or 'day'
-  var pxPerFt          = 0.6;       // zoom; updated by the STA-zoom slider
+  var pxPerFt          = 2.4;       // zoom; updated by the STA-zoom slider
+                                    // — default 2.4 puts 50 ft bins exactly
+                                    //   one 120 px thumb apart (10 bins / 500 ft)
   var thumbSizePx      = 120;       // updated by the thumb-size slider
+  var BIN_FT           = 50;        // FIXED bin width along STA. Per user
+                                    // direction: 500/50 = 10 columns per page.
+                                    // Decoupled from zoom on purpose — zoom
+                                    // only stretches the X axis; the data
+                                    // quanta stay 50 ft regardless.
   var PERP_TOL_FT      = 300;
   var thumbCache       = new Map(); // photoId → mapping {sta_ft, sec_id, perp_ft} or null
 
@@ -33533,16 +33540,14 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         row.appendChild(lbl);
 
         // ── Build stacks via fixed STA bins ──────────────────────────────
-        // Each bin is one thumb-width wide in STA-feet. A photo drops into
-        // bin = floor(sta_ft / binFt). Bins never accumulate width, so a
-        // continuous walk no longer collapses into a single runaway stack
-        // — at high zoom levels the bins shrink and stacks naturally break
-        // apart into individually visible tiles. The cluster's render
-        // position is the centroid of its members' actual sta_ft, so
-        // photos land where their GPS says rather than at the bin centre.
+        // Bin width is HARDCODED to BIN_FT (= 50 ft). A photo drops into
+        // bin = floor(sta_ft / binFt). Bins never accumulate width and
+        // never drift with zoom — zoom only stretches the X axis on
+        // screen; the data quanta are constant. With the default 2.4 px/ft
+        // a 50 ft bin renders as 120 px, i.e., 10 bins / 500 ft.
         var photoH        = thumbSizePx * 0.75;
         var vertStep      = Math.max(14, Math.round(photoH * 0.28));
-        var binFt         = Math.max(1, thumbSizePx / pxPerFt);
+        var binFt         = BIN_FT;
         var bins          = new Map();
         var sorted        = visit.slice().sort(function (a, b) {
           var ma = thumbCache.get(a.id), mb = thumbCache.get(b.id);
@@ -33862,7 +33867,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     });
     var zm = $g('tk-zoom');
     if (zm) zm.addEventListener('input', function (e) {
-      pxPerFt = parseFloat(e.target.value) || 0.6;
+      pxPerFt = parseFloat(e.target.value) || 2.4;
       renderTracks();
     });
     var ts = $g('tk-thumb-size');
