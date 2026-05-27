@@ -16939,8 +16939,15 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     const KIND_TO_SLOT = {
       ln_guardrail: 'guardrail', ln_retaining_wall: 'guardrail', ln_barrier: 'guardrail',
       ln_curb: 'curb', ln_cg: 'curb',
+      // Pavement widening — a continuation of the road surface; sits at the
+      // very edge of the pavement band (slot 0). Same slot family as curb so
+      // the layer-vis toggle for "curb" can hide both together if needed.
+      ln_pvmt_widening: 'curb',
       ln_sidewalk: 'sidewalk', pg_sidewalk: 'sidewalk',
       ln_swale: 'swale', ln_drain_other: 'swale',
+      // Paved swale — same drainage slot as unpaved swale; differs only in
+      // styling (solid rather than dashed) per the styleguide defaults.
+      ln_paved_swale: 'swale',
       ln_fence: 'fence',
       ln_culvert: 'line', ln_box_culvert: 'line', ln_pvmt_change: 'line', pavement_change: 'line',
       bridge_line: 'line', ln_ug: 'line', ln_oh: 'line',
@@ -16955,6 +16962,10 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     const _KIND_SLOT_LV = {
       ln_guardrail:3, ln_retaining_wall:4, ln_barrier:2,
       ln_curb:1, ln_cg:1, ln_sidewalk:2, pg_sidewalk:2,
+      // Pavement widening renders flush with the road edge (level 0) since
+      // it IS the pavement extension. Paved swale matches unpaved swale at
+      // level 5 — outboard of curb + sidewalk.
+      ln_pvmt_widening:0, ln_paved_swale:5,
       ln_swale:5, ln_drain_other:5, ln_fence:6,
       // Bundle short-kind names  (wall at slot 5 — one clear slot above guardrail's
       // thick:6 bar, giving a 4 px gap rather than the 1 px overlap at slot 4)
