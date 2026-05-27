@@ -4216,6 +4216,17 @@ a { color: inherit; text-decoration: none; }
   box-shadow: 3px 3px 0 0 rgba(0,0,0,0.18), 6px 6px 0 0 rgba(0,0,0,0.10);
   z-index: -1;
 }
+/* Cover-photo star — left side so it doesn't collide with the count badge */
+.tk-cover-star {
+  position: absolute; left: 4px; top: 4px;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: rgba(0,0,0,0.78); color: #f5c542;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; line-height: 1;
+  text-shadow: 0 1px 1px rgba(0,0,0,0.7);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.55);
+  pointer-events: none; z-index: 8;
+}
 /* Floating large preview used on hover ----------------------------------- */
 #tk-hover-preview {
   position: fixed; pointer-events: none; z-index: 14000;
@@ -4289,7 +4300,8 @@ a { color: inherit; text-decoration: none; }
 .tk-action-bar.is-empty .tk-type,
 .tk-action-bar.is-empty .tk-group,
 .tk-action-bar.is-empty .tk-drop,
-.tk-action-bar.is-empty .tk-link {
+.tk-action-bar.is-empty .tk-link,
+.tk-action-bar.is-empty .tk-cover {
   opacity: 0.4; pointer-events: none;
 }
 .tk-sel-count {
@@ -4336,6 +4348,11 @@ a { color: inherit; text-decoration: none; }
 .tk-drop:disabled { background: #9ca3af; border-color: #9ca3af; cursor: not-allowed; }
 .tk-link  { background: #6f3eb3; color: #fff; border: 1px solid #6f3eb3; }
 .tk-link:disabled { background: #9ca3af; border-color: #9ca3af; cursor: not-allowed; }
+.tk-cover { background: #fff; border: 1px solid #d4a90a; color: #b08600;
+            font: 700 11px 'IBM Plex Sans', sans-serif;
+            padding: 7px 12px; border-radius: 4px; cursor: pointer; }
+.tk-cover:disabled { background: #f3f4f6; border-color: #d1d5db; color: #9ca3af; cursor: not-allowed; }
+.tk-cover.assigned { background: #f5c542; border-color: #b08600; color: #4d3600; }
 /* Pin-picker modal — purple-accented to match the Link button */
 .tk-pin-picker[hidden] { display: none; }
 .tk-pin-picker {
@@ -9941,6 +9958,10 @@ body.mobile-mode #app {
                   title="Link the selected photos to an existing pin nearby">
             🔗 Link to pin
           </button>
+          <button class="tk-cover" id="tk-set-cover" type="button"
+                  title="Make the selected photo the group's cover (top-of-stack)">
+            ★ Cover
+          </button>
           <button class="tk-btn-secondary" id="tk-clear" type="button">✕ Clear</button>
         </div>
       </div>
@@ -11173,6 +11194,21 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
                 });
               } catch (err) {
                 console.warn('[RoadWalk] Export import: IDB restore error', err);
+              }
+              // Field photos (geophotos) live in a SEPARATE database
+              // (RoadWalkGeoPhotos_v1), so they're restored via the public
+              // API rather than the RWIdb transaction above. Importing
+              // these is what makes asset groups, link-to-pin, and cover
+              // photos survive a hand-off between users.
+              if (Array.isArray(parsed.geophotos) && parsed.geophotos.length
+                  && window._RW && window._RW.geophotos
+                  && typeof window._RW.geophotos.importBulk === 'function') {
+                try {
+                  const n = await window._RW.geophotos.importBulk(parsed.geophotos);
+                  console.log('[RoadWalk] Restored', n, 'field photos.');
+                } catch (gerr) {
+                  console.warn('[RoadWalk] geophoto import failed', gerr);
+                }
               }
             }
           }
@@ -17474,8 +17510,25 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         _lane.className = 'strip-photo-lane';
         inner.appendChild(_lane);
         var _allPhotos = window._RW.geophotos.list() || [];
-        var _added = 0, _withGps = 0, _outOfRange = 0;
+        // Collapse grouped photos to their cover so the lane shows ONE thumb
+        // per asset group (the cover, or first member if none is flagged).
+        var _gpApi2 = window._RW.geophotos;
+        var _seenGroups = Object.create(null);
+        var _laneInput = [];
         _allPhotos.forEach(function (p) {
+          if (!p) return;
+          if (p.asset_group_id) {
+            if (_seenGroups[p.asset_group_id]) return; // skip — cover already chosen
+            var members = _gpApi2.members ? _gpApi2.members(p) : [p];
+            var cov = _gpApi2.pickCover ? _gpApi2.pickCover(members) : members[0];
+            _seenGroups[p.asset_group_id] = true;
+            _laneInput.push(cov || p);
+          } else {
+            _laneInput.push(p);
+          }
+        });
+        var _added = 0, _withGps = 0, _outOfRange = 0;
+        _laneInput.forEach(function (p) {
           if (!p || typeof p.lat !== 'number' || typeof p.lng !== 'number') return;
           _withGps++;
           // Photo type filter — skip muted types entirely.
@@ -26816,7 +26869,21 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
            taken_at: ISO string,
            data_url: 'data:image/jpeg;base64,...'
          }
-       ] | null   // null = user opted out; [] = opted in but none found
+       ] | null,  // null = user opted out; [] = opted in but none found
+       geophotos: [            // IDB 'geophotos' (RoadWalkGeoPhotos_v1)
+         {                     // field photos with GPS, groups, links
+           id:               string,
+           dataUrl:          'data:image/jpeg;base64,...',
+           lat:              number, lng: number,
+           bearing:          number|null,
+           description:      string,
+           ts:               number|null,         // ms epoch
+           asset_group_id:   string|null,         // groups w/o requiring a pin
+           group_type:       string|null,         // sign|pavement|culvert|…
+           linked_pin_id:    string|null,         // "<sec>::<pin>"
+           is_group_cover:   boolean,             // top-of-stack flag
+         }
+       ] | null
      }
      --------------------------------------------------------------- */
 
@@ -26867,6 +26934,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       settings:       {},
       feature_styles: {},
       photos:         [],
+      geophotos:      [],
     };
 
     // ── Step 1/6: Bundle (synchronous — already in memory) ──────
@@ -26974,6 +27042,32 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       result.photos = [];
       _expRowUpdate('photos', 'warn', '⚠', 'Read error');
     }
+    onProgress(90);
+
+    // ── Step 7/7: Field photos (Geophotos IDB) ──────────────────
+    // Read directly from the in-memory list exposed by the geophoto
+    // module — it stays in sync with RoadWalkGeoPhotos_v1 via the IIFE's
+    // saves. This is what carries asset_group_id, linked_pin_id,
+    // group_type and is_group_cover between sessions and users.
+    try {
+      if (window._RW && window._RW.geophotos && window._RW.geophotos.list) {
+        result.geophotos = window._RW.geophotos.list();
+      } else {
+        result.geophotos = [];
+      }
+      const ng = result.geophotos.length;
+      // Re-use the existing photos row if geophotos is empty (no extra UI
+      // until the project has them); otherwise extend the message inline.
+      if (ng > 0) {
+        const grouped = result.geophotos.filter(function (g) { return g.asset_group_id; }).length;
+        _expRowUpdate('photos', 'ok', '✓',
+          (result.photos.length + ng) + ' photo' + ((result.photos.length + ng) !== 1 ? 's' : '') +
+          ' · ' + ng + ' field · ' + grouped + ' grouped');
+      }
+    } catch (e) {
+      result.geophotos = [];
+      console.warn('[RoadWalk] Export: geophotos read error', e);
+    }
     onProgress(100);
 
     return result;
@@ -27015,9 +27109,31 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     }
     onProgress(90);
 
+    // Field photos (RoadWalkGeoPhotos_v1) — already carry their dataUrl on
+    // record, so no blob conversion is needed. Only included when the user
+    // opted to include photos.
+    let geophotosOut = null;
+    if (includePhotos && Array.isArray(scanResult.geophotos)) {
+      geophotosOut = scanResult.geophotos.map(function (g) {
+        return {
+          id:               g.id,
+          dataUrl:          g.dataUrl || null,
+          lat:              g.lat,
+          lng:              g.lng,
+          bearing:          (g.bearing == null) ? null : g.bearing,
+          description:      g.description || '',
+          ts:               g.ts || null,
+          asset_group_id:   g.asset_group_id || null,
+          group_type:       g.group_type || null,
+          linked_pin_id:    g.linked_pin_id || null,
+          is_group_cover:   g.is_group_cover === true,
+        };
+      });
+    }
+
     const exportObj = {
       _export_meta: {
-        version:      'roadwalk-export-v1',
+        version:      'roadwalk-export-v2',
         exported_at:  new Date().toISOString(),
         app:          'RoadWalk v0.2',
         project_name: window.PROJECT?.name || (scanResult.bundle?.name) || 'Unknown',
@@ -27032,7 +27148,8 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         settings:       scanResult.settings,
         feature_styles: scanResult.feature_styles,
       },
-      photos: photosOut,   // null = opted out; [] = opted in, none found
+      photos:    photosOut,    // legacy per-pin photos (RoadWalkDB)
+      geophotos: geophotosOut, // field photos w/ groups + links (RoadWalkGeoPhotos_v1)
     };
 
     onProgress(98);
@@ -32453,6 +32570,32 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     if (!p.asset_group_id) return [p];
     return PHOTOS.filter(function (x) { return x.asset_group_id === p.asset_group_id; });
   }
+  // Pick the "cover" photo (top tile in a stack). Defaults to the explicit
+  // is_group_cover flag; falls back to the first member.
+  function _pickCover(members) {
+    if (!members || !members.length) return null;
+    for (var i = 0; i < members.length; i++) {
+      if (members[i].is_group_cover === true) return members[i];
+    }
+    return members[0];
+  }
+  // Toggle a photo as its group's cover. Clears the flag from every sibling
+  // group member so the invariant "≤1 cover per group" holds.
+  function _setCover(photoId, on) {
+    var p = PHOTOS.find(function (q) { return q.id === photoId; });
+    if (!p) return Promise.resolve();
+    var members = _groupMembers(p);
+    var changed = [];
+    members.forEach(function (q) {
+      var want = (q.id === photoId) ? !!on : false;
+      if (!!q.is_group_cover !== want) {
+        q.is_group_cover = want;
+        changed.push(q);
+      }
+    });
+    if (!changed.length) return Promise.resolve();
+    return Promise.all(changed.map(dbPut));
+  }
   // Look up a pin by its bundle id across all SECTIONS; returns {sec, pin} or null.
   function _findPinById(pinId) {
     if (!pinId || typeof window.SECTIONS === 'undefined') return null;
@@ -33031,6 +33174,8 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     newGroupId:  _newGroupId,
     groupColor:  _groupColor,
     members:     _groupMembers,
+    pickCover:   _pickCover,
+    setCover:    _setCover,
     resolveLink: _resolveLink,
     refresh:     function () { render(); updateCount(); },
     centroid:    function (ids) {
@@ -33039,6 +33184,23 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       var la = 0, lo = 0;
       sel.forEach(function (p) { la += p.lat; lo += p.lng; });
       return { lat: la / sel.length, lng: lo / sel.length, count: sel.length };
+    },
+    // Bulk import — used by the snapshot restore path. Replaces PHOTOS array,
+    // writes all records to IDB, then re-renders. Returns Promise<n_imported>.
+    importBulk: function (records) {
+      if (!Array.isArray(records)) return Promise.resolve(0);
+      // Replace in-memory state up front so subsequent list() calls see them.
+      var byId = Object.create(null);
+      PHOTOS.forEach(function (p) { byId[p.id] = p; });
+      records.forEach(function (r) {
+        if (!r || !r.id) return;
+        byId[r.id] = r;   // imported wins over existing on id collision
+      });
+      PHOTOS = Object.keys(byId).map(function (k) { return byId[k]; });
+      return Promise.all(records.map(function (r) {
+        if (!r || !r.id) return Promise.resolve();
+        return dbPut(r);
+      })).then(function () { render(); updateCount(); return records.length; });
     },
   };
 })();
@@ -33929,6 +34091,15 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
               items.push({ rep: p, photos: [p] });
             }
           });
+          // After every member is bucketed, hoist the group cover (if any) to
+          // be the displayed rep. Falls back to whatever was first.
+          var _gpApi = api();
+          items.forEach(function (it) {
+            if (it.group_id && _gpApi && _gpApi.pickCover) {
+              var cov = _gpApi.pickCover(it.photos);
+              if (cov) it.rep = cov;
+            }
+          });
           // Sort items: groups first (so they sit at the back of the stack
           // visually if anything overlaps), then ungrouped photos by ts.
           items.sort(function (a, b) {
@@ -33967,6 +34138,16 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
               badge.className = 'tk-stack-count';
               badge.textContent = item.photos.length;
               wrap.appendChild(badge);
+            }
+            // Cover-photo star — shows when the rep is explicitly marked the
+            // group's cover (top-of-stack). Renders even on stacks of 1 so the
+            // user gets feedback after toggling.
+            if (item.rep.is_group_cover === true) {
+              var star = document.createElement('span');
+              star.className = 'tk-cover-star';
+              star.textContent = '★';
+              star.title = 'Cover photo';
+              wrap.appendChild(star);
             }
 
             // Hover preview meta
@@ -34116,6 +34297,22 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     if (dp) dp.disabled = n === 0;
     var lk = $g('tk-link-pin');
     if (lk) lk.disabled = n === 0;
+    // Cover button — only meaningful when exactly ONE photo is selected.
+    var cv = $g('tk-set-cover');
+    if (cv) {
+      cv.disabled = n !== 1;
+      var soleSel = null;
+      if (n === 1) {
+        var soleId = selectedIds.values().next().value;
+        soleSel = photos().find(function (q) { return q.id === soleId; }) || null;
+      }
+      cv.classList.toggle('assigned', !!(soleSel && soleSel.is_group_cover === true));
+      cv.title = !soleSel
+        ? 'Select exactly one photo to set it as the group cover'
+        : (soleSel.is_group_cover === true
+            ? 'This photo is the group cover — tap to unset'
+            : 'Make this photo the cover (top of the stack)');
+    }
     // Highlight the type button matching the selection's common group_type
     var common = null;
     photos().forEach(function (p) {
@@ -34309,6 +34506,25 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     if (modal) modal.hidden = true;
   }
 
+  // Toggle the selected photo as its group's cover. Only fires when exactly
+  // one photo is selected; the action bar enforces that visually.
+  function setCoverSelected() {
+    var A = api(); if (!A || selectedIds.size !== 1) return;
+    var soleId = selectedIds.values().next().value;
+    var p = A.list().find(function (q) { return q.id === soleId; });
+    if (!p) return;
+    var on = !(p.is_group_cover === true);
+    A.setCover(soleId, on).then(function () {
+      A.refresh();
+      renderTracks();
+      var ct = $g('tk-sel-count');
+      if (ct) {
+        ct.textContent = on ? '✓ Set as group cover' : '✓ Cleared cover flag';
+        setTimeout(function () { updateActionBar(); }, 1500);
+      }
+    });
+  }
+
   function _linkSelectedToPin(sec, pin) {
     var A = api(); if (!A || !selectedIds.size || !sec || !pin) return;
     var sel = A.list().filter(function (p) { return selectedIds.has(p.id); });
@@ -34374,6 +34590,8 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     if (drop) drop.addEventListener('click', dropPinAtCentroid);
     var lnk = $g('tk-link-pin');
     if (lnk) lnk.addEventListener('click', _pinPickerOpen);
+    var cov = $g('tk-set-cover');
+    if (cov) cov.addEventListener('click', setCoverSelected);
     var ppc = $g('tk-pp-close');
     if (ppc) ppc.addEventListener('click', _pinPickerClose);
     var ppBackdrop = document.querySelector('#tk-pin-picker .tk-pp-backdrop');
