@@ -3662,6 +3662,35 @@ a { color: inherit; text-decoration: none; }
 #hydro-toggle-btn.on  .ctl-icon,
 #hydro-toggle-btn.on  span { color: #0e7490; }
 #hydro-toggle-btn.on, #photos-toggle-btn.on { box-shadow: 0 0 0 2px var(--blue), 0 2px 6px rgba(0,0,0,0.28); }
+/* Sub-button for the photo type-filter chevron — half the height of a normal
+   map-ctl-btn so it tucks right under the 📷 button without dominating. */
+.map-ctl-btn.map-ctl-sub { height: 22px; padding: 0; }
+#photo-filter-btn.on { color: var(--blue); }
+
+/* Photo type-filter panel — same shape as .layers-panel but a wider list */
+.photo-filter-panel { min-width: 220px; }
+.pfp-actions {
+  display: flex; gap: 4px; padding: 4px 8px 6px;
+  border-bottom: 1px solid var(--rule);
+}
+.pfp-btn {
+  flex: 1; font: 700 9.5px 'IBM Plex Mono', monospace;
+  background: #fff; border: 1px solid var(--rule); color: var(--ink-2);
+  padding: 5px 6px; border-radius: 3px; cursor: pointer;
+}
+.pfp-btn:hover { border-color: var(--blue); color: var(--blue); }
+/* Filter-chip row — uses .layer-row pattern but with the tag swatch color */
+.pfp-list .layer-row { padding: 5px 10px; }
+.pfp-list .layer-row .layer-dot {
+  width: 12px; height: 12px; border-radius: 2px;
+}
+.pfp-list .pfp-count {
+  font: 600 9.5px 'IBM Plex Mono', monospace; color: var(--ink-3);
+  margin-left: auto; padding-right: 4px;
+}
+.pfp-list .layer-row.untagged-row .layer-dot {
+  background: repeating-linear-gradient(45deg, #fff 0 4px, #ccc 4px 8px) !important;
+}
 /* Photos panel — mirrors the layers panel */
 .photos-panel {
   position: absolute;
@@ -4259,7 +4288,8 @@ a { color: inherit; text-decoration: none; }
 }
 .tk-action-bar.is-empty .tk-type,
 .tk-action-bar.is-empty .tk-group,
-.tk-action-bar.is-empty .tk-drop {
+.tk-action-bar.is-empty .tk-drop,
+.tk-action-bar.is-empty .tk-link {
   opacity: 0.4; pointer-events: none;
 }
 .tk-sel-count {
@@ -4297,13 +4327,77 @@ a { color: inherit; text-decoration: none; }
 .tk-type.assigned::before { box-shadow: inset 0 0 0 1px rgba(255,255,255,0.6); }
 .tk-action-bar.is-empty .tk-type { opacity: 0.45; }
 .tk-action-final { display: flex; gap: 6px; }
-.tk-group, .tk-drop {
+.tk-group, .tk-drop, .tk-link {
   font: 700 11px 'IBM Plex Sans', sans-serif;
   padding: 7px 12px; border-radius: 4px; cursor: pointer;
 }
 .tk-group { background: #fff; border: 1px solid var(--blue); color: var(--blue); }
 .tk-drop  { background: #15803d; color: #fff; border: 1px solid #15803d; }
 .tk-drop:disabled { background: #9ca3af; border-color: #9ca3af; cursor: not-allowed; }
+.tk-link  { background: #6f3eb3; color: #fff; border: 1px solid #6f3eb3; }
+.tk-link:disabled { background: #9ca3af; border-color: #9ca3af; cursor: not-allowed; }
+/* Pin-picker modal — purple-accented to match the Link button */
+.tk-pin-picker[hidden] { display: none; }
+.tk-pin-picker {
+  position: fixed; inset: 0; z-index: 9000;
+  display: flex; align-items: center; justify-content: center;
+}
+.tk-pp-backdrop {
+  position: absolute; inset: 0; background: rgba(0,0,0,0.45);
+}
+.tk-pp-card {
+  position: relative; z-index: 1;
+  width: min(440px, 92vw); max-height: 80vh;
+  background: #fff; border-radius: 6px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.35);
+  display: flex; flex-direction: column;
+  border: 2px solid #6f3eb3;
+}
+.tk-pp-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; border-bottom: 1px solid var(--rule);
+  background: #6f3eb3; color: #fff; border-radius: 4px 4px 0 0;
+}
+.tk-pp-title { font: 700 13px 'IBM Plex Sans', sans-serif; }
+.tk-pp-close {
+  background: transparent; border: 0; color: #fff;
+  font-size: 18px; cursor: pointer; padding: 0 4px;
+}
+.tk-pp-sub {
+  padding: 8px 14px; font: 500 11px 'IBM Plex Sans', sans-serif;
+  color: var(--ink-2); border-bottom: 1px solid var(--rule);
+  background: #faf7ff;
+}
+.tk-pp-list {
+  overflow-y: auto; padding: 4px 0;
+}
+.tk-pp-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; cursor: pointer;
+  border-bottom: 1px solid #f0eaf7;
+}
+.tk-pp-row:hover { background: #f6efff; }
+.tk-pp-swatch {
+  width: 16px; height: 16px; border-radius: 3px;
+  flex-shrink: 0; border: 1px solid rgba(0,0,0,0.18);
+}
+.tk-pp-info { flex: 1 1 auto; min-width: 0; }
+.tk-pp-pid {
+  font: 700 12px 'IBM Plex Mono', monospace; color: var(--ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.tk-pp-kind {
+  font: 500 10px 'IBM Plex Sans', sans-serif; color: var(--ink-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.tk-pp-dist {
+  font: 700 11px 'IBM Plex Mono', monospace; color: #6f3eb3;
+  white-space: nowrap;
+}
+.tk-pp-empty {
+  padding: 24px 14px; text-align: center;
+  font: 500 12px 'IBM Plex Sans', sans-serif; color: var(--ink-3);
+}
 .tk-btn-secondary {
   font: 700 10px 'IBM Plex Mono', monospace;
   background: #fff; border: 1px solid var(--rule); color: var(--ink-2);
@@ -8769,8 +8863,13 @@ body.mobile-mode #app {
           </button>
 
           <!-- Field photos — geolocated photo markers -->
-          <button class="map-ctl-btn" id="photos-toggle-btn" title="Field photos">
+          <button class="map-ctl-btn" id="photos-toggle-btn" title="Field photos — tap to toggle, hold/long-press the chevron to filter by type">
             <span style="font-size:15px;line-height:1;">📷</span>
+          </button>
+          <!-- Photo type-filter chevron — opens the filter panel -->
+          <button class="map-ctl-btn map-ctl-sub" id="photo-filter-btn"
+                  title="Filter photos by type (Sign, Pavement, etc.)">
+            <span style="font-size:12px;line-height:1;font-weight:800">▾</span>
           </button>
 
           <!-- Roadway-width labels — show / hide on the map + SLD -->
@@ -8810,6 +8909,19 @@ body.mobile-mode #app {
             <div class="layers-panel-title">LAYERS</div>
             <div class="layers-panel-list" id="layers-panel-list">
               <!-- rows injected by buildLayersPanel() in Phase 1 JS -->
+            </div>
+          </div>
+
+          <!-- Photo type-filter panel — drives which group_types render in the
+               photo map layer, the SLD photo lane, and the Tracks grid -->
+          <div class="layers-panel photo-filter-panel" id="photo-filter-panel" hidden>
+            <div class="layers-panel-title">PHOTOS BY TYPE</div>
+            <div class="pfp-actions">
+              <button class="pfp-btn" id="pfp-all-on">All on</button>
+              <button class="pfp-btn" id="pfp-untagged-only">Only untagged</button>
+            </div>
+            <div class="layers-panel-list pfp-list" id="pfp-list">
+              <!-- chips injected by buildPhotoFilterPanel() -->
             </div>
           </div>
 
@@ -9825,7 +9937,26 @@ body.mobile-mode #app {
                   title="Drop a pin at the centroid of the selected photos">
             ⊕ Drop pin
           </button>
+          <button class="tk-link" id="tk-link-pin" type="button"
+                  title="Link the selected photos to an existing pin nearby">
+            🔗 Link to pin
+          </button>
           <button class="tk-btn-secondary" id="tk-clear" type="button">✕ Clear</button>
+        </div>
+      </div>
+
+      <!-- Pin-picker modal — opens when the user taps "🔗 Link to pin". Lists
+           pins within 500 ft of the selected-photo centroid, ranked by distance.
+           Picking a row stamps linked_pin_id on every selected photo. -->
+      <div id="tk-pin-picker" class="tk-pin-picker" hidden>
+        <div class="tk-pp-backdrop"></div>
+        <div class="tk-pp-card">
+          <div class="tk-pp-head">
+            <span class="tk-pp-title">Link photos to existing pin</span>
+            <button class="tk-pp-close" id="tk-pp-close" type="button">✕</button>
+          </div>
+          <div class="tk-pp-sub" id="tk-pp-sub">Nearest pins to the selected photos' centroid:</div>
+          <div class="tk-pp-list" id="tk-pp-list"></div>
         </div>
       </div>
     </div>
@@ -17347,6 +17478,9 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         _allPhotos.forEach(function (p) {
           if (!p || typeof p.lat !== 'number' || typeof p.lng !== 'number') return;
           _withGps++;
+          // Photo type filter — skip muted types entirely.
+          if (window._RW && window._RW.photoFilter
+              && !window._RW.photoFilter.apply(p)) return;
           // projectOntoAlignment expects a Leaflet-LatLng-shaped object with
           // .lat / .lng — NOT an array. Passing an array silently produced
           // NaN dot-products and rejected every photo. (Bug in phase A.)
@@ -25872,6 +26006,188 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   // after a color change without knowing about the module IIFE internals.
   window.buildLayersPanel = buildLayersPanel;
 
+  /* ===================== Photo type filter =====================
+     Centralised state for "which photo types render right now" — applied
+     consistently by the map photo layer (geophoto IIFE), the SLD photo
+     lane (renderStrip in the Main IIFE), and the Tracks grid render.
+
+     The state is held on window._RW.photoFilter so the three IIFEs can
+     reach it without sharing closures. Persisted in localStorage. */
+  var PHOTO_TYPE_DEFS = [
+    { type: 'sign',         label: 'Signs',         color: '#27A04B' },
+    { type: 'mile_marker',  label: 'Mile Markers',  color: '#666'    },
+    { type: 'culvert',      label: 'Culverts',      color: '#0B3D66' },
+    { type: 'pavement',     label: 'Pavement',      color: '#9CA3AF' },
+    { type: 'gate',         label: 'Gates',         color: '#B33A2F' },
+    { type: 'swale',        label: 'Swales',        color: '#2563A8' },
+    { type: 'guardrail',    label: 'Guardrails',    color: '#E8A838' },
+    { type: 'wall',         label: 'Ret. Walls',    color: '#7B3F9E' },
+    { type: 'parking',      label: 'Parking',       color: '#5A8F3E' },
+    { type: 'curb',         label: 'Curbs',         color: '#8A5A2B' },
+    { type: 'curb_gutter',  label: 'Curb & Gutter', color: '#8A5A2B' },
+    { type: 'sidewalk',     label: 'Sidewalks',     color: '#8A5A2B' },
+    { type: 'edge_drop',    label: 'Edge Drops',    color: '#C85A2B' },
+    { type: 'bridge',       label: 'Bridges',       color: '#1A5589' },
+    { type: 'other',        label: 'Other',         color: '#888'    },
+  ];
+
+  function _photoFilterLoad() {
+    try {
+      var raw = JSON.parse(localStorage.getItem('rw_photo_type_filter') || 'null');
+      if (raw && Array.isArray(raw.tagsOff) && typeof raw.untaggedOn === 'boolean') {
+        return { tagsOff: new Set(raw.tagsOff), untaggedOn: raw.untaggedOn };
+      }
+    } catch (_) {}
+    // Default: every type on + untagged on (no muting)
+    return { tagsOff: new Set(), untaggedOn: true };
+  }
+  function _photoFilterPersist(state) {
+    try {
+      localStorage.setItem('rw_photo_type_filter', JSON.stringify({
+        tagsOff: [...state.tagsOff], untaggedOn: state.untaggedOn,
+      }));
+    } catch (_) {}
+  }
+
+  var _photoFilterState = _photoFilterLoad();
+
+  // Public API consumed by the three render paths.
+  window._RW = window._RW || {};
+  window._RW.photoFilter = {
+    /** True when this photo should be rendered given the current filter. */
+    apply: function (p) {
+      if (!p) return false;
+      if (!p.group_type) return _photoFilterState.untaggedOn;
+      return !_photoFilterState.tagsOff.has(p.group_type);
+    },
+    /** Read-only snapshot of current state (useful for debugging). */
+    state: function () {
+      return {
+        tagsOff: [..._photoFilterState.tagsOff],
+        untaggedOn: _photoFilterState.untaggedOn,
+      };
+    },
+  };
+
+  // Re-render every photo surface after a filter change.
+  function _photoFilterRerender() {
+    // 1. Geophoto map layer
+    if (window._RW && window._RW.geophotos && window._RW.geophotos.refresh) {
+      window._RW.geophotos.refresh();
+    }
+    // 2. SLD photo lane — _RW.rerender() handles strip + map together when an
+    //    alignment strip is open. Safe no-op when none is open.
+    if (window._RW && typeof window._RW.rerender === 'function') {
+      try { window._RW.rerender(); } catch (_) {}
+    }
+    // 3. Tracks tab
+    if (typeof window.renderTracks === 'function') {
+      try { window.renderTracks(); } catch (_) {}
+    }
+  }
+
+  function buildPhotoFilterPanel() {
+    var list = document.getElementById('pfp-list');
+    if (!list) return;
+    list.innerHTML = '';
+
+    // Count photos per type from the current geophoto cache.
+    var counts = Object.create(null);
+    var untaggedCount = 0;
+    if (window._RW && window._RW.geophotos && window._RW.geophotos.list) {
+      var all = window._RW.geophotos.list();
+      all.forEach(function (p) {
+        if (!p.group_type) untaggedCount++;
+        else counts[p.group_type] = (counts[p.group_type] || 0) + 1;
+      });
+    }
+
+    function _appendRow(opts) {
+      var row = document.createElement('div');
+      row.className = 'layer-row' + (opts.off ? ' layer-off' : '') + (opts.extraClass ? ' ' + opts.extraClass : '');
+      row.innerHTML =
+        '<span class="layer-dot" style="background:' + opts.color + '"></span>'
+        + '<span class="layer-label">' + opts.label + '</span>'
+        + '<span class="pfp-count">' + (opts.count || 0) + '</span>'
+        + '<span class="layer-toggle"></span>';
+      row.addEventListener('click', opts.onClick);
+      list.appendChild(row);
+    }
+
+    // Untagged row — top of the list so it's always first
+    _appendRow({
+      label: 'Untagged photos', color: 'transparent',
+      extraClass: 'untagged-row',
+      count: untaggedCount, off: !_photoFilterState.untaggedOn,
+      onClick: function () {
+        _photoFilterState.untaggedOn = !_photoFilterState.untaggedOn;
+        _photoFilterPersist(_photoFilterState);
+        buildPhotoFilterPanel();
+        _photoFilterRerender();
+      },
+    });
+
+    PHOTO_TYPE_DEFS.forEach(function (def) {
+      var off = _photoFilterState.tagsOff.has(def.type);
+      _appendRow({
+        label: def.label, color: def.color,
+        count: counts[def.type] || 0, off: off,
+        onClick: function () {
+          if (_photoFilterState.tagsOff.has(def.type)) _photoFilterState.tagsOff.delete(def.type);
+          else _photoFilterState.tagsOff.add(def.type);
+          _photoFilterPersist(_photoFilterState);
+          buildPhotoFilterPanel();
+          _photoFilterRerender();
+        },
+      });
+    });
+  }
+
+  // Wire the chevron button + the quick-action buttons.
+  function _initPhotoFilterUI() {
+    var btn   = document.getElementById('photo-filter-btn');
+    var panel = document.getElementById('photo-filter-panel');
+    if (!btn || !panel) return;
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var open = panel.hidden;
+      // Hide the sibling layers panel if it was open
+      var lp = document.getElementById('layers-panel');
+      if (lp && !lp.hidden) lp.hidden = true;
+      panel.hidden = !open;
+      btn.classList.toggle('on', open);
+      if (open) buildPhotoFilterPanel();
+    });
+    document.addEventListener('click', function (e) {
+      if (panel.hidden) return;
+      if (e.target.closest('#photo-filter-panel') || e.target.closest('#photo-filter-btn')) return;
+      panel.hidden = true;
+      btn.classList.remove('on');
+    });
+    var allOn = document.getElementById('pfp-all-on');
+    if (allOn) allOn.addEventListener('click', function () {
+      _photoFilterState.tagsOff.clear();
+      _photoFilterState.untaggedOn = true;
+      _photoFilterPersist(_photoFilterState);
+      buildPhotoFilterPanel();
+      _photoFilterRerender();
+    });
+    var untag = document.getElementById('pfp-untagged-only');
+    if (untag) untag.addEventListener('click', function () {
+      _photoFilterState.tagsOff = new Set(PHOTO_TYPE_DEFS.map(function (d) { return d.type; }));
+      _photoFilterState.untaggedOn = true;
+      _photoFilterPersist(_photoFilterState);
+      buildPhotoFilterPanel();
+      _photoFilterRerender();
+    });
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', _initPhotoFilterUI);
+  } else {
+    _initPhotoFilterUI();
+  }
+  window.buildPhotoFilterPanel = buildPhotoFilterPanel;
+
   // Also expose doAutoSave so other modules can trigger a save after writes.
   window.RWAutoSave = doAutoSave;
 
@@ -32225,6 +32541,9 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     }
     if (!map.hasLayer(photoLayer)) photoLayer.addTo(map);
     PHOTOS.forEach(function (p) {
+      // Photo type filter — skip rendering this photo when its type is muted.
+      if (window._RW && window._RW.photoFilter
+          && !window._RW.photoFilter.apply(p)) return;
       // Pass the per-marker group color via inline style on the icon root.
       var icon = makeIconForPhoto(p);
       // Leaflet divIcon doesn't apply CSS custom properties to the root <div>
@@ -33481,8 +33800,10 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     }
     _buildMappingFor(currentSectionId);
 
-    // Partition photos into mapped + unmapped.
-    var all = photos();
+    // Partition photos into mapped + unmapped. Honor the photo-type filter
+    // chips first so muted types never appear in the grid OR the strip.
+    var _ptf = (window._RW && window._RW.photoFilter) ? window._RW.photoFilter : null;
+    var all = photos().filter(function (p) { return _ptf ? _ptf.apply(p) : true; });
     var mapped = [], unmapped = [];
     all.forEach(function (p) {
       var m = thumbCache.get(p.id);
@@ -33793,6 +34114,8 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       : n + ' selected · tap a tag to group + label';
     var dp = $g('tk-drop-pin');
     if (dp) dp.disabled = n === 0;
+    var lk = $g('tk-link-pin');
+    if (lk) lk.disabled = n === 0;
     // Highlight the type button matching the selection's common group_type
     var common = null;
     photos().forEach(function (p) {
@@ -33892,6 +34215,129 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     });
   }
 
+  /* ---------- Link selected photos to an existing pin ----------------------
+     Opens the pin-picker modal seeded with the nearest pins (any section) to
+     the centroid of the currently-selected photos. Picking a pin sets
+     linked_pin_id = "<sec_id>::<pin_id>" on every selected photo and, if the
+     pin has a kind that matches one of our photo group_types, also stamps
+     group_type so the type-filter chips pick the link up immediately. */
+
+  // Reverse PIN_STYLE/FEATURE_CATALOG mapping: pin.kind → photo group_type.
+  var KIND_TO_TYPE = {
+    pt_sign: 'sign', sign: 'sign',
+    mile_marker: 'mile_marker',
+    culvert: 'culvert',
+    gate: 'gate', pt_swing_gate: 'gate', pt_man_gate: 'gate',
+    parking: 'parking',
+    bridge: 'bridge', bridge_line: 'bridge',
+    pavement_change: 'pavement',
+    monument: 'other', pt_monument: 'other',
+  };
+
+  function _firstPointOfPin(pin) {
+    var g = pin && pin.geometry; if (!g) return null;
+    var c = g.coordinates;
+    if (g.type === 'Point' && Array.isArray(c)) return [c[0], c[1]];
+    if (g.type === 'LineString' && Array.isArray(c) && c.length) return [c[0][0], c[0][1]];
+    if (g.type === 'MultiLineString' && Array.isArray(c) && c[0]) return [c[0][0][0], c[0][0][1]];
+    if (g.type === 'Polygon' && Array.isArray(c) && c[0] && c[0][0]) return [c[0][0][0], c[0][0][1]];
+    if (g.type === 'MultiPolygon' && c && c[0] && c[0][0] && c[0][0][0]) return [c[0][0][0][0], c[0][0][0][1]];
+    return null;
+  }
+
+  function _nearestPinsTo(latlng, maxFt, limit) {
+    var out = [];
+    var secs = window.SECTIONS || [];
+    secs.forEach(function (sec) {
+      (sec.pins || []).forEach(function (pin) {
+        var pt = _firstPointOfPin(pin);
+        if (!pt) return;
+        // pt is [lng, lat]; _havFt expects [lat, lng]
+        var d = _havFt([latlng.lat, latlng.lng], [pt[1], pt[0]]);
+        if (d <= maxFt) {
+          out.push({ sec: sec, pin: pin, distFt: d });
+        }
+      });
+    });
+    out.sort(function (a, b) { return a.distFt - b.distFt; });
+    return limit ? out.slice(0, limit) : out;
+  }
+
+  function _pinPickerOpen() {
+    var A = api(); if (!A || !selectedIds.size) return;
+    var ids = Array.from(selectedIds);
+    var c = A.centroid(ids);
+    if (!c) { window.alert('Selected photos have no GPS — cannot find nearby pins.'); return; }
+    var modal = $g('tk-pin-picker');
+    var list  = $g('tk-pp-list');
+    var sub   = $g('tk-pp-sub');
+    if (!modal || !list || !sub) return;
+    list.innerHTML = '';
+    var matches = _nearestPinsTo(c, 500 /* ft */, 30);
+    sub.textContent = matches.length
+      ? matches.length + ' pin' + (matches.length === 1 ? '' : 's') + ' within 500 ft of the selected photos (' + ids.length + '):'
+      : 'No pins within 500 ft.';
+    if (!matches.length) {
+      var empty = document.createElement('div');
+      empty.className = 'tk-pp-empty';
+      empty.textContent = 'No pins within 500 ft. Try "⊕ Drop pin" to create a new one, or widen your photo selection.';
+      list.appendChild(empty);
+    } else {
+      var STYLE = (window._RW && window._RW.PIN_STYLE) || (typeof PIN_STYLE !== 'undefined' ? PIN_STYLE : {});
+      matches.forEach(function (m) {
+        var row = document.createElement('div');
+        row.className = 'tk-pp-row';
+        var st = STYLE[m.pin.kind] || {};
+        var color = st.color || '#888';
+        var name = (m.pin.attrs && (m.pin.attrs.name || m.pin.attrs.notes)) || m.pin.kind || '(unnamed)';
+        row.innerHTML =
+          '<span class="tk-pp-swatch" style="background:' + color + '"></span>'
+          + '<div class="tk-pp-info">'
+          +   '<div class="tk-pp-pid">' + (m.pin.id || '?') + ' · <span style="color:var(--ink-2);font-weight:500">' + m.sec.name + '</span></div>'
+          +   '<div class="tk-pp-kind">' + (m.pin.kind || '') + (name && name !== m.pin.kind ? ' — ' + name : '') + '</div>'
+          + '</div>'
+          + '<span class="tk-pp-dist">' + Math.round(m.distFt) + ' ft</span>';
+        row.addEventListener('click', function () { _linkSelectedToPin(m.sec, m.pin); });
+        list.appendChild(row);
+      });
+    }
+    modal.hidden = false;
+  }
+
+  function _pinPickerClose() {
+    var modal = $g('tk-pin-picker');
+    if (modal) modal.hidden = true;
+  }
+
+  function _linkSelectedToPin(sec, pin) {
+    var A = api(); if (!A || !selectedIds.size || !sec || !pin) return;
+    var sel = A.list().filter(function (p) { return selectedIds.has(p.id); });
+    if (!sel.length) return;
+    // Share an asset_group_id so they all read as one cluster.
+    var gids = new Set();
+    sel.forEach(function (p) { if (p.asset_group_id) gids.add(p.asset_group_id); });
+    var gid = gids.size === 1 ? gids.values().next().value : A.newGroupId();
+    var newType = KIND_TO_TYPE[pin.kind] || null;
+    sel.forEach(function (p) {
+      p.linked_pin_id = sec.id + '::' + pin.id;
+      p.asset_group_id = gid;
+      if (newType && !p.group_type) p.group_type = newType;
+    });
+    var n = sel.length;
+    A.saveMany(sel).then(function () {
+      A.refresh();
+      if (window._RW && typeof window._RW.rerender === 'function') window._RW.rerender();
+      _pinPickerClose();
+      selectedIds.clear();
+      renderTracks();
+      var ct = $g('tk-sel-count');
+      if (ct) {
+        ct.textContent = '✓ Linked ' + n + ' photo' + (n === 1 ? '' : 's') + ' to ' + pin.id;
+        setTimeout(function () { updateActionBar(); }, 1800);
+      }
+    });
+  }
+
   function initTracks() {
     if (!$g('mod-tracks')) return;
     var secSel = $g('tk-section');
@@ -33926,6 +34372,15 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     if (grp) grp.addEventListener('click', groupSelected);
     var drop = $g('tk-drop-pin');
     if (drop) drop.addEventListener('click', dropPinAtCentroid);
+    var lnk = $g('tk-link-pin');
+    if (lnk) lnk.addEventListener('click', _pinPickerOpen);
+    var ppc = $g('tk-pp-close');
+    if (ppc) ppc.addEventListener('click', _pinPickerClose);
+    var ppBackdrop = document.querySelector('#tk-pin-picker .tk-pp-backdrop');
+    if (ppBackdrop) ppBackdrop.addEventListener('click', _pinPickerClose);
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') _pinPickerClose();
+    });
   }
 
   window.renderTracks = function () {
