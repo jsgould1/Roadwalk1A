@@ -16824,9 +16824,13 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   ]);
   // Subset that belong at slot-6 cross-section offset (ROW-line roadside hardware).
   // Utility structures (CB, DI, manholes, gates) sit at pavement or curb, not slot 6.
+  // Rocks + miscellaneous obstructions also live in this offroad slot — they're
+  // by definition outside the pavement edge, and rendering them on the CL
+  // hid the side/offset the user entered.
   const _SLOT6_KINDS = new Set([
     'pt_sign', 'pt_light_pole', 'pt_flagpole',
-    'pt_guy_wire', 'pt_hyd', 'pt_delineator', 'pt_mailbox'
+    'pt_guy_wire', 'pt_hyd', 'pt_delineator', 'pt_mailbox',
+    'pt_rock', 'pt_misc_other',
   ]);
 
   function renderStrip() {
@@ -17029,6 +17033,34 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
             if (p.sta == null) p.sta = fmtSta(p.sta_ft);
           } catch (_) { /* off-section — leave sta_ft null, pin skipped below */ }
         }
+      }
+    }
+
+    // ── Pre-pass: backfill attrs.side + attrs.offset_ft on point pins ─────────
+    // Point pins drawn via tap-on-map had neither computed (the line/polygon
+    // drawers do compute side, but the point branch in _buildAndSaveFeaturePin
+    // doesn't). Without attrs.side the SLD renderer routed every point pin
+    // through 'side-C' and parked it on the centerline regardless of where it
+    // actually sits — so rocks the user dropped 19 ft right of CL still
+    // appeared dead-centre in the strip. Compute from geometry when missing.
+    if (sec.alignment) {
+      for (const p of (sec.pins || [])) {
+        if (!p.geometry || p.geometry.type !== 'Point') continue;
+        if (!p.attrs) p.attrs = {};
+        const hasSide = p.attrs.side === 'L' || p.attrs.side === 'R' || p.attrs.side === 'on';
+        const hasOffset = typeof p.attrs.offset_ft === 'number' && isFinite(p.attrs.offset_ft);
+        if (hasSide && hasOffset) continue;
+        try {
+          const [lng, lat] = p.geometry.coordinates;
+          if (!hasSide) {
+            const sd = sideOfAlignment({ lat, lng }, sec.alignment);
+            if (sd) p.attrs.side = sd;
+          }
+          if (!hasOffset) {
+            const proj = projectOntoAlignment({ lat, lng }, sec.alignment);
+            if (proj && isFinite(proj[1])) p.attrs.offset_ft = +proj[1].toFixed(2);
+          }
+        } catch (_) { /* off-section — leave attrs as-is */ }
       }
     }
 
@@ -18435,9 +18467,11 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       geometry = { type: 'Polygon', coordinates: [ring] };
     }
     let staFt = null;
+    let perpFt = null;
     try {
-      const [s] = projectOntoAlignment({ lat: verts[0][0], lng: verts[0][1] }, sec.alignment);
+      const [s, d] = projectOntoAlignment({ lat: verts[0][0], lng: verts[0][1] }, sec.alignment);
       staFt = s;
+      if (isFinite(d)) perpFt = d;
     } catch (e) { /* off-alignment, ok */ }
     const attrs = {
       _added_at: new Date().toISOString(),
@@ -18448,8 +18482,22 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       for (let i = 1; i < verts.length; i++) lengthFt += havFt(verts[i-1], verts[i]);
       attrs.length_ft = +lengthFt.toFixed(2);
       attrs.length_source = (source === 'gps' ? 'gps' : 'drawn');
+      // Line features also get side from their midpoint vertex.
+      try {
+        const mid = verts[Math.floor(verts.length / 2)];
+        attrs.side = sideOfAlignment({ lat: mid[0], lng: mid[1] }, sec.alignment);
+      } catch (_) {}
     } else if (tool === 'polygon') {
       attrs.area_sq_ft = +polygonAreaSqFt(geometry.coordinates[0]).toFixed(2);
+    } else if (tool === 'point') {
+      // Point pins need side + perp-offset for the SLD to place them on the
+      // right cross-section slot. Computed once here so the renderer doesn't
+      // have to backfill on every render (it still does as a safety net for
+      // older pins that pre-date this code path).
+      try {
+        attrs.side = sideOfAlignment({ lat: verts[0][0], lng: verts[0][1] }, sec.alignment);
+      } catch (_) {}
+      if (perpFt != null) attrs.offset_ft = +perpFt.toFixed(2);
     }
     const pin = {
       id: '',
