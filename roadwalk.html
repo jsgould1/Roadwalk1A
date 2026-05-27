@@ -34198,15 +34198,17 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       var allPs = photos();
       var picks = allPs.filter(function (p) { return selectedIds.has(p.id); });
       if (sub) sub.textContent = '— ' + picks.length + ' photo' + (picks.length === 1 ? '' : 's') +
-        ' picked · click a tag to group + label · click a thumb here to remove';
+        ' picked · click a tag to group + label · click a thumb here to remove from group';
       if (um) {
         um.innerHTML = '';
         picks.forEach(function (p) {
           var img = document.createElement('img');
           img.className = 'tk-um-thumb selected';
           img.src = p.dataUrl;
-          img.title = (p.description || 'photo') + ' — click to remove from selection';
-          img.addEventListener('click', function () { toggleSelection(p.id); });
+          img.title = p.asset_group_id
+            ? ((p.description || 'photo') + ' — click to remove from group')
+            : ((p.description || 'photo') + ' — click to remove from selection');
+          img.addEventListener('click', function () { _removeFromSelection(p); });
           um.appendChild(img);
         });
       }
@@ -34243,16 +34245,22 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     if (grid) grid.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-3);font-size:12px">' + escapeHtml(msg) + '</div>';
   }
 
-  /* ---------- Hover preview helpers ---------- */
+  /* ---------- Hover preview helpers ----------
+     The handler binds to whatever wrapper element is hovered (a bare <img>
+     in the unmapped/selected strip, but a <div class="tk-thumb-wrap"> in the
+     main grid). Resolve the actual image source defensively so the wrapper
+     case doesn't show a broken-image icon. */
   function _showHoverPreview(e) {
-    var img = e.currentTarget;
+    var src = e.currentTarget;
     var box = document.getElementById('tk-hover-preview');
     var bImg = document.getElementById('tk-hover-preview-img');
     var bMeta = document.getElementById('tk-hover-preview-meta');
     if (!box || !bImg) return;
-    bImg.src = img.src;
-    var desc = img.dataset.hoverDesc || '';
-    var meta = img.dataset.hoverMeta || '';
+    // <img> hovered directly → its .src; wrapper hovered → first <img> child.
+    var imgEl = (src.tagName === 'IMG') ? src : src.querySelector('img');
+    bImg.src = (imgEl && imgEl.src) || '';
+    var desc = src.dataset.hoverDesc || '';
+    var meta = src.dataset.hoverMeta || '';
     if (bMeta) bMeta.innerHTML = (desc ? '<div>' + escapeHtml(desc) + '</div>' : '') +
                                   (meta ? '<div style="color:var(--ink-3);font:600 9.5px IBM Plex Mono,monospace">' + escapeHtml(meta) + '</div>' : '');
     box.style.display = 'block';
@@ -34281,6 +34289,39 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     if (selectedIds.has(id)) selectedIds.delete(id);
     else                     selectedIds.add(id);
     renderTracks();   // simplest: full re-render reflects the selection
+  }
+
+  /* ---------- Remove a photo from the bottom "Selected" strip ---------------
+     Two cases:
+       • photo IS in a group → ungroup it (clear asset_group_id + group_type
+         + linked_pin_id + is_group_cover so it falls back to a lone, unt-
+         agged photo) AND drop it from the selection. Persists via dbPut.
+       • photo is ungrouped → just deselect (legacy behavior).
+     The Selected strip's tooltip reflects which case applies per thumb.   */
+  function _removeFromSelection(p) {
+    var A = api();
+    if (!p || !A) { selectedIds.delete(p && p.id); renderTracks(); return; }
+    // Always drop from the selection.
+    selectedIds.delete(p.id);
+    // No group → simple deselect, nothing to persist.
+    if (!p.asset_group_id) { renderTracks(); return; }
+    // In a group → clear group fields + persist. The cover flag must clear
+    // too so the rest of the group doesn't end up cover-less if THIS was the
+    // cover.
+    p.asset_group_id  = null;
+    p.group_type      = null;
+    p.is_group_cover  = false;
+    // Note: we deliberately keep linked_pin_id alone — the user can still
+    // share a pin reference even after leaving the asset group.
+    A.save(p).then(function () {
+      A.refresh();
+      renderTracks();
+      var ct = $g('tk-sel-count');
+      if (ct) {
+        ct.textContent = '✓ Removed photo from group';
+        setTimeout(function () { updateActionBar(); }, 1500);
+      }
+    });
   }
 
   function updateActionBar() {
