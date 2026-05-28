@@ -2479,6 +2479,24 @@ body.rw-sld-photo-dragging .strip-pin {
   outline-offset: 2px !important;
   box-shadow: 0 0 0 4px rgba(200, 90, 43, 0.25) !important;
 }
+/* Floating "Drop on: X · N ft" badge follows the cursor while dragging an
+   SLD photo over the Leaflet map. pointer-events:none so it never blocks
+   the underlying drag. Hidden when no in-range pin is under the pointer. */
+.rw-map-drop-badge[hidden] { display: none; }
+.rw-map-drop-badge {
+  position: fixed; z-index: 9800; pointer-events: none;
+  background: var(--orange, #C85A2B); color: #fff;
+  font: 700 11px 'IBM Plex Mono', monospace;
+  padding: 5px 10px; border-radius: 4px;
+  border: 1.5px solid #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+  white-space: nowrap;
+  animation: rwBadgePulse 1s ease-in-out infinite;
+}
+@keyframes rwBadgePulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.04); }
+}
 /* Tap-a-photo action popup — small floating card near the cursor */
 .sld-photo-actions[hidden] { display: none; }
 .sld-photo-actions {
@@ -16813,6 +16831,146 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     //  here we just bind on each call — _bindSldDropTargets is idempotent.)
   }
 
+  // ── Leaflet map as a photo drop target ──────────────────────────────────
+  // Drag a thumb from the SLD lane down onto a feature on the map below to
+  // link the photo to that feature. On dragover we find the nearest pin in
+  // the active section and surface a floating badge ("Drop on: A-SI-007 · 14 ft")
+  // so the user can aim precisely. On drop we set linked_pin_id and refresh.
+  function _findNearestPin(latlng, sec, maxFt) {
+    if (!sec || !Array.isArray(sec.pins)) return null;
+    var best = null, bestD = Infinity;
+    sec.pins.forEach(function (pin) {
+      if (!pin.geometry) return;
+      var g = pin.geometry, c = g.coordinates;
+      if (!c) return;
+      var verts = [];
+      if (g.type === 'Point') verts.push(c);
+      else if (g.type === 'LineString') verts = c.slice();
+      else if (g.type === 'Polygon' && c[0]) verts = c[0].slice();
+      else if (g.type === 'MultiLineString') {
+        c.forEach(function (ln) { verts = verts.concat(ln); });
+      }
+      for (var i = 0; i < verts.length; i++) {
+        var v = verts[i];
+        var d = havFt([latlng.lat, latlng.lng], [v[1], v[0]]);
+        if (d < bestD) { bestD = d; best = pin; }
+      }
+    });
+    if (!best || bestD > maxFt) return null;
+    return { pin: best, distFt: bestD };
+  }
+  function _mapDropBadge() {
+    var el = document.getElementById('rw-map-drop-badge');
+    if (el) return el;
+    el = document.createElement('div');
+    el.id = 'rw-map-drop-badge';
+    el.className = 'rw-map-drop-badge';
+    el.hidden = true;
+    document.body.appendChild(el);
+    return el;
+  }
+  function _bindMapDropTarget() {
+    var mapEl = document.getElementById('map');
+    if (!mapEl || mapEl._rwPhotoDropBound) return;
+    mapEl._rwPhotoDropBound = true;
+    var badge = _mapDropBadge();
+    var lastTargetPinId = null;
+
+    function _hasPhotoMime(e) {
+      if (!e.dataTransfer || !e.dataTransfer.types) return false;
+      for (var i = 0; i < e.dataTransfer.types.length; i++) {
+        if (e.dataTransfer.types[i] === 'application/x-rw-photo-id') return true;
+      }
+      return false;
+    }
+    function _activeSec() {
+      if (typeof stripCurrentSec !== 'undefined' && stripCurrentSec) return stripCurrentSec;
+      var sid = state && state.sectionId;
+      if (sid && Array.isArray(window.SECTIONS)) {
+        return window.SECTIONS.find(function (s) { return s.id === sid; }) || null;
+      }
+      return null;
+    }
+    function _hideBadge() {
+      badge.hidden = true;
+      lastTargetPinId = null;
+    }
+
+    mapEl.addEventListener('dragenter', function (e) {
+      if (!_hasPhotoMime(e)) return;
+      e.preventDefault();
+    });
+    mapEl.addEventListener('dragover', function (e) {
+      if (!_hasPhotoMime(e)) return;
+      if (!state.map) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'link';
+      // Translate pointer position → lat/lng via Leaflet's map container math.
+      var rect = mapEl.getBoundingClientRect();
+      var px = e.clientX - rect.left;
+      var py = e.clientY - rect.top;
+      var ll;
+      try { ll = state.map.containerPointToLatLng([px, py]); } catch (_) { return; }
+      // Search the active section first (most common); fall back to any
+      // visible section if nothing's in range.
+      var sec = _activeSec();
+      // 50 ft default radius — generous enough to catch a pin from a
+      // slightly off-target drop, tight enough not to grab a distant pin.
+      var hit = sec ? _findNearestPin(ll, sec, 50) : null;
+      if (!hit) {
+        _hideBadge();
+        return;
+      }
+      badge.hidden = false;
+      badge.textContent = 'Drop on: ' + hit.pin.id + ' · ' + Math.round(hit.distFt) + ' ft';
+      badge.style.left = (e.clientX + 14) + 'px';
+      badge.style.top  = (e.clientY - 28) + 'px';
+      // Cache the resolved target so drop doesn't have to re-search if the
+      // pointer is still over the same pin.
+      lastTargetPinId = hit.pin.id;
+    });
+    mapEl.addEventListener('dragleave', function (e) {
+      // Only hide when the cursor truly leaves the map container.
+      if (e.relatedTarget && mapEl.contains(e.relatedTarget)) return;
+      _hideBadge();
+    });
+    mapEl.addEventListener('drop', function (e) {
+      if (!_hasPhotoMime(e) || !state.map) return;
+      e.preventDefault();
+      _hideBadge();
+      var photoId = e.dataTransfer.getData('application/x-rw-photo-id');
+      var api = window._RW && window._RW.geophotos;
+      if (!photoId || !api || !api.get || !api.save) return;
+      var photo = api.get(photoId);
+      if (!photo) return;
+      // Re-resolve under the cursor at drop-time (more accurate than the
+      // cached last-target if the user wobbled at the last frame).
+      var rect = mapEl.getBoundingClientRect();
+      var ll;
+      try {
+        ll = state.map.containerPointToLatLng([e.clientX - rect.left, e.clientY - rect.top]);
+      } catch (_) { return; }
+      var sec = _activeSec();
+      var hit = sec ? _findNearestPin(ll, sec, 50) : null;
+      if (!hit) {
+        _rwToast && _rwToast('No feature within 50 ft of the drop — try aiming closer to a pin/line');
+        return;
+      }
+      photo.linked_pin_id = sec.id + '::' + hit.pin.id;
+      api.save(photo).then(function () {
+        if (api.refresh) api.refresh();
+        if (typeof renderStrip === 'function') renderStrip();
+        // Re-render the map so the pin's halo / connector lines pick up
+        // any state change (currently nothing visual, but cheap).
+        if (typeof initOrUpdateMap === 'function' && sec) {
+          try { initOrUpdateMap(sec); } catch (_) {}
+        }
+        _rwToast && _rwToast('✓ Linked photo to ' + hit.pin.id +
+                             ' (' + Math.round(hit.distFt) + ' ft from drop)');
+      });
+    });
+  }
+
   // Photos toggle (📷) in the SLD header — flip localStorage + re-render.
   $('#strip-photos-btn')?.addEventListener('click', () => {
     var cur = false;
@@ -18441,6 +18599,9 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     // Drop-target wiring for SLD photo → feature drag. Idempotent — uses a
     // flag on the canvas element to bind exactly once across re-renders.
     if (typeof _bindSldDropTargets === 'function') _bindSldDropTargets();
+    // Same idea for the Leaflet map below — once #map exists, register
+    // dragover/drop on it so SLD thumbs can be dragged onto map features.
+    if (typeof _bindMapDropTarget === 'function') _bindMapDropTarget();
   }
 
   // _stripDragWasMoved / _stripScrollTimer — set by the renderStrip scroll
