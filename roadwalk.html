@@ -3069,6 +3069,30 @@ a { color: inherit; text-decoration: none; }
   border: none; border-radius: 6px;
 }
 .ff-photo:active, .ff-upload:active { transform: scale(0.98); }
+
+/* Reusable drag-and-drop photo zone — works alongside any "Upload" button.
+   Drop a folder of images here from the OS file manager; the global handler
+   routes them to the target input named in data-rw-drop-target. */
+.rw-dropzone {
+  display: flex; align-items: center; justify-content: center;
+  gap: 8px; min-height: 38px; padding: 6px 10px;
+  border: 1.5px dashed var(--rule, #b8b8b8); border-radius: 6px;
+  background: #fafafa; color: var(--ink-2, #6b6b6b);
+  font: 600 11px 'IBM Plex Sans', sans-serif;
+  text-align: center; cursor: copy; user-select: none;
+  transition: background 120ms, border-color 120ms, color 120ms, min-height 120ms;
+}
+.rw-dropzone:hover { border-color: var(--blue, #2563A8); color: var(--blue, #2563A8); }
+.rw-dropzone .rw-dropzone-ico { font-size: 14px; opacity: 0.8; }
+.rw-dropzone .rw-dropzone-lbl { white-space: nowrap; }
+/* Active state — applied while a file is being dragged over the zone */
+.rw-dropzone.rw-drop-active {
+  border-color: var(--orange, #C85A2B); border-style: solid;
+  background: rgba(200, 90, 43, 0.08); color: var(--orange, #C85A2B);
+  min-height: 54px;
+  box-shadow: inset 0 0 0 2px rgba(200, 90, 43, 0.18);
+}
+.rw-dropzone.rw-drop-active .rw-dropzone-ico { font-size: 18px; opacity: 1; }
 .ff-scroll { flex: 1; overflow-y: auto; }
 .ff-body { padding: 2px 14px 8px; }
 .ff-foot { display: flex; border-top: 1px solid var(--line, #d8dde2); }
@@ -9005,6 +9029,10 @@ body.mobile-mode #app {
             <div class="layers-panel-title">FIELD PHOTOS</div>
             <div class="pp-body">
               <button class="pp-btn" id="pp-upload" type="button">⬆ Upload Photos</button>
+              <div class="rw-dropzone" data-rw-drop-target="pp-file" style="margin-top:6px;">
+                <span class="rw-dropzone-ico">⬇</span>
+                <span class="rw-dropzone-lbl">…or drop photos here</span>
+              </div>
               <label class="pp-opt"><span>Resize to</span>
                 <select id="pp-size">
                   <option value="800">Small · 800 px</option>
@@ -10340,6 +10368,10 @@ body.mobile-mode #app {
       <div class="ff-photo-row">
         <button class="ff-photo"  id="ff-photo"  type="button">📷 Take Photo</button>
         <button class="ff-upload" id="ff-upload" type="button">⬆ Upload</button>
+      </div>
+      <div class="rw-dropzone" data-rw-drop-target="ff-upload-input" style="margin:0 14px 8px;">
+        <span class="rw-dropzone-ico">⬇</span>
+        <span class="rw-dropzone-lbl">…or drop photos here</span>
       </div>
       <div class="ff-body" id="ff-body"></div>
       <div class="ff-foot">
@@ -14900,6 +14932,10 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         ${pathwebUrl ? `<a href="${pathwebUrl}" target="_blank" rel="noopener" class="btn alt" style="flex:1; min-width:120px; display:flex; align-items:center; justify-content:center; text-decoration:none;">Pathweb ↗</a>` : ''}
       </div>
       <input type="file" id="pin-add-photo-input" accept="image/*" capture="environment" style="display:none;">
+      <div class="rw-dropzone" data-rw-drop-target="pin-add-photo-input" style="margin-top:8px;">
+        <span class="rw-dropzone-ico">⬇</span>
+        <span class="rw-dropzone-lbl">…or drop photos here to add to this pin</span>
+      </div>
       <div class="ko-hint" style="font-size:10px; color:var(--ink-3); margin-top:4px; text-align:center;">
         Pathweb opens in a new tab (their site blocks in-app embedding).
       </div>
@@ -15014,20 +15050,29 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     const photoInput = $('#pin-add-photo-input');
     $('#pin-add-photo')?.addEventListener('click', () => { if (photoInput) window._RW.cameraCapture(photoInput); });
     photoInput?.addEventListener('change', (e) => {
-      const file = e.target.files && e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (ev) => {
+      const files = Array.from(e.target.files || []);
+      if (!files.length) return;
+      // Read all files in parallel, push in input order, then re-render once.
+      // Camera capture yields a single file; drag-and-drop can yield many.
+      Promise.all(files.map(f => new Promise(res => {
+        const r = new FileReader();
+        r.onload = ev => res({ ok: true, dataUrl: ev.target.result, name: f.name });
+        r.onerror = () => res({ ok: false });
+        r.readAsDataURL(f);
+      }))).then(results => {
         pin._added_photos = pin._added_photos || [];
-        pin._added_photos.push({
-          dataUrl: ev.target.result,
-          label: 'Field',
-          captured_at: new Date().toISOString(),
+        results.forEach(r => {
+          if (!r.ok) return;
+          pin._added_photos.push({
+            dataUrl: r.dataUrl,
+            label: 'Field',
+            captured_at: new Date().toISOString(),
+          });
         });
-        // Re-open the sheet to refresh the gallery
+        // Reset the input so dropping the SAME file twice still fires change.
+        try { e.target.value = ''; } catch (_) {}
         openPinSheet(pin, sec);
-      };
-      reader.readAsDataURL(file);
+      });
     });
     // Helper: persist a cropped data URL back to the right place.
     const persistCrop = (item, croppedDataUrl) => {
@@ -26542,6 +26587,94 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   }
   window.buildPhotoFilterPanel = buildPhotoFilterPanel;
 
+  /* ===================== Drag-and-drop photo zones ====================
+     Any element with [data-rw-drop-target="<input-id>"] becomes an active
+     dropzone — drop image files onto it and they're routed to the named
+     <input type=file>, then a 'change' event fires so the existing upload
+     handler picks them up exactly as if the user had clicked the file
+     picker. Works for static AND dynamically-rendered forms because the
+     delegation lives on document. */
+  (function () {
+    function _isImage(f) {
+      return f && (
+        (f.type && f.type.indexOf('image/') === 0) ||
+        // Some OSes drop EXIF-stripped photos with empty type — accept any
+        // file with an image extension as a fallback.
+        /\.(jpe?g|png|webp|heic|heif|gif|bmp|tiff?)$/i.test(f.name || '')
+      );
+    }
+    function _zoneFor(t) {
+      var el = t;
+      while (el && el.nodeType === 1) {
+        if (el.hasAttribute && el.hasAttribute('data-rw-drop-target')) return el;
+        el = el.parentElement;
+      }
+      return null;
+    }
+    function _hasFiles(e) {
+      var types = e.dataTransfer && e.dataTransfer.types;
+      if (!types) return false;
+      // DataTransferItemList isn't always a real Array — convert defensively.
+      for (var i = 0; i < types.length; i++) if (types[i] === 'Files') return true;
+      return false;
+    }
+    // Block browser's default "open file" navigation when something is
+    // dragged anywhere else on the page — without this the page navigates
+    // away from RoadWalk if the user misses the dropzone.
+    window.addEventListener('dragover', function (e) {
+      if (_hasFiles(e)) e.preventDefault();
+    });
+    window.addEventListener('drop', function (e) {
+      if (_hasFiles(e) && !_zoneFor(e.target)) e.preventDefault();
+    });
+    // Active-state visuals on our own zones.
+    document.addEventListener('dragenter', function (e) {
+      var z = _zoneFor(e.target);
+      if (!z || !_hasFiles(e)) return;
+      e.preventDefault();
+      z.classList.add('rw-drop-active');
+    }, true);
+    document.addEventListener('dragover', function (e) {
+      var z = _zoneFor(e.target);
+      if (!z || !_hasFiles(e)) return;
+      e.preventDefault();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+      z.classList.add('rw-drop-active');
+    }, true);
+    document.addEventListener('dragleave', function (e) {
+      var z = _zoneFor(e.target);
+      if (!z) return;
+      // Only de-highlight when the cursor genuinely leaves the zone — not
+      // when it crosses to one of the zone's own children.
+      if (e.relatedTarget && z.contains(e.relatedTarget)) return;
+      z.classList.remove('rw-drop-active');
+    }, true);
+    document.addEventListener('drop', function (e) {
+      var z = _zoneFor(e.target);
+      if (!z) return;
+      e.preventDefault();
+      z.classList.remove('rw-drop-active');
+      var targetId = z.getAttribute('data-rw-drop-target');
+      var input = targetId && document.getElementById(targetId);
+      if (!input || !e.dataTransfer || !e.dataTransfer.files) return;
+      var files = Array.prototype.filter.call(e.dataTransfer.files, _isImage);
+      if (!files.length) {
+        try { _rwToast && _rwToast('No image files found in the drop'); } catch (_) {}
+        return;
+      }
+      // input.files is read-only on most browsers — assemble a DataTransfer
+      // so we can synthesise a FileList the upload handler will accept.
+      try {
+        var dt = new DataTransfer();
+        files.forEach(function (f) { dt.items.add(f); });
+        input.files = dt.files;
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      } catch (err) {
+        console.warn('[RoadWalk] Drop → input dispatch failed', err);
+      }
+    }, true);
+  })();
+
   // Also expose doAutoSave so other modules can trigger a save after writes.
   window.RWAutoSave = doAutoSave;
 
@@ -29778,7 +29911,11 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       _dirCol(270, '270° · Left', 4) +
     '</div>' +
     '<input type="file" id="ds-sign-photo-input" accept="image/*" capture="environment" style="display:none">' +
-    '<input type="file" id="ds-sign-upload-input" accept="image/*" multiple style="display:none">';
+    '<input type="file" id="ds-sign-upload-input" accept="image/*" multiple style="display:none">' +
+    '<div class="rw-dropzone" data-rw-drop-target="ds-sign-upload-input" style="margin:10px 12px;">' +
+      '<span class="rw-dropzone-ico">⬇</span>' +
+      '<span class="rw-dropzone-lbl">…or drop photos here to add to this sign</span>' +
+    '</div>';
   }
 
   // ── Culvert form — full inspection sub-tabs ────────────────────────────────
@@ -30172,7 +30309,11 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
           '<div class="df-photo-btns" style="margin-top:6px;">' +
             '<button type="button" class="df-photo-btn" id="df-misc-upload-photo">↑ Upload</button>' +
           '</div>' +
-          '<input type="file" id="df-misc-upload-input" accept="image/*" style="display:none">' +
+          '<input type="file" id="df-misc-upload-input" accept="image/*" multiple style="display:none">' +
+          '<div class="rw-dropzone" data-rw-drop-target="df-misc-upload-input" style="margin-top:8px;">' +
+            '<span class="rw-dropzone-ico">⬇</span>' +
+            '<span class="rw-dropzone-lbl">…or drop photos here</span>' +
+          '</div>' +
           '<div class="df-photo-grid" id="df-photo-grid" style="margin-top:10px;">' + photoHtml + '</div>' +
         '</div>';
     }
@@ -30615,7 +30756,11 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       '<div class="df-photo-btns">' +
         '<button type="button" class="df-photo-btn" id="df-misc-upload-photo">↑ Upload</button>' +
       '</div>' +
-      '<input type="file" id="df-misc-upload-input" accept="image/*" style="display:none">' +
+      '<input type="file" id="df-misc-upload-input" accept="image/*" multiple style="display:none">' +
+      '<div class="rw-dropzone" data-rw-drop-target="df-misc-upload-input" style="margin-top:8px;">' +
+        '<span class="rw-dropzone-ico">⬇</span>' +
+        '<span class="rw-dropzone-lbl">…or drop photos here</span>' +
+      '</div>' +
       '<div class="df-photo-grid" id="df-photo-grid">' + photoHtml + '</div>';
 
     return meta +
@@ -31195,7 +31340,10 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     if (uploadBtn && uploadInput) {
       uploadBtn.addEventListener('click', function () { uploadInput.click(); });
       uploadInput.addEventListener('change', function () {
-        if (uploadInput.files && uploadInput.files[0]) _readAndAddPhoto(uploadInput.files[0], false);
+        // Drag-and-drop can deliver many files at once; the button-click
+        // path is single-file. Loop so both cases land every photo.
+        var files = uploadInput.files ? Array.prototype.slice.call(uploadInput.files) : [];
+        files.forEach(function (f) { _readAndAddPhoto(f, false); });
         uploadInput.value = '';
       });
     }
