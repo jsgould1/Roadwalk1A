@@ -17817,6 +17817,40 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       }
     }
 
+    // ── Pre-pass: backfill attrs.side + attrs.length_ft on LineString pins ──
+    // The SLD bar filter at line ~17065 requires attrs.side; lines without
+    // it get silently dropped, so the user sees the line on the Leaflet
+    // map but not as a parallel bar on the strip. Older imports + lines
+    // drawn before the on-map drawer was patched are the typical
+    // offenders. Computed from the midpoint vertex.
+    if (sec.alignment) {
+      for (const p of (sec.pins || [])) {
+        if (!p.geometry || p.geometry.type !== 'LineString') continue;
+        const coords = p.geometry.coordinates;
+        if (!Array.isArray(coords) || coords.length < 2) continue;
+        if (!p.attrs) p.attrs = {};
+        const hasSide   = p.attrs.side === 'L' || p.attrs.side === 'R' || p.attrs.side === 'on';
+        const hasLength = typeof p.attrs.length_ft === 'number' && isFinite(p.attrs.length_ft) && p.attrs.length_ft > 0;
+        if (hasSide && hasLength) continue;
+        try {
+          if (!hasSide) {
+            const mid = coords[Math.floor(coords.length / 2)];
+            const sd  = sideOfAlignment({ lat: mid[1], lng: mid[0] }, sec.alignment);
+            if (sd) p.attrs.side = sd;
+          }
+          if (!hasLength) {
+            let lengthFt = 0;
+            for (let i = 1; i < coords.length; i++) {
+              // havFt takes [lat, lng] — coords are [lng, lat].
+              lengthFt += havFt([coords[i-1][1], coords[i-1][0]],
+                                [coords[i][1],   coords[i][0]]);
+            }
+            if (lengthFt > 0) p.attrs.length_ft = +lengthFt.toFixed(2);
+          }
+        } catch (_) { /* off-section — leave attrs as-is */ }
+      }
+    }
+
     // Sidewalk polygons render on the SLD as a parallel bar — precompute the
     // along-route station extent + side by projecting the polygon vertices
     // onto the alignment.
