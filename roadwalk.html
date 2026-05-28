@@ -2465,6 +2465,94 @@ a { color: inherit; text-decoration: none; }
 }
 .strip-photo-thumb.grouped { border-color: var(--gp-group-color, #c85a2b); }
 .strip-photo-thumb.linked  { outline: 2px solid var(--blue); outline-offset: 1px; }
+.strip-photo-thumb { cursor: pointer; }
+.strip-photo-thumb:active { transform: translate(-50%, -50%) scale(0.96); }
+/* During a photo drag, dim non-target areas so the available feature
+   bars / pins stand out as the only sensible targets. */
+body.rw-sld-photo-dragging .strip-feature-bar,
+body.rw-sld-photo-dragging .strip-pin {
+  outline: 1px dashed rgba(37, 99, 168, 0.5);
+  outline-offset: 1px;
+}
+.rw-photo-drop-target {
+  outline: 3px solid var(--orange, #C85A2B) !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 4px rgba(200, 90, 43, 0.25) !important;
+}
+/* Tap-a-photo action popup — small floating card near the cursor */
+.sld-photo-actions[hidden] { display: none; }
+.sld-photo-actions {
+  position: fixed; z-index: 9700;
+  min-width: 240px; max-width: 320px;
+  background: #fff; border: 2px solid var(--blue, #2563A8);
+  border-radius: 6px; box-shadow: 0 8px 28px rgba(0,0,0,0.35);
+  font: 500 12px 'IBM Plex Sans', sans-serif;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.sld-photo-actions .spa-head {
+  position: relative;
+  background: #f5f0e8; border-bottom: 1px solid var(--rule, #d8dde2);
+  padding: 6px 10px; padding-right: 32px;
+}
+.sld-photo-actions .spa-thumb {
+  width: 100%; max-height: 140px; object-fit: cover;
+  display: block; border-radius: 3px;
+}
+.sld-photo-actions .spa-close {
+  position: absolute; top: 4px; right: 4px;
+  width: 24px; height: 24px; border: 0; background: rgba(0,0,0,0.55);
+  color: #fff; border-radius: 50%; cursor: pointer; font-size: 14px;
+  line-height: 1; padding: 0;
+}
+.sld-photo-actions .spa-row {
+  padding: 6px 10px; border-bottom: 1px solid var(--rule, #d8dde2);
+  display: flex; align-items: center; gap: 8px;
+}
+.sld-photo-actions .spa-row:last-of-type { border-bottom: 0; }
+.sld-photo-actions .spa-link-row { background: #eff6ff; }
+.sld-photo-actions .spa-link-row.spa-not-linked,
+.sld-photo-actions .spa-link-row.spa-link-missing { background: #fef3c7; }
+.sld-photo-actions .spa-link-lbl {
+  font: 700 10px 'IBM Plex Mono', monospace; letter-spacing: 0.5px;
+  color: var(--ink-2); white-space: nowrap;
+}
+.sld-photo-actions .spa-link-val {
+  font: 700 12px 'IBM Plex Mono', monospace; color: var(--ink);
+  flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis;
+}
+.sld-photo-actions .spa-link-kind,
+.sld-photo-actions .spa-link-sec {
+  font-weight: 500; color: var(--ink-3);
+  font-family: 'IBM Plex Sans', sans-serif; font-size: 10.5px;
+}
+.sld-photo-actions .spa-grp-swatch {
+  width: 12px; height: 12px; border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.18);
+}
+.sld-photo-actions .spa-grp-lbl {
+  font: 600 11px 'IBM Plex Sans', sans-serif; color: var(--ink-2);
+}
+.sld-photo-actions .spa-btns {
+  display: flex; gap: 4px; padding: 6px;
+  background: #faf8f4;
+}
+.sld-photo-actions .spa-btn {
+  flex: 1 1 auto;
+  font: 700 11px 'IBM Plex Sans', sans-serif;
+  background: #fff; border: 1px solid var(--rule, #d8dde2); color: var(--ink);
+  padding: 7px 10px; border-radius: 4px; cursor: pointer;
+  white-space: nowrap;
+}
+.sld-photo-actions .spa-btn:hover { border-color: var(--blue, #2563A8); color: var(--blue, #2563A8); }
+.sld-photo-actions .spa-open {
+  background: var(--blue, #2563A8); border-color: var(--blue, #2563A8); color: #fff;
+}
+.sld-photo-actions .spa-open:hover { filter: brightness(1.08); color: #fff; }
+.sld-photo-actions .spa-unlink {
+  background: #fff; border-color: #b91c1c; color: #b91c1c;
+}
+.sld-photo-actions .spa-unlink:hover { background: #b91c1c; color: #fff; }
 /* Empty-state caption inside the lane when no photos match this section */
 .strip-photo-lane-empty {
   position: absolute; left: 50%; top: 50%;
@@ -16518,6 +16606,213 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     if (box) box.style.display = 'none';
   }
 
+  // ── SLD photo action popup ──────────────────────────────────────────────
+  // Tapping a photo thumb in the SLD lane opens this small popup with
+  //   • who the photo is linked to (resolved id + kind)
+  //   • Open Feature — opens the linked pin's data form
+  //   • Unlink — clears linked_pin_id (photo stays in the library)
+  //   • View — opens the full-size image in a new tab
+  //   • Cancel — dismiss
+  // Photos without linked_pin_id still get the popup, just no Open/Unlink.
+  function _sldEnsureActionPopup() {
+    var pop = document.getElementById('sld-photo-actions');
+    if (pop) return pop;
+    pop = document.createElement('div');
+    pop.id = 'sld-photo-actions';
+    pop.className = 'sld-photo-actions';
+    pop.hidden = true;
+    document.body.appendChild(pop);
+    // Click outside to dismiss
+    document.addEventListener('click', function (e) {
+      if (pop.hidden) return;
+      if (e.target.closest('#sld-photo-actions')) return;
+      pop.hidden = true;
+    }, true);
+    return pop;
+  }
+  function _showSldPhotoActions(photo, ev) {
+    var pop = _sldEnsureActionPopup();
+    var api = window._RW && window._RW.geophotos;
+    var resolved = (api && api.resolveLink && photo.linked_pin_id)
+      ? api.resolveLink(photo.linked_pin_id) : null;
+    var esc = function (s) {
+      return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+      });
+    };
+    var linkRow = '';
+    if (photo.linked_pin_id) {
+      if (resolved && resolved.pin) {
+        linkRow =
+          '<div class="spa-row spa-link-row">' +
+            '<span class="spa-link-lbl">🔗 Linked to</span>' +
+            '<span class="spa-link-val">' + esc(resolved.pin.id) +
+              ' <span class="spa-link-kind">· ' + esc((resolved.pin.kind || '').replace(/^pt_|^pg_|^ln_/, '')) + '</span>' +
+              ' <span class="spa-link-sec">· ' + esc(resolved.sec ? resolved.sec.name || resolved.sec.id : '') + '</span></span>' +
+          '</div>';
+      } else {
+        linkRow =
+          '<div class="spa-row spa-link-row spa-link-missing">' +
+            '<span class="spa-link-lbl">🔗 Linked to</span>' +
+            '<span class="spa-link-val">' + esc(photo.linked_pin_id) +
+              ' <span class="spa-link-kind">(pin not found)</span></span>' +
+          '</div>';
+      }
+    } else {
+      linkRow =
+        '<div class="spa-row spa-link-row spa-not-linked">' +
+          '<span class="spa-link-lbl">Not linked to any feature</span>' +
+        '</div>';
+    }
+    var groupRow = '';
+    if (photo.asset_group_id) {
+      var color = api && api.groupColor ? api.groupColor(photo.asset_group_id) : '#888';
+      var members = api && api.members ? api.members(photo).length : 1;
+      groupRow =
+        '<div class="spa-row spa-group-row">' +
+          '<span class="spa-grp-swatch" style="background:' + color + '"></span>' +
+          '<span class="spa-grp-lbl">Group of ' + members + ' photo' + (members === 1 ? '' : 's') + '</span>' +
+        '</div>';
+    }
+    pop.innerHTML =
+      '<div class="spa-head">' +
+        '<img class="spa-thumb" src="' + photo.dataUrl + '" alt="">' +
+        '<button class="spa-close" type="button" aria-label="Close">✕</button>' +
+      '</div>' +
+      linkRow + groupRow +
+      '<div class="spa-btns">' +
+        (resolved && resolved.pin
+          ? '<button class="spa-btn spa-open" type="button">→ Open Feature</button>'
+          : '') +
+        (photo.linked_pin_id
+          ? '<button class="spa-btn spa-unlink" type="button">✕ Unlink</button>'
+          : '') +
+        '<button class="spa-btn spa-view" type="button">🔍 View full</button>' +
+      '</div>';
+    // Position relative to the click point, clamped to viewport.
+    var x = ev && ev.clientX != null ? ev.clientX : window.innerWidth / 2;
+    var y = ev && ev.clientY != null ? ev.clientY : window.innerHeight / 2;
+    pop.style.left = '0px'; pop.style.top = '0px';
+    pop.hidden = false;
+    var r = pop.getBoundingClientRect();
+    var px = Math.min(Math.max(8, x + 8), window.innerWidth  - r.width  - 8);
+    var py = Math.min(Math.max(8, y + 8), window.innerHeight - r.height - 8);
+    pop.style.left = px + 'px';
+    pop.style.top  = py + 'px';
+    // Wire buttons (each open re-binds — popup is a single shared element).
+    var closeBtn = pop.querySelector('.spa-close');
+    if (closeBtn) closeBtn.onclick = function () { pop.hidden = true; };
+    var openBtn = pop.querySelector('.spa-open');
+    if (openBtn) openBtn.onclick = function () {
+      pop.hidden = true;
+      if (!resolved || !resolved.sec || !resolved.pin) return;
+      if (typeof window.openDataForm === 'function') {
+        window.openDataForm(resolved.pin, resolved.sec, 'sld-photo');
+      } else if (typeof openFeaturePopup === 'function') {
+        openFeaturePopup(resolved.pin, resolved.sec);
+      }
+    };
+    var unlinkBtn = pop.querySelector('.spa-unlink');
+    if (unlinkBtn) unlinkBtn.onclick = function () {
+      pop.hidden = true;
+      if (!api || !api.save) return;
+      photo.linked_pin_id = null;
+      api.save(photo).then(function () {
+        if (api.refresh) api.refresh();
+        if (typeof renderStrip === 'function') renderStrip();
+        _rwToast && _rwToast('✓ Unlinked photo from feature');
+      });
+    };
+    var viewBtn = pop.querySelector('.spa-view');
+    if (viewBtn) viewBtn.onclick = function () {
+      pop.hidden = true;
+      var w = window.open('', '_blank');
+      if (w) w.document.write('<img src="' + photo.dataUrl + '" style="max-width:100%">');
+    };
+  }
+  // Exposed so other modules (e.g. the geophoto map layer click handler) can
+  // reuse the same popup if we ever wire it up there.
+  window._RW = window._RW || {};
+  window._RW.showSldPhotoActions = _showSldPhotoActions;
+
+  // ── SLD feature bars / pins as photo drop targets ───────────────────────
+  // Drag a thumb from the SLD lane onto any feature bar or point pin in the
+  // SLD inner container to link the photo to that feature. The link sticks
+  // in the geophoto store via linked_pin_id and renders with a blue outline
+  // immediately after the renderStrip refresh.
+  function _findSldFeatureAt(el) {
+    while (el && el.nodeType === 1) {
+      if (el.classList && (
+          el.classList.contains('strip-feature-bar') ||
+          el.classList.contains('strip-pin'))) return el;
+      el = el.parentElement;
+    }
+    return null;
+  }
+  function _bindSldDropTargets() {
+    var canvas = document.getElementById('strip-canvas');
+    if (!canvas || canvas._rwPhotoDropBound) return;
+    canvas._rwPhotoDropBound = true;
+    canvas.addEventListener('dragover', function (e) {
+      if (!e.dataTransfer) return;
+      var types = e.dataTransfer.types || [];
+      var hasPhoto = false;
+      for (var i = 0; i < types.length; i++) {
+        if (types[i] === 'application/x-rw-photo-id') hasPhoto = true;
+      }
+      if (!hasPhoto) return;
+      var tgt = _findSldFeatureAt(e.target);
+      if (!tgt) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'link';
+      tgt.classList.add('rw-photo-drop-target');
+    });
+    canvas.addEventListener('dragleave', function (e) {
+      var tgt = _findSldFeatureAt(e.target);
+      if (!tgt) return;
+      if (e.relatedTarget && tgt.contains(e.relatedTarget)) return;
+      tgt.classList.remove('rw-photo-drop-target');
+    });
+    canvas.addEventListener('drop', function (e) {
+      if (!e.dataTransfer) return;
+      var photoId = e.dataTransfer.getData('application/x-rw-photo-id');
+      if (!photoId) return;
+      var tgt = _findSldFeatureAt(e.target);
+      if (!tgt) return;
+      e.preventDefault();
+      tgt.classList.remove('rw-photo-drop-target');
+      // Resolve the feature pin from the target. Bar IDs come from the
+      // pin.id in the bar's title; pins from their click handler. Easier:
+      // search SECTIONS for a pin whose bar/pin element matches.
+      var api = window._RW && window._RW.geophotos;
+      if (!api || !api.get || !api.save) return;
+      var photo = api.get(photoId);
+      if (!photo || !stripCurrentSec) return;
+      // Identify the feature by walking SECTIONS to find the pin whose
+      // rendering would have produced this element. The bar's title carries
+      // pin.id; the pin div has a similar title. Parse it.
+      var t = tgt.title || '';
+      var m = /^(\S+)\s/.exec(t);
+      var pinId = m ? m[1] : null;
+      if (!pinId) return;
+      var sec = stripCurrentSec;
+      var target = (sec.pins || []).find(function (pp) { return pp.id === pinId; });
+      if (!target) return;
+      photo.linked_pin_id = sec.id + '::' + target.id;
+      api.save(photo).then(function () {
+        if (api.refresh) api.refresh();
+        if (typeof renderStrip === 'function') renderStrip();
+        _rwToast && _rwToast('✓ Linked photo to ' + target.id);
+      });
+    });
+  }
+  // Wire drop targets once the strip exists; safe to call repeatedly.
+  if (typeof renderStrip === 'function') {
+    var _origRenderStripWrapper = renderStrip;
+    // (Wrapping is done via window.requestAnimationFrame in the strip code;
+    //  here we just bind on each call — _bindSldDropTargets is idempotent.)
+  }
+
   // Photos toggle (📷) in the SLD header — flip localStorage + re-render.
   $('#strip-photos-btn')?.addEventListener('click', () => {
     var cur = false;
@@ -18010,7 +18305,35 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
           // Hover meta consumed by the existing tk-hover-preview handlers.
           im.dataset.hoverDesc = p.description || '';
           var staLbl = ((staFt / 100 | 0) + '+' + ('0' + Math.round(staFt % 100)).slice(-2));
-          im.dataset.hoverMeta = 'STA ' + staLbl + ' · ' + Math.round(perpFt) + ' ft off centerline';
+          var _hoverParts = ['STA ' + staLbl, Math.round(perpFt) + ' ft off centerline'];
+          // Surface the link target in the hover so the user can see what
+          // this photo is linked to without having to click first.
+          if (p.linked_pin_id) {
+            var _r = window._RW && window._RW.geophotos && window._RW.geophotos.resolveLink
+              ? window._RW.geophotos.resolveLink(p.linked_pin_id) : null;
+            _hoverParts.push('🔗 ' + (_r && _r.pin ? _r.pin.id : p.linked_pin_id));
+          }
+          im.dataset.hoverMeta = _hoverParts.join(' · ');
+          im.dataset.photoId = p.id;
+          // Make the thumb draggable — drop onto a feature bar / pin on the
+          // SLD to link the photo to that feature.
+          im.draggable = true;
+          im.addEventListener('dragstart', function (e) {
+            try {
+              e.dataTransfer.setData('application/x-rw-photo-id', p.id);
+              e.dataTransfer.effectAllowed = 'link';
+            } catch (_) {}
+            document.body.classList.add('rw-sld-photo-dragging');
+          });
+          im.addEventListener('dragend', function () {
+            document.body.classList.remove('rw-sld-photo-dragging');
+          });
+          // Click → action popup (open linked feature / link to feature / unlink).
+          im.addEventListener('click', function (e) {
+            e.stopPropagation();
+            _sldHideHoverPreview();
+            _showSldPhotoActions(p, e);
+          });
           im.addEventListener('mouseenter', _sldShowHoverPreview);
           im.addEventListener('mousemove',  _sldMoveHoverPreview);
           im.addEventListener('mouseleave', _sldHideHoverPreview);
@@ -18115,6 +18438,9 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       state.map.on('moveend', state.map._rwMapMoveHandler);
     }
     _renderStripWidths();
+    // Drop-target wiring for SLD photo → feature drag. Idempotent — uses a
+    // flag on the canvas element to bind exactly once across re-renders.
+    if (typeof _bindSldDropTargets === 'function') _bindSldDropTargets();
   }
 
   // _stripDragWasMoved / _stripScrollTimer — set by the renderStrip scroll
