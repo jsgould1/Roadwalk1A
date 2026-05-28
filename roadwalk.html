@@ -8275,12 +8275,45 @@ input.fs-slider::-webkit-slider-thumb {
   font: 700 11px 'IBM Plex Sans', sans-serif;
 }
 .sign-photo-row { display: flex; gap: 5px; margin: 4px 0; }
-.sign-ph-take, .sign-ph-up {
+.sign-ph-take, .sign-ph-up, .sign-ph-sel {
   cursor: pointer; border: none; border-radius: 5px; padding: 7px 4px;
   font: 700 10px 'IBM Plex Sans', sans-serif; color: #fff;
 }
 .sign-ph-take { flex: 3; background: #d8463c; }
 .sign-ph-up   { flex: 1; background: #9aa3ad; }
+.sign-ph-sel  { flex: 1.4; background: var(--blue, #2563A8); }
+.sign-ph-sel:hover { filter: brightness(1.08); }
+/* Sign-form scoped dropzone — sits below the photo buttons. Smaller
+   variant for per-panel / per-post mini rows. */
+.sign-photo-drop {
+  margin: 2px 0 6px;
+  min-height: 30px; padding: 4px 6px;
+  font: 600 10px 'IBM Plex Sans', sans-serif;
+}
+.sign-photo-drop .rw-dropzone-ico { font-size: 12px; }
+.rw-dropzone-mini {
+  min-height: 26px; padding: 3px 6px;
+  font: 600 9.5px 'IBM Plex Sans', sans-serif;
+}
+.rw-dropzone-mini.rw-drop-active { min-height: 36px; }
+/* Per-panel / per-post mini photo block — slightly indented + bordered
+   to visually nest inside the parent block. */
+.sign-photos-mini {
+  margin-top: 6px; padding: 6px 8px;
+  border-top: 1px dashed var(--rule, #d8dde2);
+  background: #fafafa; border-radius: 0 0 4px 4px;
+}
+.sign-photo-row-mini .sign-ph-take,
+.sign-photo-row-mini .sign-ph-up,
+.sign-photo-row-mini .sign-ph-sel {
+  flex: 1; padding: 6px 2px; font-size: 11px;
+}
+.sign-photo-row-mini { align-items: center; gap: 4px; }
+.sign-photo-row-lbl {
+  flex: 0 0 auto; padding-left: 4px;
+  font: 700 9px 'IBM Plex Mono', monospace; color: var(--ink-3);
+  letter-spacing: 0.6px; text-transform: uppercase;
+}
 .sign-photos { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-bottom: 4px; }
 .sign-photo-card { display: flex; flex-direction: column; gap: 3px; width: 128px; }
 .sign-photo-imgwrap { position: relative; }
@@ -30319,6 +30352,10 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     }
 
     // ── POST column ──────────────────────────────────────────────────────
+    // Ensure every post has a stable ulid so per-post photos have a key.
+    a.posts.forEach(function (post) {
+      if (!post.ulid && typeof makeULID === 'function') post.ulid = makeULID();
+    });
     var postBlocks = a.posts.map(function (post, oi) {
       return '<div class="sign-post-block" data-post-scope="' + oi + '">' +
         '<div class="sign-sub-hdr">POST ' + (oi + 1) +
@@ -30333,6 +30370,9 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         _condRow  ('Post cond', 'post_condition', post.post_condition, conditions, 'data-post-field') +
         _signFlagBlock('post_damage', post.post_damage, postDmg) +
         _textareaRow('Notes', 'notes', post.notes) +
+        // Per-post mini photo row — photos scoped to this post's ulid.
+        // Dir = 'post' since posts live in the post column.
+        _photoBlockScoped('post', post.ulid || '', 'post') +
       '</div>';
     }).join('');
 
@@ -30355,9 +30395,27 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       '</div>';
 
     // ── Photo blocks (reused by direction columns + the post column) ─────
+    // Column-level photos: filter to this dir, EXCLUDING any photo that's
+    // been narrowed down to a specific panel or post (those render under
+    // their owning panel/post block instead, so we don't duplicate).
     function _photoList(dirKey) {
       return a.photos.map(function (ph, i) { return { ph: ph, i: i }; })
-        .filter(function (x) { return String(x.ph.dir) === String(dirKey); });
+        .filter(function (x) {
+          return String(x.ph.dir) === String(dirKey)
+                 && !x.ph.panel_ulid && !x.ph.post_ulid;
+        });
+    }
+    // Panel-scoped photos for a given panel ulid.
+    function _photoListForPanel(panelUlid) {
+      if (!panelUlid) return [];
+      return a.photos.map(function (ph, i) { return { ph: ph, i: i }; })
+        .filter(function (x) { return x.ph.panel_ulid === panelUlid; });
+    }
+    // Post-scoped photos for a given post ulid.
+    function _photoListForPost(postUlid) {
+      if (!postUlid) return [];
+      return a.photos.map(function (ph, i) { return { ph: ph, i: i }; })
+        .filter(function (x) { return x.ph.post_ulid === postUlid; });
     }
     function _photoThumb(ph, i) {
       return '<div class="sign-photo-card">' +
@@ -30375,7 +30433,9 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       var inner = _colWidth(ci) - 16;            // .sign-col side padding (8 + 8)
       return Math.max(1, Math.floor((inner + 8) / (128 + 8)));   // photo + gap
     }
-    // Head: Take / Upload buttons with the first photo(s) shown right below them.
+    // Head: Take / Upload / Select buttons + drop zone, all scoped to this
+    // column's direction. Photos picked here are tagged with dir only —
+    // panel/post-specific photos use the mini rows inside each block.
     function _photoHead(dirKey, ci) {
       var list = _photoList(dirKey);
       var shown = list.slice(0, _photoTopCount(ci))
@@ -30383,7 +30443,14 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       return '<div class="sign-photo-row">' +
           '<button class="sign-ph-take" data-sign-photo data-dir="' + dirKey + '">📷 Photo</button>' +
           '<button class="sign-ph-up" data-sign-upload data-dir="' + dirKey + '">⬆ Upload</button>' +
-        '</div>' + (shown ? '<div class="sign-photos">' + shown + '</div>' : '');
+          '<button class="sign-ph-sel" data-sign-select data-dir="' + dirKey + '" ' +
+                  'title="Pick from GPS-located field photos near this sign">📍 Select</button>' +
+        '</div>' +
+        '<div class="rw-dropzone sign-photo-drop" data-sign-drop-dir="' + dirKey + '">' +
+          '<span class="rw-dropzone-ico">⬇</span>' +
+          '<span class="rw-dropzone-lbl">drop here</span>' +
+        '</div>' +
+        (shown ? '<div class="sign-photos">' + shown + '</div>' : '');
     }
     // Tail: additional photos parked at the column bottom after a separator.
     function _photoTail(dirKey, ci) {
@@ -30395,9 +30462,41 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         '<div class="sign-photos-more-hdr">MORE PHOTOS</div>' +
         '<div class="sign-photos">' + rest + '</div>';
     }
+    // Per-panel / per-post photo row: compact 3-button row + dropzone.
+    // scope is 'panel' or 'post'; ulid is the target's stable id. Photos
+    // added here are tagged with the appropriate ulid AND the column dir
+    // so they still belong to the right direction column.
+    function _photoBlockScoped(scope, ulid, dirKey) {
+      var list = scope === 'panel'
+        ? _photoListForPanel(ulid)
+        : _photoListForPost(ulid);
+      var thumbs = list.map(function (x) { return _photoThumb(x.ph, x.i); }).join('');
+      return '<div class="sign-photos-mini">' +
+        '<div class="sign-photo-row sign-photo-row-mini">' +
+          '<button class="sign-ph-take" data-sign-photo ' +
+                  'data-dir="' + dirKey + '" data-' + scope + '-ulid="' + _esc(ulid) + '">📷</button>' +
+          '<button class="sign-ph-up" data-sign-upload ' +
+                  'data-dir="' + dirKey + '" data-' + scope + '-ulid="' + _esc(ulid) + '">⬆</button>' +
+          '<button class="sign-ph-sel" data-sign-select ' +
+                  'data-dir="' + dirKey + '" data-' + scope + '-ulid="' + _esc(ulid) + '" ' +
+                  'title="Pick GPS-located photos for this ' + scope + '">📍</button>' +
+          '<span class="sign-photo-row-lbl">photos</span>' +
+        '</div>' +
+        '<div class="rw-dropzone rw-dropzone-mini sign-photo-drop" ' +
+             'data-sign-drop-dir="' + dirKey + '" ' +
+             'data-' + scope + '-ulid="' + _esc(ulid) + '">' +
+          '<span class="rw-dropzone-ico">⬇</span>' +
+          '<span class="rw-dropzone-lbl">drop</span>' +
+        '</div>' +
+        (thumbs ? '<div class="sign-photos">' + thumbs + '</div>' : '') +
+      '</div>';
+    }
 
     // ── Panel block ──────────────────────────────────────────────────────
     function _panelBlock(p, idx) {
+      // Ensure stable ulid so per-panel photos have a key. New panels added
+      // mid-session need one too; legacy panels already have one.
+      if (!p.ulid && typeof makeULID === 'function') p.ulid = makeULID();
       var code = p.sign_code || '';
       var meta = code && (window._RW.MUTCD_SIGNS || []).find(function (s) { return s.c === code; });
       var lbl  = meta ? code + ' — ' + meta.n : (code || '(tap to pick code)');
@@ -30431,6 +30530,8 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         _condRow('Rater 2', 'retro_night_r2', p.retro_night_r2, retroRatings, 'data-panel-field') +
         _textareaRow('Retro notes', 'retro_notes', p.retro_notes) +
         _textareaRow('Notes', 'notes', p.notes) +
+        // Per-panel mini photo row — dir comes from this panel's facing.
+        _photoBlockScoped('panel', p.ulid || '', String(p.facing_degrees || 0)) +
       '</div>';
     }
     function _dirCol(D, lbl, ci) {
@@ -30455,19 +30556,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       _dirCol(270, '270° · Left', 4) +
     '</div>' +
     '<input type="file" id="ds-sign-photo-input" accept="image/*" capture="environment" style="display:none">' +
-    '<input type="file" id="ds-sign-upload-input" accept="image/*" multiple style="display:none">' +
-    '<div style="display:flex;gap:8px;margin:10px 12px;align-items:stretch;">' +
-      '<button type="button" id="ds-sign-select-nearby" ' +
-              'style="flex:0 0 auto;background:var(--blue);color:#fff;border:none;' +
-                     'padding:8px 14px;border-radius:4px;cursor:pointer;' +
-                     'font:700 11px IBM Plex Sans,sans-serif;" ' +
-              'title="Pick from GPS-located field photos near this sign">' +
-        '📍 Select Nearby Photos</button>' +
-      '<div class="rw-dropzone" data-rw-drop-target="ds-sign-upload-input" style="flex:1 1 auto;margin:0;">' +
-        '<span class="rw-dropzone-ico">⬇</span>' +
-        '<span class="rw-dropzone-lbl">…or drop photos here</span>' +
-      '</div>' +
-    '</div>';
+    '<input type="file" id="ds-sign-upload-input" accept="image/*" multiple style="display:none">';
   }
 
   // ── Culvert form — full inspection sub-tabs ────────────────────────────────
@@ -31690,14 +31779,28 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         });
       });
 
-      // Per-direction photos — take / upload, tagged with the column direction
+      // Per-scope photos — take / upload / select / drop, tagged with the
+      // column direction and (optionally) a panel_ulid or post_ulid. Scope
+      // state lives on _pendDir/_pendPanelUlid/_pendPostUlid; every entry
+      // point (button click, dropzone drop, Select Nearby callback) sets
+      // these before triggering the shared _addSignPhotos pipeline.
       var _signPhotoInput  = document.getElementById('ds-sign-photo-input');
       var _signUploadInput = document.getElementById('ds-sign-upload-input');
       var _pendDir = null;
+      var _pendPanelUlid = null;
+      var _pendPostUlid  = null;
+      function _setScopeFrom(btn) {
+        _pendDir       = btn && btn.dataset ? (btn.dataset.dir || null) : null;
+        _pendPanelUlid = btn && btn.dataset ? (btn.dataset.panelUlid || null) : null;
+        _pendPostUlid  = btn && btn.dataset ? (btn.dataset.postUlid  || null) : null;
+      }
       function _addSignPhotos(files, isCapture) {
         if (!files || !files.length) return;
         if (!Array.isArray(a.photos)) a.photos = [];
-        var dir = _pendDir, chain = Promise.resolve();
+        var dir = _pendDir;
+        var panelUlid = _pendPanelUlid;
+        var postUlid  = _pendPostUlid;
+        var chain = Promise.resolve();
         Array.prototype.slice.call(files).forEach(function (f) {
           chain = chain.then(function () {
             return new Promise(function (resolve) {
@@ -31705,7 +31808,10 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
               reader.onload = function (e) {
                 var raw = e.target.result;
                 var finish = function (url) {
-                  a.photos.push({ dataUrl: url, captured_at: new Date().toISOString(), dir: dir });
+                  var rec = { dataUrl: url, captured_at: new Date().toISOString(), dir: dir };
+                  if (panelUlid) rec.panel_ulid = panelUlid;
+                  if (postUlid)  rec.post_ulid  = postUlid;
+                  a.photos.push(rec);
                   resolve();
                 };
                 if (typeof _applyWatermark === 'function') {
@@ -31720,13 +31826,13 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       }
       scroll.querySelectorAll('[data-sign-photo]').forEach(function (b) {
         b.addEventListener('click', function () {
-          _pendDir = b.dataset.dir;
+          _setScopeFrom(b);
           if (_signPhotoInput) window._RW.cameraCapture(_signPhotoInput);
         });
       });
       scroll.querySelectorAll('[data-sign-upload]').forEach(function (b) {
         b.addEventListener('click', function () {
-          _pendDir = b.dataset.dir;
+          _setScopeFrom(b);
           if (_signUploadInput) _signUploadInput.click();
         });
       });
@@ -31738,28 +31844,81 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         _addSignPhotos(_signUploadInput.files, false);
         _signUploadInput.value = '';
       });
-      // "📍 Select Nearby" — pull from already-taken field photos within
-      // 100 ft instead of uploading from disk.
-      var _signSelBtn = document.getElementById('ds-sign-select-nearby');
-      if (_signSelBtn) _signSelBtn.addEventListener('click', function () {
-        var picker = window._RW && window._RW.openNearbyPhotoPicker;
-        if (!picker) return;
-        picker({
-          pin: pin, secId: (_dataState.sec ? _dataState.sec.id : null), maxFt: 100,
-          title: 'Select nearby photos for ' + (pin.id || 'this sign'),
-          onPick: function (photos) {
-            if (!Array.isArray(a.photos)) a.photos = [];
-            photos.forEach(function (p) {
-              a.photos.push({
-                dataUrl: p.dataUrl,
-                captured_at: p.ts ? new Date(p.ts).toISOString() : new Date().toISOString(),
-                source_geophoto_id: p.id,
-                dir: null,   // no direction-column tag — user can re-categorize
+      // "📍 Select" buttons — opens nearby-photo picker. Scope (dir + optional
+      // panel/post ulid) comes from the button's data attributes so picked
+      // photos land in the right bucket automatically.
+      scroll.querySelectorAll('[data-sign-select]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          var picker = window._RW && window._RW.openNearbyPhotoPicker;
+          if (!picker) return;
+          var dir       = b.dataset.dir || null;
+          var panelUlid = b.dataset.panelUlid || null;
+          var postUlid  = b.dataset.postUlid  || null;
+          var scopeTitle = panelUlid ? 'panel'
+            : postUlid  ? 'post'
+            : (dir === 'post' ? 'post column'
+              : dir ? dir + '° column' : 'sign');
+          picker({
+            pin: pin, secId: (_dataState.sec ? _dataState.sec.id : null), maxFt: 100,
+            title: 'Select photos for ' + scopeTitle + ' — ' + (pin.id || 'sign'),
+            onPick: function (photos) {
+              if (!Array.isArray(a.photos)) a.photos = [];
+              photos.forEach(function (p) {
+                var rec = {
+                  dataUrl: p.dataUrl,
+                  captured_at: p.ts ? new Date(p.ts).toISOString() : new Date().toISOString(),
+                  source_geophoto_id: p.id,
+                  dir: dir,
+                };
+                if (panelUlid) rec.panel_ulid = panelUlid;
+                if (postUlid)  rec.post_ulid  = postUlid;
+                a.photos.push(rec);
               });
-            });
-            _dataState.dirty = true;
-            _renderFormBody();
-          },
+              _dataState.dirty = true;
+              _renderFormBody();
+            },
+          });
+        });
+      });
+      // Scoped drop zones — same UX as the dropzones used elsewhere, but
+      // each zone tags its photos with the column dir + (optional) panel/
+      // post ulid pulled from its own data attributes.
+      scroll.querySelectorAll('.sign-photo-drop').forEach(function (dz) {
+        dz.addEventListener('dragenter', function (e) {
+          if (!e.dataTransfer) return;
+          var types = e.dataTransfer.types || [];
+          var hasFiles = false;
+          for (var i = 0; i < types.length; i++) if (types[i] === 'Files') hasFiles = true;
+          if (!hasFiles) return;
+          e.preventDefault();
+          dz.classList.add('rw-drop-active');
+        });
+        dz.addEventListener('dragover', function (e) {
+          if (!e.dataTransfer) return;
+          var types = e.dataTransfer.types || [];
+          var hasFiles = false;
+          for (var i = 0; i < types.length; i++) if (types[i] === 'Files') hasFiles = true;
+          if (!hasFiles) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'copy';
+        });
+        dz.addEventListener('dragleave', function (e) {
+          if (e.relatedTarget && dz.contains(e.relatedTarget)) return;
+          dz.classList.remove('rw-drop-active');
+        });
+        dz.addEventListener('drop', function (e) {
+          e.preventDefault();
+          e.stopPropagation();   // beat the global delegated handler
+          dz.classList.remove('rw-drop-active');
+          _pendDir       = dz.dataset.signDropDir || null;
+          _pendPanelUlid = dz.dataset.panelUlid   || null;
+          _pendPostUlid  = dz.dataset.postUlid    || null;
+          var files = e.dataTransfer && e.dataTransfer.files
+            ? Array.prototype.filter.call(e.dataTransfer.files, function (f) {
+                return f && f.type && f.type.indexOf('image/') === 0;
+              })
+            : [];
+          if (files.length) _addSignPhotos(files, false);
         });
       });
       scroll.querySelectorAll('[data-photo-del]').forEach(function (b) {
