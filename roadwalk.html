@@ -2417,6 +2417,104 @@ a { color: inherit; text-decoration: none; }
 .strip-photos-btn:hover { background: var(--rule); }
 .strip-photos-btn.on { background: var(--blue); color: #fff; border-color: var(--blue); }
 
+/* Alternate-stationing editor modal — pin historical/as-built STA values
+   to live new-stationing values so both render side-by-side on map + SLD. */
+.altsta-modal[hidden] { display: none; }
+.altsta-modal {
+  position: fixed; inset: 0; z-index: 9600;
+  display: flex; align-items: center; justify-content: center;
+}
+.altsta-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.5); }
+.altsta-card {
+  position: relative; z-index: 1;
+  width: min(720px, 96vw); max-height: 90vh;
+  background: #fff; border: 2px solid var(--blue, #2563A8);
+  border-radius: 6px; box-shadow: 0 12px 40px rgba(0,0,0,0.35);
+  display: flex; flex-direction: column;
+}
+.altsta-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; background: var(--blue, #2563A8); color: #fff;
+  border-radius: 4px 4px 0 0;
+}
+.altsta-title { font: 700 13px 'IBM Plex Sans', sans-serif; }
+.altsta-close {
+  background: transparent; border: 0; color: #fff;
+  font-size: 18px; cursor: pointer; padding: 0 4px;
+}
+.altsta-body {
+  flex: 1 1 auto; overflow-y: auto; padding: 10px 14px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.altsta-sechdr {
+  display: flex; align-items: baseline; justify-content: space-between;
+  padding-bottom: 6px; border-bottom: 1px solid var(--rule, #d8dde2);
+}
+.altsta-sec-name {
+  font: 700 13px 'IBM Plex Sans', sans-serif; color: var(--ink);
+}
+.altsta-sec-meta {
+  font: 600 10.5px 'IBM Plex Mono', monospace; color: var(--ink-3);
+}
+.altsta-empty {
+  padding: 16px; text-align: center; color: var(--ink-3);
+  font: 500 12px 'IBM Plex Sans', sans-serif; line-height: 1.55;
+  background: #fafafa; border-radius: 4px;
+}
+.altsta-row {
+  border: 1px solid var(--rule, #d8dde2); border-radius: 4px;
+  background: #fafafa; padding: 8px 10px;
+}
+.altsta-row-grid {
+  display: grid; grid-template-columns: 1.4fr 0.6fr 1fr 1fr 1.3fr;
+  gap: 8px;
+}
+.altsta-row-grid label {
+  display: flex; flex-direction: column; gap: 3px;
+  font: 700 9.5px 'IBM Plex Mono', monospace; color: var(--ink-2);
+  letter-spacing: 0.4px; text-transform: uppercase;
+}
+.altsta-row-grid input,
+.altsta-row-grid select {
+  font: 500 12px 'IBM Plex Sans', sans-serif; color: var(--ink);
+  padding: 5px 8px; border: 1px solid var(--rule, #d8dde2); border-radius: 3px;
+  background: #fff;
+}
+.altsta-row-grid input[type="color"] { padding: 2px; height: 28px; cursor: pointer; }
+.altsta-row-foot {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 6px; padding-top: 6px;
+  border-top: 1px dashed var(--rule, #d8dde2);
+}
+.altsta-preview {
+  flex: 1 1 auto;
+  font: 500 11px 'IBM Plex Sans', sans-serif; color: var(--ink-2);
+  line-height: 1.45;
+}
+.altsta-preview b { color: var(--ink); }
+.altsta-del {
+  font: 700 10.5px 'IBM Plex Mono', monospace;
+  background: #fff; border: 1px solid #b91c1c; color: #b91c1c;
+  padding: 5px 9px; border-radius: 3px; cursor: pointer;
+}
+.altsta-del:hover { background: #b91c1c; color: #fff; }
+.altsta-foot {
+  display: flex; justify-content: space-between; gap: 8px;
+  padding: 10px 14px; border-top: 1px solid var(--rule, #d8dde2);
+  background: #faf8f4;
+}
+.altsta-add {
+  font: 700 11px 'IBM Plex Sans', sans-serif;
+  background: #fff; border: 1px solid var(--blue, #2563A8); color: var(--blue, #2563A8);
+  padding: 8px 14px; border-radius: 4px; cursor: pointer;
+}
+.altsta-add:hover { background: var(--blue, #2563A8); color: #fff; }
+.altsta-done {
+  font: 700 11px 'IBM Plex Sans', sans-serif;
+  background: var(--blue, #2563A8); border: 1px solid var(--blue, #2563A8); color: #fff;
+  padding: 8px 16px; border-radius: 4px; cursor: pointer;
+}
+
 /* Photo lane inside the SLD strip — always pinned to the bottom (or far
    edge in vertical docks) of the visible canvas so it's never offscreen
    regardless of strip height. Each thumb is absolute-positioned at
@@ -9656,6 +9754,8 @@ body.mobile-mode #app {
             <button class="strip-zoom-btn" id="strip-zoom-btn" type="button" title="Toggle 500ft / 1000ft view window">500′</button>
             <button class="strip-photos-btn" id="strip-photos-btn" type="button"
                     title="Show / hide photo lane (photos along this section's alignment)">📷</button>
+            <button class="strip-photos-btn" id="strip-altsta-btn" type="button"
+                    title="Manage alternate stationing equations (as-built plans, historical surveys)">📐</button>
           </div>
           <div class="strip-canvas" id="strip-canvas">
             <!-- populated by renderStrip() -->
@@ -11989,15 +12089,48 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   }
   // Combined station + milepost label, e.g. "STA 5+67 (MP 12.241)". Falls
   // back to just "STA X+XX" when the section has no MP range (e.g. an area
-  // subsection drawn in the field).
+  // subsection drawn in the field). When the section has alt stationing
+  // equations (e.g. a historical as-built plan), each one is appended:
+  //   "STA 134+95 (MP 0.483) · As-built 59+04"
   function fmtStaMp(staFt, sec) {
     const s = fmtSta(staFt || 0);
+    let out;
     if (sec && typeof sec.mpStart === 'number' && typeof sec.mpEnd === 'number') {
       const mp = sec.mpStart + (staFt || 0) / 5280;
-      return 'STA ' + s + ' (MP ' + fmtMp(mp) + ')';
+      out = 'STA ' + s + ' (MP ' + fmtMp(mp) + ')';
+    } else {
+      out = 'STA ' + s;
     }
-    return 'STA ' + s;
+    // Append each alt stationing equation. Skip silently if absent.
+    if (sec && Array.isArray(sec.altStations)) {
+      for (const eq of sec.altStations) {
+        const altFt = _toAltSta(staFt || 0, eq);
+        if (altFt == null) continue;
+        out += ' · ' + (eq.name || 'Alt') + ' ' + fmtSta(altFt);
+      }
+    }
+    return out;
   }
+
+  // Convert a new-stationing position into an alt-stationing position via
+  // the section's equation. `eq` shape:
+  //   { name, color, anchorNew, anchorOld, direction }   direction = ±1
+  // Returns null when the equation is malformed.
+  function _toAltSta(newStaFt, eq) {
+    if (!eq || typeof eq.anchorNew !== 'number' || typeof eq.anchorOld !== 'number') return null;
+    const dir = eq.direction === -1 ? -1 : 1;
+    return eq.anchorOld + dir * (newStaFt - eq.anchorNew);
+  }
+  // Inverse — alt STA → new STA. Useful for "go to alt STA" inputs.
+  function _fromAltSta(altStaFt, eq) {
+    if (!eq || typeof eq.anchorNew !== 'number' || typeof eq.anchorOld !== 'number') return null;
+    const dir = eq.direction === -1 ? -1 : 1;
+    return eq.anchorNew + dir * (altStaFt - eq.anchorOld);
+  }
+  // Expose so other modules (alt-stationing editor) can reach them.
+  window._RW = window._RW || {};
+  window._RW.toAltSta   = _toAltSta;
+  window._RW.fromAltSta = _fromAltSta;
   // Determine which side of the alignment a point sits on (L = left of
   // direction of travel, R = right, on = within ~5ft of centerline).
   function sideOfAlignment(cursorLL, coords) {
@@ -16970,6 +17103,149 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       });
     });
   }
+
+  // ── Alt-stationing editor (📐) ──────────────────────────────────────────
+  // Lets the user define one or more "alternate" stationing equations for
+  // the active section — e.g. a historical as-built plan that ran in the
+  // reverse direction. Stored on sec.altStations and persisted via
+  // _persistSections. Every STA label routed through fmtStaMp automatically
+  // appends each equation's result alongside the live STA.
+  function _openAltStaEditor() {
+    const sec = stripCurrentSec
+      || (state.sectionId && (window.SECTIONS || []).find(s => s.id === state.sectionId));
+    if (!sec) { alert('Open a section first.'); return; }
+    let modal = document.getElementById('altsta-modal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'altsta-modal';
+      modal.className = 'altsta-modal';
+      modal.hidden = true;
+      modal.innerHTML =
+        '<div class="altsta-backdrop"></div>' +
+        '<div class="altsta-card">' +
+          '<div class="altsta-head">' +
+            '<span class="altsta-title">📐 Alternate stationing</span>' +
+            '<button class="altsta-close" type="button" aria-label="Close">✕</button>' +
+          '</div>' +
+          '<div class="altsta-body" id="altsta-body"></div>' +
+          '<div class="altsta-foot">' +
+            '<button class="altsta-add" type="button">＋ Add equation</button>' +
+            '<button class="altsta-done" type="button">Done</button>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(modal);
+      const close = () => { modal.hidden = true; };
+      modal.querySelector('.altsta-close').onclick = close;
+      modal.querySelector('.altsta-done').onclick  = close;
+      modal.querySelector('.altsta-backdrop').onclick = close;
+    }
+
+    function render() {
+      const body = modal.querySelector('#altsta-body');
+      body.innerHTML = '';
+      const list = Array.isArray(sec.altStations) ? sec.altStations : [];
+      // Section header
+      const hdr = document.createElement('div');
+      hdr.className = 'altsta-sechdr';
+      hdr.innerHTML =
+        '<span class="altsta-sec-name">' + (sec.name || sec.id) + '</span>' +
+        '<span class="altsta-sec-meta">' + list.length + ' equation' + (list.length === 1 ? '' : 's') + '</span>';
+      body.appendChild(hdr);
+      if (!list.length) {
+        const empty = document.createElement('div');
+        empty.className = 'altsta-empty';
+        empty.innerHTML =
+          'No alternate stationing defined for this section yet.<br>' +
+          '<small>Use ＋ Add equation to pin a historical STA value (e.g. an as-built plan) ' +
+          'to a known modern STA, and choose whether the old system ran in the same or ' +
+          'reverse direction as the new one. Every STA label on the map + SLD will then ' +
+          'show both side by side.</small>';
+        body.appendChild(empty);
+      }
+      list.forEach((eq, idx) => {
+        const row = document.createElement('div');
+        row.className = 'altsta-row';
+        row.innerHTML =
+          '<div class="altsta-row-grid">' +
+            '<label>Name<input type="text" data-fld="name" value="' + (eq.name || '') + '" placeholder="e.g. As-built 1972"></label>' +
+            '<label>Color<input type="color" data-fld="color" value="' + (eq.color || '#7B3F9E') + '"></label>' +
+            '<label>At new STA (ft)<input type="number" data-fld="anchorNew" step="0.01" value="' + (eq.anchorNew != null ? eq.anchorNew : '') + '"></label>' +
+            '<label>= old STA (ft)<input type="number" data-fld="anchorOld" step="0.01" value="' + (eq.anchorOld != null ? eq.anchorOld : '') + '"></label>' +
+            '<label>Direction<select data-fld="direction">' +
+              '<option value="-1"' + (eq.direction === -1 ? ' selected' : '') + '>Reverse (old runs opposite)</option>' +
+              '<option value="1"'  + (eq.direction === 1  ? ' selected' : '') + '>Forward (old runs same direction)</option>' +
+            '</select></label>' +
+          '</div>' +
+          '<div class="altsta-row-foot">' +
+            '<span class="altsta-preview"></span>' +
+            '<button class="altsta-del" type="button" data-idx="' + idx + '">✕ Delete</button>' +
+          '</div>';
+        body.appendChild(row);
+
+        function refreshPreview() {
+          const p = row.querySelector('.altsta-preview');
+          if (!p) return;
+          const anchorNewVal = parseFloat(row.querySelector('[data-fld="anchorNew"]').value);
+          const anchorOldVal = parseFloat(row.querySelector('[data-fld="anchorOld"]').value);
+          const dirVal       = parseInt(row.querySelector('[data-fld="direction"]').value, 10);
+          if (!isFinite(anchorNewVal) || !isFinite(anchorOldVal)) {
+            p.textContent = 'Fill in both anchors to preview.';
+            return;
+          }
+          const testNew  = anchorNewVal;
+          const testOld  = _toAltSta(testNew, { anchorNew: anchorNewVal, anchorOld: anchorOldVal, direction: dirVal });
+          const test100  = _toAltSta(testNew + 100, { anchorNew: anchorNewVal, anchorOld: anchorOldVal, direction: dirVal });
+          p.innerHTML =
+            'At new <b>STA ' + fmtSta(testNew) + '</b> → ' + (eq.name || 'Alt') + ' <b>STA ' + fmtSta(testOld) + '</b>.<br>' +
+            '<small>+100 ft along new alignment = ' +
+              (eq.name || 'Alt') + ' STA ' + fmtSta(test100) +
+              ' (' + (dirVal === -1 ? '−' : '+') + '100 ft).</small>';
+        }
+        // Wire field changes — live update sec.altStations + preview + persist.
+        row.querySelectorAll('[data-fld]').forEach(inp => {
+          inp.addEventListener('input', () => {
+            const fld = inp.dataset.fld;
+            let val = inp.value;
+            if (fld === 'anchorNew' || fld === 'anchorOld') val = parseFloat(val);
+            else if (fld === 'direction') val = parseInt(val, 10);
+            eq[fld] = val;
+            refreshPreview();
+            // Persist on the way out (cheap, debounce-free since this isn't hot).
+            if (window._RW && typeof window._RW.persistSections === 'function') {
+              window._RW.persistSections();
+            }
+            // Re-render the SLD + map so the new labels show.
+            if (typeof renderStrip === 'function') renderStrip();
+          });
+        });
+        row.querySelector('.altsta-del').onclick = () => {
+          sec.altStations.splice(idx, 1);
+          if (window._RW && typeof window._RW.persistSections === 'function') {
+            window._RW.persistSections();
+          }
+          if (typeof renderStrip === 'function') renderStrip();
+          render();
+        };
+        refreshPreview();
+      });
+    }
+
+    modal.querySelector('.altsta-add').onclick = () => {
+      if (!Array.isArray(sec.altStations)) sec.altStations = [];
+      sec.altStations.push({
+        name: 'As-built', color: '#7B3F9E',
+        anchorNew: 0, anchorOld: 0, direction: -1,
+      });
+      if (window._RW && typeof window._RW.persistSections === 'function') {
+        window._RW.persistSections();
+      }
+      render();
+    };
+
+    render();
+    modal.hidden = false;
+  }
+  $('#strip-altsta-btn')?.addEventListener('click', _openAltStaEditor);
 
   // Photos toggle (📷) in the SLD header — flip localStorage + re-render.
   $('#strip-photos-btn')?.addEventListener('click', () => {
