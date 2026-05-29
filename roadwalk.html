@@ -11656,12 +11656,14 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         try {
           // Defensive: warn if user picked a single >500 MB JSON file. V8's
           // max-string-length will silently truncate the read and JSON.parse
-          // will throw "Unexpected end of JSON input". Suggest splitting.
+          // will throw "Unexpected end of JSON input". Suggest the splitter
+          // OR re-exporting from a newer build (which auto-splits past 400 MB).
           if (!ndjsonFile && mainFile.size > 500 * 1024 * 1024) {
             throw new Error(
               'This snapshot is ' + (mainFile.size / 1048576).toFixed(0) + ' MB, ' +
-              'which is too large for a single-string read. Use data/split_snapshot.py ' +
-              'to split it into main.json + .geophotos.ndjson, then re-import both.'
+              'which exceeds the browser\'s single-string read limit. Either: ' +
+              '(a) re-export from a current RoadWalk build (auto-splits past ~400 MB), ' +
+              'or (b) run data/split_snapshot.py to convert this file to the split format.'
             );
           }
           const text    = await mainFile.text();
@@ -29019,7 +29021,13 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
    *                                    is built from many strings).
    * @param {Function} onProgress     — called with (pct 0-100)
    */
-  async function _streamExport(scanResult, includePhotos, writeFn, onProgress) {
+  async function _streamExport(scanResult, includePhotos, writeFn, onProgress, opts) {
+    opts = opts || {};
+    // When opts.ndjsonWriteFn is supplied, geophotos go to that writer as
+    // one record per line (NDJSON) instead of being inlined as an array in
+    // the main JSON. The main JSON then carries "geophotos":null so it
+    // stays under V8's max-string-length cap for import.
+    const ndWrite = opts.ndjsonWriteFn || null;
     const w = (s) => writeFn(s);
     onProgress(2);
 
@@ -29074,9 +29082,36 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     // ── geophotos[] (field photos in RoadWalkGeoPhotos_v1) ────────────────
     // These are the BIG records — each has its own ~100-300 KB base64
     // dataUrl. Streaming them is what makes the whole snapshot fit.
+    //
+    // Split mode (ndWrite supplied): the main JSON carries
+    // "geophotos":null and each record is written as one NDJSON line to
+    // the companion writer. This keeps the main JSON well under V8's
+    // max-string-length so the importer's file.text() never truncates.
     if (!includePhotos) {
       await w('"geophotos":null\n');
+    } else if (ndWrite) {
+      await w('"geophotos":null\n');
+      const gp = scanResult.geophotos || [];
+      for (let i = 0; i < gp.length; i++) {
+        const g = gp[i];
+        const rec = {
+          id:               g.id,
+          dataUrl:          g.dataUrl || null,
+          lat:              g.lat,
+          lng:              g.lng,
+          bearing:          (g.bearing == null) ? null : g.bearing,
+          description:      g.description || '',
+          ts:               g.ts || null,
+          asset_group_id:   g.asset_group_id || null,
+          group_type:       g.group_type || null,
+          linked_pin_id:    g.linked_pin_id || null,
+          is_group_cover:   g.is_group_cover === true,
+        };
+        await ndWrite(JSON.stringify(rec) + '\n');
+        onProgress(50 + Math.round(49 * (i + 1) / Math.max(gp.length, 1)));
+      }
     } else {
+      // Single-file mode: inline array (works fine for small projects)
       await w('"geophotos":[\n');
       const gp = scanResult.geophotos || [];
       for (let i = 0; i < gp.length; i++) {
@@ -29095,7 +29130,6 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
           is_group_cover:   g.is_group_cover === true,
         };
         await w((i ? ',\n' : '') + JSON.stringify(rec));
-        // geophotos take the second half (50-99%)
         onProgress(50 + Math.round(49 * (i + 1) / Math.max(gp.length, 1)));
       }
       await w('\n]\n');
@@ -29113,7 +29147,106 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
    * Returns { method, name, bytes } — method 'cancelled' when the user
    * dismisses the save dialog.
    */
+  // Auto-split threshold — anything past this and the main JSON would be
+  // at risk of busting V8's max-string-length during import. 400 MB gives
+  // a comfortable margin under the ~500 MB practical cap.
+  const _EXPORT_SPLIT_BYTES = 400 * 1024 * 1024;
+  function _shouldSplitExport(scanResult, includePhotos) {
+    if (!includePhotos) return false;
+    if (!Array.isArray(scanResult.geophotos) || !scanResult.geophotos.length) return false;
+    let est = 0;
+    for (const g of scanResult.geophotos) {
+      est += g.dataUrl ? g.dataUrl.length : 200000;
+      if (est > _EXPORT_SPLIT_BYTES) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Save a split-format export — main.json + .geophotos.ndjson — into a
+   * user-picked directory. Falls back to two consecutive Blob downloads on
+   * browsers without showDirectoryPicker.
+   */
+  async function _saveExportSplit(scanResult, includePhotos, filename, onProgress) {
+    const base = filename.replace(/\.json$/i, '');
+    const mainName = base + '.main.json';
+    const ndName   = base + '.geophotos.ndjson';
+
+    // Preferred path: directory picker (Chrome/Edge). One prompt, both
+    // files land in the chosen folder.
+    if (typeof window.showDirectoryPicker === 'function') {
+      let dirHandle;
+      try {
+        dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+      } catch (err) {
+        if (err && err.name === 'AbortError') return { method: 'cancelled' };
+        console.warn('[RoadWalk] Directory picker failed, falling back:', err);
+        dirHandle = null;
+      }
+      if (dirHandle) {
+        const mainHandle = await dirHandle.getFileHandle(mainName, { create: true });
+        const ndHandle   = await dirHandle.getFileHandle(ndName,   { create: true });
+        const mainW = await mainHandle.createWritable();
+        const ndW   = await ndHandle.createWritable();
+        let mainBytes = 0, ndBytes = 0;
+        try {
+          await _streamExport(scanResult, includePhotos, async (s) => {
+            mainBytes += s.length;
+            await mainW.write(s);
+          }, onProgress, {
+            ndjsonWriteFn: async (s) => {
+              ndBytes += s.length;
+              await ndW.write(s);
+            },
+          });
+          await mainW.close();
+          await ndW.close();
+        } catch (err) {
+          try { await mainW.abort(); } catch (_) {}
+          try { await ndW.abort();   } catch (_) {}
+          throw err;
+        }
+        return {
+          method: 'split-directory',
+          name: dirHandle.name + ' → ' + mainName + ' + ' + ndName,
+          bytes: mainBytes + ndBytes,
+        };
+      }
+    }
+
+    // Fallback path: two Blob downloads. The user gets two files in their
+    // default download folder. Both must travel together for import.
+    const mainParts = [], ndParts = [];
+    await _streamExport(scanResult, includePhotos, (s) => { mainParts.push(s); }, onProgress, {
+      ndjsonWriteFn: (s) => { ndParts.push(s); },
+    });
+    const mainBlob = new Blob(mainParts, { type: 'application/json' });
+    const ndBlob   = new Blob(ndParts,   { type: 'application/x-ndjson' });
+    function _dl(blob, name) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = name;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    }
+    _dl(mainBlob, mainName);
+    // Small delay so iOS Safari doesn't reject the second download as
+    // an automated multi-file save.
+    await new Promise(r => setTimeout(r, 600));
+    _dl(ndBlob, ndName);
+    return {
+      method: 'split-download',
+      name: mainName + ' + ' + ndName,
+      bytes: mainBlob.size + ndBlob.size,
+    };
+  }
+
   async function _saveExportStreamed(scanResult, includePhotos, filename, onProgress) {
+    // Large project? Split into main.json + .geophotos.ndjson so the
+    // import side never has to fit one 500+ MB string in memory.
+    if (_shouldSplitExport(scanResult, includePhotos)) {
+      return _saveExportSplit(scanResult, includePhotos, filename, onProgress);
+    }
     // Prefer FSA — streams direct to disk, no in-memory buffer at all.
     if (typeof window.showSaveFilePicker === 'function') {
       let handle;
