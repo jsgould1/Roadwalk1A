@@ -13632,6 +13632,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       return sa - sb;
     });
     const autoName = /^[A-Z]+-\d+$/;
+    const oldIdsOfThisKind = matches.map(p => p.id).filter(Boolean);
     matches.forEach((p, i) => {
       const num = String(i + 1).padStart(3, '0');
       const newId = `${prefix}-${num}`;
@@ -13642,6 +13643,16 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         p.attrs.name = newId;
       }
     });
+    // Resync the Data module's id-cache so future id-keyed lookups land
+    // on the right record. The ulid-cache is canonical and untouched —
+    // this just keeps the id-index from holding stale entries that
+    // would shadow correct ulid resolution. _dataState is closure-scoped
+    // in the Data IIFE, so we go through the exposed helper.
+    try {
+      if (window._RW && typeof window._RW.resyncDataCacheForRenumber === 'function') {
+        window._RW.resyncDataCacheForRenumber(matches, oldIdsOfThisKind);
+      }
+    } catch (_) { /* non-fatal: ulid path still works without this */ }
   }
 
   // Per-kind editable schemas. Each kind's pin sheet renders these fields as
@@ -30067,9 +30078,11 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
 
     sections.forEach(function (sec) {
       (sec.pins || []).forEach(function (pin) {
-        // Skip if already in either cache index
-        if (_dataState.idbCache[pin.id]) return;
+        // Skip if already in cache. ULID check first because pin.id is
+        // mutable — a renumbered pin's id can collide with the stale key
+        // from a different pin's old id, falsely "skipping" a fresh seed.
         if (pin.ulid && _dataState.idbCacheByUlid[pin.ulid]) return;
+        if (_dataState.idbCache[pin.id]) return;
 
         var ulid = pin.ulid || makeULID();
         toSeed.push({
@@ -30124,11 +30137,17 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   /** Get a merged pin: bundle attrs + any saved IDB attrs.
    *  Pulls `ulid` from the IDB record when present so the canonical id
    *  flows through the form into _saveDataForm without being clobbered.
+   *
+   *  IMPORTANT: ULID lookup wins over pin_id. pin_id is reassigned by
+   *  renumberPinsForKind every time a pin is added at a lower station,
+   *  so the id-cache can point to a different pin's record (the one
+   *  that USED to hold that id before renumbering). Hitting that stale
+   *  entry was making freshly-added pins inherit unrelated notes/lengths
+   *  from older records.
    */
   function _mergedPin(bundlePin) {
-    // Primary lookup by pin_id; fall back to ulid lookup in case pin was renumbered.
-    var idb = _dataState.idbCache[bundlePin.id]
-           || (bundlePin.ulid && _dataState.idbCacheByUlid[bundlePin.ulid])
+    var idb = (bundlePin.ulid && _dataState.idbCacheByUlid[bundlePin.ulid])
+           || _dataState.idbCache[bundlePin.id]
            || {};
     var merged = Object.assign({}, bundlePin);
     merged.attrs  = Object.assign({}, bundlePin.attrs, idb.attrs || {});
@@ -31026,10 +31045,35 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   }
   window.openDataForm = openDataForm;
 
+  // Resync the id-cache after renumberPinsForKind reassigns pin_ids.
+  // Called from the main IIFE since _dataState is closure-scoped here.
+  // - renumberedPins: the array of pins whose .id was just rewritten
+  // - oldIds: array of their previous .id strings (now stale cache keys)
+  // The ulid-cache is untouched (it's the canonical index); we just drop
+  // stale id-keys and re-point each new id at its ulid-keyed record so
+  // _mergedPin's id-fallback can never collide with a different pin's
+  // old entry.
+  window._RW = window._RW || {};
+  window._RW.resyncDataCacheForRenumber = function (renumberedPins, oldIds) {
+    if (!_dataState || !_dataState.idbCache || !_dataState.idbCacheByUlid) return;
+    if (Array.isArray(oldIds)) {
+      oldIds.forEach(function (oid) { if (oid) delete _dataState.idbCache[oid]; });
+    }
+    if (Array.isArray(renumberedPins)) {
+      renumberedPins.forEach(function (p) {
+        if (!p || !p.ulid) return;
+        var rec = _dataState.idbCacheByUlid[p.ulid];
+        if (rec) {
+          rec.pin_id = p.id;
+          if (p.id) _dataState.idbCache[p.id] = rec;
+        }
+      });
+    }
+  };
+
   // ── Cross-IIFE unsaved-changes checker ─────────────────────────────────────
   // True only when the data form is OPEN and has unsaved edits. Used by the
   // header back arrow, module tab switches, and the beforeunload handler.
-  window._RW = window._RW || {};
   window._RW.isDataFormDirty = function () {
     if (!_dataState.dirty) return false;
     var pane = document.getElementById('data-form-pane');
