@@ -12221,13 +12221,42 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   function _toAltSta(newStaFt, eq) {
     if (!eq || typeof eq.anchorNew !== 'number' || typeof eq.anchorOld !== 'number') return null;
     const dir = eq.direction === -1 ? -1 : 1;
-    return eq.anchorOld + dir * (newStaFt - eq.anchorNew);
+    let raw = eq.anchorOld + dir * (newStaFt - eq.anchorNew);
+    // Station equation breaks (e.g., "79+88.52 PT BK / 98+58.68 AHD" on a
+    // 1994 as-built). Each entry says: at one physical point on the road,
+    // the secondary stationing jumps from secondary_back_ft to
+    // secondary_ahead_ft — no real distance, just a renumbering. If our
+    // raw secondary has passed the "back" value, we add the leap.
+    if (Array.isArray(eq.equations)) {
+      for (const j of eq.equations) {
+        if (typeof j.secondary_back_ft !== 'number' || typeof j.secondary_ahead_ft !== 'number') continue;
+        const leap = j.secondary_ahead_ft - j.secondary_back_ft;
+        // "Past the equation" means the raw secondary (the value we'd get
+        // ignoring equations) has gone beyond the back point in the
+        // direction the secondary increases — which is opposite the
+        // road-walk direction when dir === -1.
+        if (raw > j.secondary_back_ft) raw += leap;
+      }
+    }
+    return raw;
   }
   // Inverse — alt STA → new STA. Useful for "go to alt STA" inputs.
   function _fromAltSta(altStaFt, eq) {
     if (!eq || typeof eq.anchorNew !== 'number' || typeof eq.anchorOld !== 'number') return null;
     const dir = eq.direction === -1 ? -1 : 1;
-    return eq.anchorNew + dir * (altStaFt - eq.anchorOld);
+    // Reverse the equation leap so the inverse round-trips correctly.
+    let unjumped = altStaFt;
+    if (Array.isArray(eq.equations)) {
+      for (const j of eq.equations) {
+        if (typeof j.secondary_back_ft !== 'number' || typeof j.secondary_ahead_ft !== 'number') continue;
+        const leap = j.secondary_ahead_ft - j.secondary_back_ft;
+        // If the input alt STA is on the "ahead" side of the equation,
+        // strip the leap to recover the linear value before applying the
+        // inverse direction transform.
+        if (altStaFt >= j.secondary_ahead_ft) unjumped -= leap;
+      }
+    }
+    return eq.anchorNew + dir * (unjumped - eq.anchorOld);
   }
   // Expose so other modules (alt-stationing editor) can reach them.
   window._RW = window._RW || {};

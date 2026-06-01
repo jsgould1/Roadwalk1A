@@ -24690,6 +24690,22 @@
      },
      "id": "A-NGS-002"
     }
+   ],
+   "altStations": [
+    {
+     "name": "1994 As-built",
+     "color": "#a25cf0",
+     "anchorNew": 19494,
+     "anchorOld": 1300,
+     "direction": -1,
+     "equations": [
+      {
+       "secondary_back_ft": 7988.52,
+       "secondary_ahead_ft": 9858.68,
+       "note": "Pg 73/2 ramp area"
+      }
+     ]
+    }
    ]
   },
   {
