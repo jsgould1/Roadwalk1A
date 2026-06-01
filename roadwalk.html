@@ -652,8 +652,12 @@ a { color: inherit; text-decoration: none; }
 .map-ctl-btn:hover  { background: #f4f4f4; }
 .map-ctl-btn:active { background: #e8e8e8; }
 .map-ctl-btn.on     { color: #1A73E8; border-color: #1A73E8; background: rgba(255,255,255,0.9); }
+/* "All sections" mode for the centerline toggle: orange tint to distinguish
+   from the standard active-only blue state. */
+.map-ctl-btn.cl-all { color: #C85A2B; border-color: #C85A2B; background: rgba(255,255,255,0.9); }
 .map-ctl-btn .ctl-icon { display: block; color: #111; }
 .map-ctl-btn.on .ctl-icon { color: #1A73E8; }
+.map-ctl-btn.cl-all .ctl-icon { color: #C85A2B; }
 .map-ctl-btn .ctl-glyph {
   font-family: 'IBM Plex Mono', monospace;
   font-size: 18px;
@@ -10253,6 +10257,37 @@ body.mobile-mode #app {
           AECOM Import
         </button>
 
+        <!-- Centerline Export: dumps every section's alignment vertices
+             (and mp_start/end) to a small focused JSON. Use after
+             adjusting an alignment manually so I can merge the
+             correction upstream into prewalk-bundle.json. -->
+        <button class="dash-action-btn" id="dash-export-cl-btn"
+                title="Export every section's alignment so manual corrections can be merged upstream">
+          <svg viewBox="0 0 20 20" width="15" height="15" aria-hidden="true">
+            <path d="M3 14 Q7 6, 11 11 T17 6"
+                  fill="none" stroke="currentColor" stroke-width="1.8"
+                  stroke-linecap="round"/>
+            <path d="M14 4 L17 7 L14 10" fill="none" stroke="currentColor"
+                  stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Export CL
+        </button>
+
+        <!-- Centerline Import: applies imported alignments to matching
+             section IDs in the current bundle. Pins re-project onto
+             the new alignment so sta_ft stays correct. -->
+        <button class="dash-action-btn" id="dash-import-cl-btn"
+                title="Import a centerlines JSON — replaces matching sections' alignments, re-projects their pins">
+          <svg viewBox="0 0 20 20" width="15" height="15" aria-hidden="true">
+            <path d="M3 14 Q7 6, 11 11 T17 6"
+                  fill="none" stroke="currentColor" stroke-width="1.8"
+                  stroke-linecap="round"/>
+            <path d="M6 4 L3 7 L6 10" fill="none" stroke="currentColor"
+                  stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Import CL
+        </button>
+
         <!-- Clear Field Data: wipes inspection form data + photo→feature
              links while keeping every pin and photo file. Wired by
              initDashboard() → window._RW.clearFieldData(). -->
@@ -13035,12 +13070,15 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       if (!isAreaSection) {
       // Build the station-tick layer (50' "+", 100' "55+00") tied to CL visibility
       buildStationTicks(sec);
-      // Honor the user's last centerline-visibility preference (default off)
+      // Other sections, drawn dashed for "all" mode. Built here so the new
+      // section's neighbors render alongside its centerline.
+      buildOtherSectionLines(sec);
+      // Honor the user's last centerline-visibility preference (default off).
+      // Legacy values: '0' / '1' map to mode 0 / 1. New value: '2' = all.
       try {
-        const pref = localStorage.getItem('rw_show_centerline');
-        const showCl = pref === '1';
-        applyCenterlineVisibility(showCl);
-      } catch (_) { applyCenterlineVisibility(false); }
+        const pref = parseInt(localStorage.getItem('rw_show_centerline') || '0', 10);
+        applyCenterlineVisibility(isFinite(pref) ? pref : 0);
+      } catch (_) { applyCenterlineVisibility(0); }
 
       // --- STA hover tooltip -----------------------------------------------
       // On mousemove over the hit corridor, project the cursor perpendicular
@@ -14348,6 +14386,116 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
 
   window._RW.exportAecomFeatures = exportAecomFeatures;
   window._RW.importAecomFeatures = importAecomFeatures;
+
+  // ── Centerline export: dump every section's alignment so you can hand
+  //    me your manual corrections without exporting the whole project.
+  //    Output is a small focused JSON — easy to diff against the bundle's
+  //    own alignment and merge upstream.
+  function exportCenterlines() {
+    var out = {
+      _format:      'roadwalk-centerlines-v1',
+      exported_at:  new Date().toISOString(),
+      project_name: (window.BUNDLE && window.BUNDLE.short_name)
+                   || (window.PROJECT && window.PROJECT.name) || 'Project',
+      centerlines:  [],
+    };
+    (window.SECTIONS || []).forEach(function (sec) {
+      if (!Array.isArray(sec.alignment) || sec.alignment.length < 2) return;
+      out.centerlines.push({
+        section_id:   sec.id,
+        section_name: sec.name || '',
+        type:         sec.type || 'linear',
+        mp_start:     sec.mp_start != null ? sec.mp_start : (sec.mpStart != null ? sec.mpStart : null),
+        mp_end:       sec.mp_end   != null ? sec.mp_end   : (sec.mpEnd   != null ? sec.mpEnd   : null),
+        project_code: sec.project_code || sec.projectCode || null,
+        // alignment is [[lat,lng], ...] in the in-memory model. Persist as-is
+        // so re-import can drop it straight back onto sec.alignment with no
+        // coordinate-order guessing.
+        alignment:    sec.alignment.map(function (c) { return [c[0], c[1]]; }),
+      });
+    });
+    return out;
+  }
+
+  // ── Centerline import: replaces matching sections' alignments with the
+  //    imported ones. Pins inside each updated section get re-projected onto
+  //    the new alignment so their sta_ft stays in sync. mp_start/end also
+  //    update if the file provided them. Sections not in the current
+  //    project are skipped (logged in the summary).
+  async function importCenterlines(data) {
+    if (!data || data._format !== 'roadwalk-centerlines-v1') {
+      throw new Error('Not a RoadWalk centerlines export file.');
+    }
+    var applied = 0, skipped = [];
+    var kindsTouchedBySec = {};
+
+    function firstLngLat(geom) {
+      if (!geom || !geom.coordinates) return null;
+      var c = geom.coordinates;
+      while (Array.isArray(c) && Array.isArray(c[0])) c = c[0];
+      return (Array.isArray(c) && c.length >= 2) ? [c[0], c[1]] : null;
+    }
+    function lineLenFt(coords) {
+      var len = 0;
+      for (var i = 0; i < coords.length - 1; i++) len += havFt(coords[i], coords[i+1]);
+      return len;
+    }
+
+    (data.centerlines || []).forEach(function (cl) {
+      var sec = (window.SECTIONS || []).find(function (s) { return s.id === cl.section_id; });
+      if (!sec) {
+        skipped.push({ section_id: cl.section_id, reason: 'section not in current project' });
+        return;
+      }
+      if (!Array.isArray(cl.alignment) || cl.alignment.length < 2) {
+        skipped.push({ section_id: cl.section_id, reason: 'alignment too short' });
+        return;
+      }
+      sec.alignment = cl.alignment.map(function (c) { return [c[0], c[1]]; });
+      if (cl.mp_start != null) { sec.mp_start = cl.mp_start; sec.mpStart = cl.mp_start; }
+      if (cl.mp_end   != null) { sec.mp_end   = cl.mp_end;   sec.mpEnd   = cl.mp_end;   }
+      // Re-project every pin onto the new alignment.
+      var newLen = lineLenFt(sec.alignment);
+      var mpRange = (sec.mp_end != null && sec.mp_start != null) ? (sec.mp_end - sec.mp_start) : null;
+      (sec.pins || []).forEach(function (pin) {
+        var pt = firstLngLat(pin.geometry);
+        if (!pt) return;
+        var r = projectOntoAlignment({ lat: pt[1], lng: pt[0] }, sec.alignment);
+        if (!r) return;
+        pin.sta_ft = Math.round(r[0] * 10) / 10;
+        pin.sta    = fmtSta(r[0]);
+        if (pin.attrs && pin.attrs.mp_start != null && mpRange != null && newLen > 0) {
+          pin.attrs.mp_start = Math.round((sec.mp_start + (r[0] / newLen) * mpRange) * 1e6) / 1e6;
+        }
+        if (pin.kind) {
+          if (!kindsTouchedBySec[sec.id]) kindsTouchedBySec[sec.id] = {};
+          kindsTouchedBySec[sec.id][pin.kind] = true;
+        }
+      });
+      applied++;
+    });
+
+    // Renumber every kind on every touched section so sta_ft order is reflected
+    // in the human-readable ids again.
+    Object.keys(kindsTouchedBySec).forEach(function (secId) {
+      var sec = (window.SECTIONS || []).find(function (s) { return s.id === secId; });
+      if (!sec) return;
+      Object.keys(kindsTouchedBySec[secId]).forEach(function (kind) {
+        if (typeof renumberPinsForKind === 'function') renumberPinsForKind(sec, kind);
+      });
+    });
+
+    if (window._RW && typeof window._RW.persistSections === 'function') {
+      window._RW.persistSections();
+    }
+    if (typeof window.renderDashboard === 'function') window.renderDashboard('all');
+    if (window._RW && typeof window._RW.rerender === 'function') window._RW.rerender();
+
+    return { ok: true, applied: applied, skipped: skipped };
+  }
+
+  window._RW.exportCenterlines = exportCenterlines;
+  window._RW.importCenterlines = importCenterlines;
 
   // Per-kind editable schemas. Each kind's pin sheet renders these fields as
   // inputs so the user can fill in their attribute values inline.
@@ -23636,21 +23784,48 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     return !!state.mapLayers._clVisible && mapScaleFtPerInch() <= STATION_TICK_MAX_SCALE_FT;
   }
 
+  // Min zoom at which the "all" mode reveals other-section centerlines.
+  // Below this they'd just be visual noise across the basemap.
+  const OTHER_CL_MIN_ZOOM = 13;
+
   // Apply current centerline visibility to the (already-built) layers.
-  function applyCenterlineVisibility(show) {
-    state.mapLayers._clVisible = !!show;
+  // mode: 0 = off, 1 = active section only, 2 = active + every other section
+  //       drawn as dashed gray (clickable to switch). Legacy boolean callers
+  //       (true/false) map to 1/0 automatically.
+  function applyCenterlineVisibility(mode) {
+    if (typeof mode === 'boolean') mode = mode ? 1 : 0;
+    mode = Math.max(0, Math.min(2, (mode | 0)));
+    state.mapLayers._clMode    = mode;
+    state.mapLayers._clVisible = mode > 0;   // legacy boolean kept for other callers
+    const showActive = mode > 0;
     if (state.mapLayers.alignment) {
-      state.mapLayers.alignment.setStyle({ opacity: show ? 0.9 : 0 });
+      state.mapLayers.alignment.setStyle({ opacity: showActive ? 0.9 : 0 });
     }
     // Ramp sub-alignments toggle with the same button at slightly lower opacity
-    (state.mapLayers.subAlignments || []).forEach(l => l.setStyle({ opacity: show ? 0.65 : 0 }));
+    (state.mapLayers.subAlignments || []).forEach(l => l.setStyle({ opacity: showActive ? 0.65 : 0 }));
+    // Other-section dashed lines: only in mode 2 AND zoomed in enough.
+    const z = (state.map && typeof state.map.getZoom === 'function') ? state.map.getZoom() : 0;
+    const showOther = mode === 2 && z >= OTHER_CL_MIN_ZOOM;
+    (state.mapLayers.otherSectionLines || []).forEach(l => l.setStyle({ opacity: showOther ? 0.55 : 0 }));
+    // Other-section hit corridors are always invisible but only interactive
+    // when their line is visible (so the cursor doesn't pretend clicks would
+    // do something at zoomed-out views).
+    (state.mapLayers.otherSectionHits || []).forEach(h => {
+      try { h.options.interactive = showOther; h.setStyle({ opacity: 0 }); } catch (_) {}
+    });
     const hit = state.mapLayers.alignmentHit;
     if (hit && state.map && !state.map.hasLayer(hit)) hit.addTo(state.map);
     refreshStationTicksVisibility();
     const btn = $('#cl-toggle-btn');
-    if (btn) btn.classList.toggle('on', !!show);
+    if (btn) {
+      btn.classList.toggle('on', mode === 1);
+      btn.classList.toggle('cl-all', mode === 2);
+      btn.title = mode === 0 ? 'Centerlines: OFF — click to show active section'
+                : mode === 1 ? 'Centerlines: ACTIVE — click to show all sections'
+                             : 'Centerlines: ALL — click to hide';
+    }
     const locBtn = $('#map-locate-btn');
-    if (locBtn) locBtn.classList.toggle('cl-on', !!show);
+    if (locBtn) locBtn.classList.toggle('cl-on', showActive);
   }
 
   // Add or remove the station-tick layer based on CL toggle + current zoom.
@@ -23661,6 +23836,59 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     const onMap = state.map.hasLayer(ticks);
     if (want && !onMap) ticks.addTo(state.map);
     else if (!want && onMap) state.map.removeLayer(ticks);
+  }
+
+  // Build dashed centerlines for every OTHER section in the project.
+  // Visibility is controlled by applyCenterlineVisibility (mode 2 + zoom);
+  // clicks on either the dashed line or its invisible hit corridor switch
+  // the map to that section. Rebuilt on every section change so layers
+  // stay in sync with whatever the user marks as the active section.
+  function buildOtherSectionLines(activeSec) {
+    // Tear down whatever was there from the previous render.
+    (state.mapLayers.otherSectionLines || []).forEach(l => { try { l.remove(); } catch (_) {} });
+    (state.mapLayers.otherSectionHits  || []).forEach(l => { try { l.remove(); } catch (_) {} });
+    state.mapLayers.otherSectionLines = [];
+    state.mapLayers.otherSectionHits  = [];
+    if (!state.map) return;
+    (window.SECTIONS || []).forEach(function (otherSec) {
+      if (!otherSec || otherSec === activeSec) return;
+      if (otherSec.type === 'area') return;   // areas have no centerline
+      if (!Array.isArray(otherSec.alignment) || otherSec.alignment.length < 2) return;
+      // Wide invisible hit corridor for easier tap targets on touch devices.
+      const hit = L.polyline(otherSec.alignment, {
+        color: '#000',
+        weight: 28,
+        opacity: 0,
+        interactive: false,   // toggled by applyCenterlineVisibility when mode=2
+        bubblingMouseEvents: false,
+        lineCap: 'butt',
+        pane: 'overlayPane',
+      }).addTo(state.map);
+      hit.on('click', function () {
+        if (typeof drawState !== 'undefined' && drawState && drawState.tool) return;
+        if (typeof relocateState !== 'undefined' && relocateState && relocateState.active) return;
+        if (typeof window.showView === 'function') {
+          window.showView('field', otherSec.id);
+        }
+      });
+      hit.bindTooltip(otherSec.name || otherSec.id, { sticky: true, direction: 'top', offset: [0, -8] });
+      const line = L.polyline(otherSec.alignment, {
+        color: '#5b6470',
+        weight: 2,
+        opacity: 0,           // applyCenterlineVisibility sets the visible opacity
+        dashArray: '8 6',
+        lineCap: 'butt',
+        interactive: false,
+        pane: 'overlayPane',
+      }).addTo(state.map);
+      state.mapLayers.otherSectionHits.push(hit);
+      state.mapLayers.otherSectionLines.push(line);
+    });
+    // Re-apply visibility now that the new lines exist — needed because mode
+    // 2 + correct zoom should reveal them immediately on render.
+    if (typeof state.mapLayers._clMode === 'number') {
+      applyCenterlineVisibility(state.mapLayers._clMode);
+    }
   }
 
   // Build the 50'/100' station-tick layer for the section alignment.
@@ -23692,11 +23920,13 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     }
     state.mapLayers.stationTicks = group;
   }
-  // Restore + wire the EYE-CL toggle button
+  // Restore + wire the EYE-CL toggle button. Cycles 0 → 1 → 2 → 0:
+  //   0 = off, 1 = active section only, 2 = all sections (dashed others).
   $('#cl-toggle-btn')?.addEventListener('click', () => {
-    const next = !state.mapLayers._clVisible;
+    const cur  = state.mapLayers._clMode || 0;
+    const next = (cur + 1) % 3;
     applyCenterlineVisibility(next);
-    try { localStorage.setItem('rw_show_centerline', next ? '1' : '0'); } catch (_) {}
+    try { localStorage.setItem('rw_show_centerline', String(next)); } catch (_) {}
   });
 
   // Pegman drag-and-drop → opens Street View at the drop point.
@@ -25348,6 +25578,13 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     if (!state.map || state.map._rwVertexEditExitWired) return;
     state.map._rwVertexEditExitWired = true;
     state.map.on('zoomend', refreshStationTicksVisibility);
+    // Re-evaluate other-section dashed lines on zoom: they're only visible
+    // in mode 2 above OTHER_CL_MIN_ZOOM. Cheap — just a style toggle.
+    state.map.on('zoomend', function () {
+      if ((state.mapLayers && state.mapLayers._clMode) === 2) {
+        applyCenterlineVisibility(2);
+      }
+    });
     // Zoom-dependent line-label visibility: show only when view ≤ ~1000 ft wide
     function _updateLineLabelVisibility() {
       const mapEl = document.getElementById('map');
@@ -29649,6 +29886,72 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       input.click();
       // Cleanup happens after the user picks a file (or cancels — onchange
       // doesn't fire for cancel but the input element is harmless if it lingers).
+      setTimeout(function () { try { document.body.removeChild(input); } catch (_) {} }, 60000);
+    });
+
+    // ── Centerline Export ────────────────────────────────────────
+    // Saves every section's alignment vertices to a small JSON for
+    // hand-merging into the upstream bundle.
+    document.getElementById('dash-export-cl-btn')?.addEventListener('click', function () {
+      if (!window.BUNDLE) { alert('Import a project first.'); return; }
+      if (!window._RW || typeof window._RW.exportCenterlines !== 'function') {
+        alert('Centerline export helper not available.');
+        return;
+      }
+      try {
+        var data = window._RW.exportCenterlines();
+        var projSlug = String(data.project_name || 'project').replace(/[^A-Za-z0-9._-]+/g, '_').slice(0, 32);
+        var stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+        var filename = projSlug + '_centerlines_' + stamp + '.json';
+        var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url; a.download = filename;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        alert('Exported ' + (data.centerlines || []).length + ' centerline(s) to ' + filename + '.');
+      } catch (err) {
+        console.error('[Dashboard] Centerline export failed:', err);
+        alert('Export failed: ' + (err && err.message ? err.message : err));
+      }
+    });
+
+    // ── Centerline Import ────────────────────────────────────────
+    // Applies imported alignments to matching section IDs. Pins are
+    // re-projected so sta_ft / mp stay correct.
+    document.getElementById('dash-import-cl-btn')?.addEventListener('click', function () {
+      if (!window.BUNDLE) { alert('Import a project first.'); return; }
+      if (!window._RW || typeof window._RW.importCenterlines !== 'function') {
+        alert('Centerline import helper not available.');
+        return;
+      }
+      var input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.json,application/json';
+      input.style.display = 'none';
+      input.onchange = async function (e) {
+        var file = e.target.files && e.target.files[0];
+        if (!file) return;
+        try {
+          var text = await file.text();
+          var data = JSON.parse(text);
+          var res = await window._RW.importCenterlines(data);
+          var msg = 'Applied ' + res.applied + ' centerline(s).';
+          if (res.skipped && res.skipped.length) {
+            msg += '\n\nSkipped ' + res.skipped.length + ':\n'
+                + res.skipped.slice(0, 10).map(function (s) {
+                    return '  • ' + s.section_id + ' — ' + s.reason;
+                  }).join('\n');
+            if (res.skipped.length > 10) msg += '\n  … (' + (res.skipped.length - 10) + ' more)';
+          }
+          alert(msg);
+        } catch (err) {
+          console.error('[Dashboard] Centerline import failed:', err);
+          alert('Import failed: ' + (err && err.message ? err.message : err));
+        }
+      };
+      document.body.appendChild(input);
+      input.click();
       setTimeout(function () { try { document.body.removeChild(input); } catch (_) {} }, 60000);
     });
 
