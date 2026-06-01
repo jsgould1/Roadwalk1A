@@ -49,7 +49,10 @@
         "wall_function": "Fill Wall",
         "rating": 83,
         "repair_cost": "$0.00",
-        "photo": "0010S-15.056-R.jpg"
+        "photo": "0010S-15.056-R.jpg",
+        "_sta_ft": 3156.1,
+        "_sta": "31+56.14",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -1833,7 +1836,10 @@
         "wall_function": "Head Wall",
         "rating": 88,
         "repair_cost": "$0.00",
-        "photo": "0010S-20.035-L.jpg"
+        "photo": "0010S-20.035-L.jpg",
+        "_sta_ft": 27882.1,
+        "_sta": "278+82.08",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -1941,7 +1947,10 @@
         "wall_function": "Head Wall",
         "rating": 88,
         "repair_cost": "$0.00",
-        "photo": "0010S-20.045-R.jpg"
+        "photo": "0010S-20.045-R.jpg",
+        "_sta_ft": 27931.7,
+        "_sta": "279+31.75",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -2057,7 +2066,10 @@
         "wall_function": "Head Wall",
         "rating": 75,
         "repair_cost": "$2,867.00",
-        "photo": "0010S-20.057-R.jpg"
+        "photo": "0010S-20.057-R.jpg",
+        "_sta_ft": 27991.3,
+        "_sta": "279+91.34",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -2141,7 +2153,10 @@
         "wall_function": "Head Wall",
         "rating": 81,
         "repair_cost": "$786.00",
-        "photo": "0010S-20.057-L.jpg"
+        "photo": "0010S-20.057-L.jpg",
+        "_sta_ft": 27991.3,
+        "_sta": "279+91.34",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -2222,7 +2237,10 @@
         "wall_function": "Head Wall",
         "rating": 68,
         "repair_cost": "$13,875.00",
-        "photo": "0010S-20.258-R.jpg"
+        "photo": "0010S-20.258-R.jpg",
+        "_sta_ft": 28989.5,
+        "_sta": "289+89.51",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -2343,7 +2361,10 @@
         "wall_function": "Head Wall",
         "rating": 95,
         "repair_cost": "$0.00",
-        "photo": "0010S-20.260-L.jpg"
+        "photo": "0010S-20.260-L.jpg",
+        "_sta_ft": 28999.4,
+        "_sta": "289+99.45",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -2468,7 +2489,10 @@
         "wall_function": "Head Wall",
         "rating": 83,
         "repair_cost": "$305.00",
-        "photo": "0010S-20.388-R.jpg"
+        "photo": "0010S-20.388-R.jpg",
+        "_sta_ft": 29635.1,
+        "_sta": "296+35.10",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -2548,7 +2572,10 @@
         "wall_function": "Head Wall",
         "rating": 91,
         "repair_cost": "$0.00",
-        "photo": "0010S-20.832-R.jpg"
+        "photo": "0010S-20.832-R.jpg",
+        "_sta_ft": 31840.0,
+        "_sta": "318+40.02",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",

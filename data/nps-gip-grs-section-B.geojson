@@ -45,7 +45,10 @@
         },
         "inspection_date": "9/20/2010",
         "type": "STONE MASONRY WITHOUT CONCRETE CORE WALL",
-        "photo": "0010S-15.039-L.jpg"
+        "photo": "0010S-15.039-L.jpg",
+        "_sta_ft": 3071.7,
+        "_sta": "30+71.71",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -1901,7 +1904,10 @@
         },
         "inspection_date": "9/20/2010",
         "type": "STEEL-BACKED TIMBER WITHOUT BLOCKOUT",
-        "photo": "0010S-15.275-L.jpg"
+        "photo": "0010S-15.275-L.jpg",
+        "_sta_ft": 4243.7,
+        "_sta": "42+43.70",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -2626,7 +2632,10 @@
         },
         "inspection_date": "9/20/2010",
         "type": "STEEL-BACKED TIMBER WITHOUT BLOCKOUT",
-        "photo": "0010S-15.397-L.jpg"
+        "photo": "0010S-15.397-L.jpg",
+        "_sta_ft": 4849.6,
+        "_sta": "48+49.56",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -4510,7 +4519,10 @@
         },
         "inspection_date": "9/20/2010",
         "type": "STEEL-BACKED TIMBER WITHOUT BLOCKOUT",
-        "photo": "0010S-16.313-L.jpg"
+        "photo": "0010S-16.313-L.jpg",
+        "_sta_ft": 9398.5,
+        "_sta": "93+98.46",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -5370,7 +5382,10 @@
         },
         "inspection_date": "9/20/2010",
         "type": "STEEL-BACKED TIMBER WITHOUT BLOCKOUT",
-        "photo": "0010S-16.340-R.jpg"
+        "photo": "0010S-16.340-R.jpg",
+        "_sta_ft": 9532.5,
+        "_sta": "95+32.54",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -6866,7 +6881,10 @@
         },
         "inspection_date": "9/20/2010",
         "type": "STEEL-BACKED TIMBER WITHOUT BLOCKOUT",
-        "photo": "0010S-16.660-R.jpg"
+        "photo": "0010S-16.660-R.jpg",
+        "_sta_ft": 11121.7,
+        "_sta": "111+21.68",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -8171,7 +8189,10 @@
         },
         "inspection_date": "9/20/2010",
         "type": "STEEL-BACKED TIMBER WITHOUT BLOCKOUT",
-        "photo": "0010S-17.018-R.jpg"
+        "photo": "0010S-17.018-R.jpg",
+        "_sta_ft": 12899.5,
+        "_sta": "128+99.52",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -10360,7 +10381,10 @@
         },
         "inspection_date": "9/20/2010",
         "type": "STEEL-BACKED TIMBER WITHOUT BLOCKOUT",
-        "photo": "0010S-17.049-L.jpg"
+        "photo": "0010S-17.049-L.jpg",
+        "_sta_ft": 13053.5,
+        "_sta": "130+53.47",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -11714,7 +11738,10 @@
         },
         "inspection_date": "9/20/2010",
         "type": "STEEL-BACKED TIMBER WITHOUT BLOCKOUT",
-        "photo": "0010S-17.853-R.jpg"
+        "photo": "0010S-17.853-R.jpg",
+        "_sta_ft": 17046.2,
+        "_sta": "170+46.17",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -13217,7 +13244,10 @@
         },
         "inspection_date": "9/20/2010",
         "type": "STEEL-BACKED TIMBER WITHOUT BLOCKOUT",
-        "photo": "0010S-18.033-R.jpg"
+        "photo": "0010S-18.033-R.jpg",
+        "_sta_ft": 17940.1,
+        "_sta": "179+40.06",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -14399,7 +14429,10 @@
         },
         "inspection_date": "9/20/2010",
         "type": "STEEL-BACKED TIMBER WITHOUT BLOCKOUT",
-        "photo": "0010S-18.349-R.jpg"
+        "photo": "0010S-18.349-R.jpg",
+        "_sta_ft": 19509.3,
+        "_sta": "195+09.33",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -15373,7 +15406,10 @@
         },
         "inspection_date": "9/20/2010",
         "type": "STEEL-BACKED TIMBER WITHOUT BLOCKOUT",
-        "photo": "0010S-18.351-L.jpg"
+        "photo": "0010S-18.351-L.jpg",
+        "_sta_ft": 19519.3,
+        "_sta": "195+19.26",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -16263,7 +16299,10 @@
         },
         "inspection_date": "9/20/2010",
         "type": "STEEL-BACKED TIMBER WITHOUT BLOCKOUT",
-        "photo": "0010S-18.568-R.jpg"
+        "photo": "0010S-18.568-R.jpg",
+        "_sta_ft": 20596.9,
+        "_sta": "205+96.89",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -16945,7 +16984,10 @@
         },
         "inspection_date": "9/20/2010",
         "type": "STEEL-BACKED TIMBER WITHOUT BLOCKOUT",
-        "photo": "0010S-18.674-R.jpg"
+        "photo": "0010S-18.674-R.jpg",
+        "_sta_ft": 21123.3,
+        "_sta": "211+23.29",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -19323,7 +19365,10 @@
         },
         "inspection_date": "9/20/2010",
         "type": "STEEL-BACKED TIMBER WITHOUT BLOCKOUT",
-        "photo": "0010S-18.923-R.jpg"
+        "photo": "0010S-18.923-R.jpg",
+        "_sta_ft": 22359.8,
+        "_sta": "223+59.84",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -20593,7 +20638,10 @@
         },
         "inspection_date": "9/20/2010",
         "type": "STEEL-BACKED TIMBER WITHOUT BLOCKOUT",
-        "photo": "0010S-19.205-R.jpg"
+        "photo": "0010S-19.205-R.jpg",
+        "_sta_ft": 23760.3,
+        "_sta": "237+60.27",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -22175,7 +22223,10 @@
         },
         "inspection_date": "9/20/2010",
         "type": "STEEL-BACKED TIMBER WITHOUT BLOCKOUT",
-        "photo": "0010S-19.431-R.jpg"
+        "photo": "0010S-19.431-R.jpg",
+        "_sta_ft": 24882.6,
+        "_sta": "248+82.59",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -23089,7 +23140,10 @@
         },
         "inspection_date": "9/20/2010",
         "type": "STEEL-BACKED TIMBER WITHOUT BLOCKOUT",
-        "photo": "0010S-19.587-R.jpg"
+        "photo": "0010S-19.587-R.jpg",
+        "_sta_ft": 25657.3,
+        "_sta": "256+57.30",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",

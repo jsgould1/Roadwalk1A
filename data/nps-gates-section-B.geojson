@@ -37,9 +37,9 @@
         "VALID_RESULT": "Certified",
         "GlobalID": "bd1608eb-d268-4f9d-ad9f-4beb99f8fcc7",
         "_section": "B",
-        "_sta_ft": 0.0,
-        "_sta": "0+00.00",
-        "_dist_from_alignment_ft": 115.0,
+        "_sta_ft": 1102.6,
+        "_sta": "11+02.65",
+        "_dist_from_alignment_ft": 117.7,
         "_reported_in": [
           "NPS-GIS",
           "RIP-C5",

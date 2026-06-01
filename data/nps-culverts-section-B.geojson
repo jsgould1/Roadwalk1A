@@ -8,7 +8,7 @@
     "count": 71,
     "geometry_note": "Culverts rendered as perpendicular LineStrings synthesized from GIS points + road tangent.",
     "perpendicular_length_ft": 40.0,
-    "endpoint_role_assignment": "unassigned — field walk determines inlet vs outlet"
+    "endpoint_role_assignment": "unassigned \u2014 field walk determines inlet vs outlet"
   },
   "features": [
     {
@@ -155,7 +155,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 1334.0,
+        "_sta": "13+33.96",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -315,7 +318,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 2158.2,
+        "_sta": "21+58.20",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -475,7 +481,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 2379.5,
+        "_sta": "23+79.54",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -635,7 +644,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 2769.3,
+        "_sta": "27+69.33",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -795,7 +807,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 3454.6,
+        "_sta": "34+54.55",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -955,7 +970,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 3897.4,
+        "_sta": "38+97.42",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -1115,7 +1133,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 3911.5,
+        "_sta": "39+11.46",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -1275,7 +1296,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 4753.4,
+        "_sta": "47+53.43",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -1435,7 +1459,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 5314.9,
+        "_sta": "53+14.91",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -1595,7 +1622,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 5730.4,
+        "_sta": "57+30.41",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -1755,7 +1785,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 6587.9,
+        "_sta": "65+87.88",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -1915,7 +1948,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 7949.9,
+        "_sta": "79+49.88",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -2075,7 +2111,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 8572.6,
+        "_sta": "85+72.62",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -2235,7 +2274,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 9172.5,
+        "_sta": "91+72.49",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -2395,7 +2437,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 9787.1,
+        "_sta": "97+87.09",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -2555,7 +2600,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 10138.9,
+        "_sta": "101+38.89",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -2715,7 +2763,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 10423.5,
+        "_sta": "104+23.51",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -2875,7 +2926,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 12682.9,
+        "_sta": "126+82.93",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -3035,7 +3089,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 13273.8,
+        "_sta": "132+73.77",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -3195,7 +3252,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 13730.7,
+        "_sta": "137+30.72",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -3355,7 +3415,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 14363.6,
+        "_sta": "143+63.63",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -3515,7 +3578,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 14858.4,
+        "_sta": "148+58.39",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -3675,7 +3741,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 15382.6,
+        "_sta": "153+82.59",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -3835,7 +3904,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 15721.6,
+        "_sta": "157+21.61",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -3995,7 +4067,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 16122.6,
+        "_sta": "161+22.58",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -4155,7 +4230,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 16477.4,
+        "_sta": "164+77.38",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -4315,7 +4393,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 16965.1,
+        "_sta": "169+65.13",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -4475,7 +4556,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 17226.9,
+        "_sta": "172+26.93",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -4635,7 +4719,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 17735.5,
+        "_sta": "177+35.54",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -4795,7 +4882,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 18141.7,
+        "_sta": "181+41.73",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -4955,7 +5045,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 18650.1,
+        "_sta": "186+50.07",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -5115,7 +5208,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 18945.4,
+        "_sta": "189+45.39",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -5275,7 +5371,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 19337.0,
+        "_sta": "193+36.98",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -5435,7 +5534,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 19782.1,
+        "_sta": "197+82.15",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -5595,7 +5697,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 20013.0,
+        "_sta": "200+13.04",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -5755,7 +5860,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 20387.4,
+        "_sta": "203+87.39",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -5915,7 +6023,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 20618.5,
+        "_sta": "206+18.54",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -6075,7 +6186,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 21220.3,
+        "_sta": "212+20.25",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -6235,7 +6349,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 21480.9,
+        "_sta": "214+80.91",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -6395,7 +6512,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 21671.9,
+        "_sta": "216+71.91",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -6555,7 +6675,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 22008.1,
+        "_sta": "220+08.13",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -6715,7 +6838,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 22201.3,
+        "_sta": "222+01.26",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -6875,7 +7001,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 22516.0,
+        "_sta": "225+16.01",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -7035,7 +7164,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 22990.7,
+        "_sta": "229+90.71",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -7195,7 +7327,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 23219.8,
+        "_sta": "232+19.85",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -7355,7 +7490,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 23415.7,
+        "_sta": "234+15.71",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -7515,7 +7653,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 23592.2,
+        "_sta": "235+92.21",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -7675,7 +7816,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 23912.1,
+        "_sta": "239+12.09",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -7835,7 +7979,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 24321.6,
+        "_sta": "243+21.57",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -7995,7 +8142,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 24546.0,
+        "_sta": "245+45.98",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -8155,7 +8305,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 25228.6,
+        "_sta": "252+28.64",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -8315,7 +8468,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 25970.8,
+        "_sta": "259+70.82",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -8475,7 +8631,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 26071.1,
+        "_sta": "260+71.06",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -8635,7 +8794,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 26419.2,
+        "_sta": "264+19.22",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -8795,7 +8957,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 26641.3,
+        "_sta": "266+41.31",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -8955,7 +9120,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 26910.6,
+        "_sta": "269+10.57",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -9115,7 +9283,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 27422.0,
+        "_sta": "274+21.96",
+        "_dist_from_alignment_ft": 19.9
       },
       "geometry": {
         "type": "LineString",
@@ -9275,7 +9446,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 27528.4,
+        "_sta": "275+28.40",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -9435,7 +9609,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 28402.6,
+        "_sta": "284+02.56",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -9595,7 +9772,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 28803.8,
+        "_sta": "288+03.77",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -9755,7 +9935,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 29243.0,
+        "_sta": "292+43.03",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -9915,7 +10098,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 29415.1,
+        "_sta": "294+15.13",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -10075,7 +10261,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 29688.6,
+        "_sta": "296+88.56",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -10235,7 +10424,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 30033.9,
+        "_sta": "300+33.85",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -10395,7 +10587,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 30256.7,
+        "_sta": "302+56.70",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -10555,7 +10750,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 30522.5,
+        "_sta": "305+22.47",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -10715,7 +10913,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 30725.2,
+        "_sta": "307+25.21",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -10875,7 +11076,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 31356.4,
+        "_sta": "313+56.41",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -11035,7 +11239,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 31602.8,
+        "_sta": "316+02.84",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -11195,7 +11402,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 31926.0,
+        "_sta": "319+26.03",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -11355,7 +11565,10 @@
           "role": "unassigned (inlet or outlet)",
           "headwall": null,
           "flange_end_section": null
-        }
+        },
+        "_sta_ft": 32019.0,
+        "_sta": "320+19.02",
+        "_dist_from_alignment_ft": 156.5
       },
       "geometry": {
         "type": "LineString",
