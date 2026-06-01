@@ -12178,8 +12178,18 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   }
   // Project a cursor L.LatLng onto a polyline (array of [lat, lng]).
   // Returns [sta_ft_from_start, perpendicular_distance_ft].
-  function projectOntoAlignment(cursorLL, coords) {
+  //
+  // opts.allowExtrapolation (default false): when true, the first segment
+  // accepts t < 0 (returning a NEGATIVE sta_ft for points upstream of
+  // the polyline start) and the last segment accepts t > 1 (returning
+  // sta_ft > polyline length for downstream points). Used by the SLD
+  // photo lane so field photos taken before / after the section's
+  // documented endpoints still place at their true station inside the
+  // half-window gutter rather than clamping to the endpoint.
+  function projectOntoAlignment(cursorLL, coords, opts) {
     if (!coords || coords.length < 2) return [0, Infinity];
+    const allowExtrap = !!(opts && opts.allowExtrapolation);
+    const lastIdx = coords.length - 2;
     const cos_lat = Math.cos(cursorLL.lat * Math.PI/180);
     let bestDist = Infinity, bestCum = 0, cum = 0;
     for (let i = 0; i < coords.length - 1; i++) {
@@ -12193,7 +12203,10 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       const by = (b[0] - cursorLL.lat) * 364000;
       const vx = bx - ax, vy = by - ay;
       const denom = vx*vx + vy*vy;
-      const t = Math.max(0, Math.min(1, (-ax*vx + -ay*vy) / denom));
+      const rawT = (-ax*vx + -ay*vy) / denom;
+      const tMin = (allowExtrap && i === 0)        ? -Infinity : 0;
+      const tMax = (allowExtrap && i === lastIdx) ?  Infinity : 1;
+      const t = Math.max(tMin, Math.min(tMax, rawT));
       const projLat = a[0] + t * (b[0] - a[0]);
       const projLng = a[1] + t * (b[1] - a[1]);
       const d = havFt([cursorLL.lat, cursorLL.lng], [projLat, projLng]);
@@ -19182,10 +19195,15 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
           // projectOntoAlignment expects a Leaflet-LatLng-shaped object with
           // .lat / .lng — NOT an array. Passing an array silently produced
           // NaN dot-products and rejected every photo. (Bug in phase A.)
-          var proj = projectOntoAlignment({ lat: p.lat, lng: p.lng }, sec.alignment);
+          // allowExtrapolation: photos taken before STA 0+00 or after the
+          // section end get true negative / past-end stations so they
+          // place in the SLD's half-window gutter rather than clamping
+          // to the endpoint.
+          var proj = projectOntoAlignment({ lat: p.lat, lng: p.lng }, sec.alignment,
+                                          { allowExtrapolation: true });
           if (!proj) return;
           var staFt = proj[0], perpFt = proj[1];
-          if (perpFt > 300 || staFt < 0 || staFt > totalFt) { _outOfRange++; return; }
+          if (perpFt > 300 || staFt < -GUTTER_FT || staFt > totalFt + GUTTER_FT) { _outOfRange++; return; }
           var im = document.createElement('img');
           im.className = 'strip-photo-thumb' +
             (p.asset_group_id ? ' grouped' : '') +
