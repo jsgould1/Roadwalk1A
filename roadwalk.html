@@ -18256,16 +18256,28 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     const horiz = _pos === 'top' || _pos === 'bottom';
 
     // ── Dimensions ───────────────────────────────────────────────────────────
-    const totalFt  = Math.max(polylineLengthFt(sec.alignment), STRIP_WINDOW_FT);
-    const canvasPx = horiz ? (canvas.offsetWidth  || 600) : (canvas.offsetHeight || 270);
-    const pxPerFt  = canvasPx / STRIP_WINDOW_FT;
-    const innerPx  = Math.round(totalFt * pxPerFt);
+    // Pad the inner scroll content by half a window on each end so the
+    // centerline can scroll all the way to STA 0+00 (and past the last
+    // station). The actual centerline lives between [0, totalFt]; the
+    // padding is empty gutter that lets the user park the center cursor
+    // on the endpoints — useful when pins clamp to the section boundary
+    // (e.g. features past Pathweb's documented end).
+    const totalFt   = Math.max(polylineLengthFt(sec.alignment), STRIP_WINDOW_FT);
+    const canvasPx  = horiz ? (canvas.offsetWidth  || 600) : (canvas.offsetHeight || 270);
+    const pxPerFt   = canvasPx / STRIP_WINDOW_FT;
+    const GUTTER_FT = STRIP_WINDOW_FT / 2;
+    const paddedFt  = totalFt + 2 * GUTTER_FT;
+    const innerPx   = Math.round(paddedFt * pxPerFt);
     canvas.dataset.pxPerFt = pxPerFt;
     canvas.dataset.totalFt = totalFt;
+    canvas.dataset.gutterFt = GUTTER_FT;
 
     const lo = 0, hi = totalFt;
-    // axisPct: station → % of full inner length (used for all content positioning)
-    const axisPct = (sta) => (sta / totalFt) * 100;
+    // axisPct: station → % of padded inner length. Station 0 lands at the
+    // left gutter (GUTTER_FT in) and station totalFt at the right gutter
+    // edge — so percentages are positioned against the padded coordinate
+    // system, not the raw centerline length.
+    const axisPct = (sta) => ((sta + GUTTER_FT) / paddedFt) * 100;
     const axisKey = horiz ? 'left' : 'top';
 
     // ── Scroller: native overflow-scroll — browser gives momentum for free ───
@@ -18295,6 +18307,9 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     $('#strip-title').textContent = sec.name.split('(')[0].trim();
     const mpAt = (sta) => sec.mpStart + (sta / totalFt) * (sec.mpEnd - sec.mpStart);
     function updateHeader(center) {
+      // Header shows the window's intersection with the actual centerline,
+      // not the gutter — when the user scrolls into the left gutter, the
+      // left edge clamps at 0+00 / mp_start rather than going negative.
       const wLo = Math.max(0, center - STRIP_WINDOW_FT / 2);
       const wHi = Math.min(totalFt, center + STRIP_WINDOW_FT / 2);
       $('#strip-sub').textContent =
@@ -19253,16 +19268,20 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
 
     // ── Scroll setup ──────────────────────────────────────────────────────────
     // Position scroll so stripCenterSta is in the middle of the viewport,
-    // then keep stripCenterSta in sync as the user scrolls.
-    const scrollTarget = Math.max(0, Math.round((stripCenterSta - STRIP_WINDOW_FT / 2) * pxPerFt));
+    // then keep stripCenterSta in sync as the user scrolls. With the
+    // GUTTER_FT padding on the left, station 0 sits at pixel
+    // GUTTER_FT * pxPerFt = canvasPx/2 — so for a center of stripCenterSta,
+    // the desired scroll offset is simply stripCenterSta * pxPerFt.
+    // Allowing 0 ≤ centerSta ≤ totalFt lets the user park the centerline
+    // cursor on the section endpoints (formerly clamped half a window in).
+    const scrollTarget = Math.max(0, Math.round(stripCenterSta * pxPerFt));
     requestAnimationFrame(() => {
       if (horiz) scroller.scrollLeft = scrollTarget;
       else        scroller.scrollTop  = scrollTarget;
     });
     scroller.addEventListener('scroll', () => {
       const scroll = horiz ? scroller.scrollLeft : scroller.scrollTop;
-      stripCenterSta = Math.max(STRIP_WINDOW_FT / 2,
-        Math.min(totalFt - STRIP_WINDOW_FT / 2, (scroll + canvasPx / 2) / pxPerFt));
+      stripCenterSta = Math.max(0, Math.min(totalFt, scroll / pxPerFt));
       updateHeader(stripCenterSta);
       clickmark.dataset.sta = fmtStaMp(stripCenterSta, sec);
       // If this scroll was driven by the map→SLD sync (e.g. the Locate
@@ -19301,13 +19320,15 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
           const center = state.map.getCenter();
           const [staFt] = projectOntoAlignment(center, stripCurrentSec.alignment);
           if (staFt == null) return;
-          const clamped = Math.max(STRIP_WINDOW_FT / 2,
-            Math.min(totalFt - STRIP_WINDOW_FT / 2, staFt));
+          // Allow centering at 0 or totalFt — gutter padding gives the
+          // scroll room to land there (was clamped to STRIP_WINDOW_FT/2
+          // from each end, hiding the actual endpoints).
+          const clamped = Math.max(0, Math.min(totalFt, staFt));
           stripCenterSta = clamped;
           updateHeader(clamped);
           clickmark.dataset.sta = fmtStaMp(clamped, stripCurrentSec);
           updateStripCenterMapMarker(stripCurrentSec, clamped);
-          const target = Math.max(0, Math.round((clamped - STRIP_WINDOW_FT / 2) * pxPerFt));
+          const target = Math.max(0, Math.round(clamped * pxPerFt));
           _mapPanning = true;
           if (horiz) scroller.scrollLeft = target;
           else        scroller.scrollTop  = target;
