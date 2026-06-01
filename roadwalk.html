@@ -7245,6 +7245,28 @@ input.fs-slider::-webkit-slider-thumb {
 }
 .section-row .row-edit-btn:active { background: var(--blue); color: #fff; }
 
+/* Sits left of EDIT on field-added child rows that resolve to a bundle parent.
+   Folds the child into its parent (moves pins, re-stations, drops the row). */
+.section-row .row-merge-btn {
+  position: absolute;
+  right: 86px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--accent, #c2410c);
+  background: var(--paper);
+  border: 1px solid var(--accent, #c2410c);
+  padding: 5px 8px;
+  cursor: pointer;
+  z-index: 1;
+}
+.section-row .row-merge-btn:active { background: var(--accent, #c2410c); color: #fff; }
+.section-row.has-merge-btn { padding-right: 152px; }
+
 /* --- Full-export modal (#export-modal) ---------------------------------------------
    Centred card overlay. Shows a live pre-flight summary of each data
    category (inspections, logs, photos, etc.) with counts before the
@@ -13724,6 +13746,185 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       }
     } catch (_) { /* non-fatal: stale links can be re-linked manually */ }
   }
+
+  // Merge a field-added child section into a bundle parent section.
+  // Moves every pin onto the parent's alignment (re-projected stationing),
+  // flips inspection records' sec_id, rewrites geophoto.linked_pin_id, and
+  // drops the child from SECTIONS. Kickoff answers on the child are
+  // discarded — the parent keeps its own. Returns a result summary.
+  // ULIDs survive across the move so all inspection data + photo links
+  // stay tied to the same physical asset.
+  async function mergeFieldSectionIntoParent(child, parent) {
+    if (!child || !parent || child === parent) {
+      return { ok: false, reason: 'invalid sections' };
+    }
+    if (!Array.isArray(parent.alignment) || parent.alignment.length < 2) {
+      return { ok: false, reason: 'parent has no usable alignment' };
+    }
+
+    // Parent alignment length + MP-per-foot for re-stationing.
+    let parentAlignFt = 0;
+    for (let i = 0; i < parent.alignment.length - 1; i++) {
+      parentAlignFt += havFt(parent.alignment[i], parent.alignment[i + 1]);
+    }
+    const parentMpRange = (parent.mp_end != null && parent.mp_start != null)
+      ? (parent.mp_end - parent.mp_start) : null;
+    function staToMp(staFt) {
+      if (parentMpRange == null || parentAlignFt <= 0) return null;
+      return parent.mp_start + (staFt / parentAlignFt) * parentMpRange;
+    }
+    // First / last [lng,lat] vertex of a GeoJSON geometry (any type).
+    function firstLngLat(geom) {
+      if (!geom || !geom.coordinates) return null;
+      let c = geom.coordinates;
+      while (Array.isArray(c) && Array.isArray(c[0])) c = c[0];
+      return (Array.isArray(c) && c.length >= 2) ? [c[0], c[1]] : null;
+    }
+    function lastLngLat(geom) {
+      if (!geom || geom.type !== 'LineString' || !Array.isArray(geom.coordinates) || !geom.coordinates.length) return null;
+      const last = geom.coordinates[geom.coordinates.length - 1];
+      return (Array.isArray(last) && last.length >= 2) ? [last[0], last[1]] : null;
+    }
+
+    // ── 1. Re-project every child pin onto parent.alignment + move it. ──────
+    const movedPins = (child.pins || []).slice();
+    movedPins.forEach(function (pin) {
+      const fpt = firstLngLat(pin.geometry);
+      if (fpt) {
+        const r = projectOntoAlignment({ lat: fpt[1], lng: fpt[0] }, parent.alignment);
+        pin.sta_ft = Math.round(r[0] * 10) / 10;
+        pin.sta    = fmtSta(r[0]);
+        if (!pin.attrs) pin.attrs = {};
+        const mp = staToMp(r[0]);
+        if (mp != null && pin.attrs.mp_start != null) {
+          pin.attrs.mp_start = Math.round(mp * 1e6) / 1e6;
+        }
+        const lpt = lastLngLat(pin.geometry);
+        if (lpt) {
+          const r2 = projectOntoAlignment({ lat: lpt[1], lng: lpt[0] }, parent.alignment);
+          const mp2 = staToMp(r2[0]);
+          if (mp2 != null && pin.attrs.mp_end != null) {
+            pin.attrs.mp_end = Math.round(mp2 * 1e6) / 1e6;
+          }
+        }
+      }
+      if (!Array.isArray(parent.pins)) parent.pins = [];
+      parent.pins.push(pin);
+    });
+    child.pins = [];
+
+    // ── 2. Pre-rewrite geophotos: <child.id>::pin → <parent.id>::pin. ───────
+    //    This makes them addressable as parent pins so step 4's renumber
+    //    can carry their pin_id portion forward when pins get re-sequenced.
+    const preFlipPhotos = [];
+    if (window._RW && window._RW.geophotos && typeof window._RW.geophotos.list === 'function') {
+      window._RW.geophotos.list().forEach(function (photo) {
+        if (!photo || !photo.linked_pin_id) return;
+        const parts = photo.linked_pin_id.split('::');
+        if (parts.length === 2 && parts[0] === child.id) {
+          photo.linked_pin_id = parent.id + '::' + parts[1];
+          preFlipPhotos.push(photo);
+        }
+      });
+    }
+
+    // ── 3. Flip sec_id in IDB inspections from child.id to parent.id. ───────
+    await new Promise(function (resolve) {
+      if (!window.RWIdb || typeof window.RWIdb.openDB !== 'function') return resolve();
+      window.RWIdb.openDB().then(function (db) {
+        const tx = db.transaction('inspections', 'readwrite');
+        const store = tx.objectStore('inspections');
+        const req = store.openCursor();
+        req.onsuccess = function (e) {
+          const cur = e.target.result;
+          if (!cur) return;
+          const rec = cur.value;
+          if (rec && rec.sec_id === child.id) {
+            rec.sec_id = parent.id;
+            cur.update(rec);
+          }
+          cur.continue();
+        };
+        tx.oncomplete = function () { resolve(); };
+        tx.onerror    = function () { resolve(); };
+      }).catch(function () { resolve(); });
+    });
+
+    // ── 4. Renumber every kind we just brought in. renumberPinsForKind
+    //    rewrites geophoto.linked_pin_id for any rename it does (via the
+    //    recent renumber-time photo-update path), so step 2's pre-flipped
+    //    photos get their pin_id half updated too.
+    const kindsTouched = {};
+    movedPins.forEach(function (p) { if (p.kind) kindsTouched[p.kind] = true; });
+    Object.keys(kindsTouched).forEach(function (k) { renumberPinsForKind(parent, k); });
+
+    // ── 5. Save the sec_id-flipped photos. (renumber handles pin_id
+    //    rewrites + saves separately; this covers photos whose pin_id
+    //    didn't change but whose sec_id half did.)
+    if (preFlipPhotos.length && window._RW && window._RW.geophotos
+        && typeof window._RW.geophotos.saveMany === 'function') {
+      window._RW.geophotos.saveMany(preFlipPhotos).then(function () {
+        if (window._RW.geophotos.refresh) window._RW.geophotos.refresh();
+      });
+    }
+
+    // ── 6. After renumber, IDB inspection records may still carry the OLD
+    //    pin_id (the resync helper updates the in-memory cache, not IDB).
+    //    Re-walk inspections and update pin_id by ULID for moved pins.
+    const ulidToNewId = {};
+    movedPins.forEach(function (p) {
+      if (p.ulid && p.id) ulidToNewId[p.ulid] = p.id;
+    });
+    if (Object.keys(ulidToNewId).length) {
+      await new Promise(function (resolve) {
+        if (!window.RWIdb) return resolve();
+        window.RWIdb.openDB().then(function (db) {
+          const tx = db.transaction('inspections', 'readwrite');
+          const store = tx.objectStore('inspections');
+          const req = store.openCursor();
+          req.onsuccess = function (e) {
+            const cur = e.target.result;
+            if (!cur) return;
+            const rec = cur.value;
+            if (rec && rec.ulid && ulidToNewId[rec.ulid]
+                && rec.pin_id !== ulidToNewId[rec.ulid]) {
+              rec.pin_id = ulidToNewId[rec.ulid];
+              cur.update(rec);
+            }
+            cur.continue();
+          };
+          tx.oncomplete = function () { resolve(); };
+          tx.onerror    = function () { resolve(); };
+        }).catch(function () { resolve(); });
+      });
+    }
+
+    // ── 7. Drop the (now-empty) child from SECTIONS. ────────────────────────
+    const idx = SECTIONS.indexOf(child);
+    if (idx >= 0) SECTIONS.splice(idx, 1);
+
+    // Refresh the parent's pin-count badge — featureCount is set once at
+    // applyBundle time, so the dashboard would otherwise display the
+    // pre-merge count until the next bundle reload.
+    parent.featureCount = (parent.pins || []).length;
+
+    // ── 8. Persist + re-render. ─────────────────────────────────────────────
+    if (window._RW && typeof window._RW.persistSections === 'function') {
+      window._RW.persistSections();
+    }
+    if (typeof window.renderDashboard === 'function') {
+      window.renderDashboard('all');
+    }
+
+    return {
+      ok: true,
+      moved_pins:    movedPins.length,
+      photos_relabel: preFlipPhotos.length,
+      kinds:         Object.keys(kindsTouched),
+    };
+  }
+  window._RW = window._RW || {};
+  window._RW.mergeFieldSectionIntoParent = mergeFieldSectionIntoParent;
 
   // Per-kind editable schemas. Each kind's pin sheet renders these fields as
   // inputs so the user can fill in their attribute values inline.
@@ -28615,9 +28816,14 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     }
 
     function makeSectionRow(sec, isChild, childMeta) {
+      // Merge button is offered on field-added child rows that resolved to a
+      // bundle parent (sec._dashParentId set above). Hidden on top-level
+      // bundle rows and on orphan children that didn't match any parent.
+      const canMerge = !!(isChild && sec._dashParentId);
       const row = document.createElement('li');
       row.className = 'section-row'
         + (isChild ? ' section-child' : ' section-parent')
+        + (canMerge ? ' has-merge-btn' : '')
         + surfClass(sec);
       row.style.cursor = 'pointer';
       row.innerHTML =
@@ -28633,6 +28839,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         + '<span class="item">' + _esc(childMeta || sec.meta || '') + '</span>'
         + (!sec.kickoff ? '<span class="item">— kickoff pending</span>' : '')
         + '</div>'
+        + (canMerge ? '<button type="button" class="row-merge-btn" title="Move pins, photos and inspection records into the parent section">↑ Merge</button>' : '')
         + '<button type="button" class="row-edit-btn">✎ Edit</button>'
         + '<span class="arrow">›</span>';
       row.addEventListener('click', function () {
@@ -28649,6 +28856,53 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
           ev.stopPropagation();
           if (window._RW && typeof window._RW.editSectionData === 'function') {
             window._RW.editSectionData(sec.id);
+          }
+        });
+      }
+      const mergeBtn = row.querySelector('.row-merge-btn');
+      if (mergeBtn) {
+        mergeBtn.addEventListener('click', async function (ev) {
+          ev.stopPropagation();
+          const all     = window.SECTIONS || [];
+          const parent  = all.find(function (s) { return s.id === sec._dashParentId; });
+          if (!parent) {
+            alert('Could not find parent section "' + sec._dashParentId + '".');
+            return;
+          }
+          const pinCount   = (sec.pins || []).length;
+          const photoCount = (function () {
+            if (!window._RW || !window._RW.geophotos || typeof window._RW.geophotos.list !== 'function') return null;
+            const prefix = sec.id + '::';
+            return window._RW.geophotos.list().filter(function (p) {
+              return p && p.linked_pin_id && p.linked_pin_id.indexOf(prefix) === 0;
+            }).length;
+          })();
+          const msg = 'Merge "' + (sec.name || sec.id) + '" into "' + (parent.name || parent.id) + '"?'
+            + '\n\n'
+            + '• ' + pinCount + ' pin(s) move into the parent (re-stationed onto its alignment)\n'
+            + (photoCount != null ? '• ' + photoCount + ' linked photo(s) re-pointed to the parent\n' : '')
+            + '• Inspection records for these pins flip sec_id to the parent\n'
+            + '• Pins of the same kind get renumbered into the parent\'s sequence\n'
+            + '• The child section row and its kickoff answers are discarded\n'
+            + '\nThis cannot be undone.';
+          if (!window.confirm(msg)) return;
+          mergeBtn.disabled = true;
+          mergeBtn.textContent = '… merging';
+          try {
+            const res = await window._RW.mergeFieldSectionIntoParent(sec, parent);
+            if (!res || !res.ok) {
+              alert('Merge failed: ' + (res && res.reason ? res.reason : 'unknown error'));
+              mergeBtn.disabled = false;
+              mergeBtn.textContent = '↑ Merge';
+              return;
+            }
+            // renderDashboard is called inside the merge helper; the row is
+            // gone now. Nothing else to do here.
+          } catch (err) {
+            console.error('[RoadWalk] merge failed:', err);
+            alert('Merge failed: ' + (err && err.message ? err.message : err));
+            mergeBtn.disabled = false;
+            mergeBtn.textContent = '↑ Merge';
           }
         });
       }
