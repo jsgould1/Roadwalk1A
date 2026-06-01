@@ -49,7 +49,10 @@
         "wall_function": "Head Wall",
         "rating": 85,
         "repair_cost": "$0.00",
-        "photo": "0010N-2.158-R.jpg"
+        "photo": "0010N-2.158-R.jpg",
+        "_sta_ft": 1662.3,
+        "_sta": "16+62.29",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -137,7 +140,10 @@
         "wall_function": "Head Wall",
         "rating": 85,
         "repair_cost": "$0.00",
-        "photo": "0010N-2.160-L.jpg"
+        "photo": "0010N-2.160-L.jpg",
+        "_sta_ft": 1672.7,
+        "_sta": "16+72.73",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -221,7 +227,10 @@
         "wall_function": "Head Wall",
         "rating": 88,
         "repair_cost": "$0.00",
-        "photo": "0010N-2.415-R.jpg"
+        "photo": "0010N-2.415-R.jpg",
+        "_sta_ft": 3004.1,
+        "_sta": "30+04.07",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -373,7 +382,10 @@
         "wall_function": "Head Wall",
         "rating": 88,
         "repair_cost": "$0.00",
-        "photo": "0010N-2.416-L.jpg"
+        "photo": "0010N-2.416-L.jpg",
+        "_sta_ft": 3009.3,
+        "_sta": "30+09.30",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -539,7 +551,10 @@
         "wall_function": "Head Wall",
         "rating": 88,
         "repair_cost": "$0.00",
-        "photo": "0010N-3.327-R.jpg"
+        "photo": "0010N-3.327-R.jpg",
+        "_sta_ft": 7765.6,
+        "_sta": "77+65.59",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -673,7 +688,10 @@
         "photos": [
           "0010N-3.327-L-2.jpg",
           "0010N-3.327-L.jpg"
-        ]
+        ],
+        "_sta_ft": 7765.6,
+        "_sta": "77+65.59",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -802,7 +820,10 @@
         "type": "Gravity Mortared Stone",
         "wall_function": "Head Wall",
         "rating": 87,
-        "repair_cost": "$0.00"
+        "repair_cost": "$0.00",
+        "_sta_ft": 7906.6,
+        "_sta": "79+06.56",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -931,7 +952,10 @@
         "wall_function": "Head Wall",
         "rating": 85,
         "repair_cost": "$0.00",
-        "photo": "0010N-3.576-R.jpg"
+        "photo": "0010N-3.576-R.jpg",
+        "_sta_ft": 9065.6,
+        "_sta": "90+65.61",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -1016,7 +1040,10 @@
         "wall_function": "Head Wall",
         "rating": 83,
         "repair_cost": "$0.00",
-        "photo": "0010N-3.577-L.jpg"
+        "photo": "0010N-3.577-L.jpg",
+        "_sta_ft": 9070.8,
+        "_sta": "90+70.83",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -1098,7 +1125,10 @@
         "wall_function": "Head Wall",
         "rating": 85,
         "repair_cost": "$0.00",
-        "photo": "0010N-3.947-R.jpg"
+        "photo": "0010N-3.947-R.jpg",
+        "_sta_ft": 11002.6,
+        "_sta": "110+02.59",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -1188,7 +1218,10 @@
         "photos": [
           "0010N-3.947-L-2.jpg",
           "0010N-3.947-L.jpg"
-        ]
+        ],
+        "_sta_ft": 11002.6,
+        "_sta": "110+02.59",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -1293,7 +1326,10 @@
         "wall_function": "Head Wall",
         "rating": 87,
         "repair_cost": "$0.00",
-        "photo": "0010N-4.425-L.jpg"
+        "photo": "0010N-4.425-L.jpg",
+        "_sta_ft": 13498.2,
+        "_sta": "134+98.21",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -1406,7 +1442,10 @@
         "wall_function": "Head Wall",
         "rating": 87,
         "repair_cost": "$0.00",
-        "photo": "0010N-4.425-R.jpg"
+        "photo": "0010N-4.425-R.jpg",
+        "_sta_ft": 13498.2,
+        "_sta": "134+98.21",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -1514,7 +1553,10 @@
         "wall_function": "Head Wall",
         "rating": 88,
         "repair_cost": "$0.00",
-        "photo": "0010N-4.813-R.jpg"
+        "photo": "0010N-4.813-R.jpg",
+        "_sta_ft": 15523.9,
+        "_sta": "155+23.95",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -1590,7 +1632,10 @@
         "wall_function": "Head Wall",
         "rating": 88,
         "repair_cost": "$0.00",
-        "photo": "0010N-4.813-L.jpg"
+        "photo": "0010N-4.813-L.jpg",
+        "_sta_ft": 15523.9,
+        "_sta": "155+23.95",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -1662,7 +1707,10 @@
         "wall_function": "Head Wall",
         "rating": 88,
         "repair_cost": "$0.00",
-        "photo": "0010N-5.391-R.jpg"
+        "photo": "0010N-5.391-R.jpg",
+        "_sta_ft": 18541.7,
+        "_sta": "185+41.66",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -1774,7 +1822,10 @@
         "wall_function": "Head Wall",
         "rating": 87,
         "repair_cost": "$0.00",
-        "photo": "0010N-5.392-L.jpg"
+        "photo": "0010N-5.392-L.jpg",
+        "_sta_ft": 18546.9,
+        "_sta": "185+46.89",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -1895,7 +1946,10 @@
         "photos": [
           "0010N-5.960-L-2.jpg",
           "0010N-5.960-L.jpg"
-        ]
+        ],
+        "_sta_ft": 21512.4,
+        "_sta": "215+12.39",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -2280,7 +2334,10 @@
         "photos": [
           "0010N-6.205-L-2.jpg",
           "0010N-6.205-L.jpg"
-        ]
+        ],
+        "_sta_ft": 22791.5,
+        "_sta": "227+91.53",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -2776,7 +2833,10 @@
         "wall_function": "Head Wall",
         "rating": 88,
         "repair_cost": "$0.00",
-        "photo": "0010N-6.230-R.jpg"
+        "photo": "0010N-6.230-R.jpg",
+        "_sta_ft": 22922.1,
+        "_sta": "229+22.05",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -2861,7 +2921,10 @@
         "wall_function": "Head Wall",
         "rating": 85,
         "repair_cost": "$0.00",
-        "photo": "0010N-6.273-L.jpg"
+        "photo": "0010N-6.273-L.jpg",
+        "_sta_ft": 23146.6,
+        "_sta": "231+46.55",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -2934,7 +2997,10 @@
         "wall_function": "Head Wall",
         "rating": 85,
         "repair_cost": "$0.00",
-        "photo": "0010N-6.274-R.jpg"
+        "photo": "0010N-6.274-R.jpg",
+        "_sta_ft": 23151.8,
+        "_sta": "231+51.78",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",

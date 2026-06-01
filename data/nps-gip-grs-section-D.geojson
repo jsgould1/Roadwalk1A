@@ -46,7 +46,10 @@
         },
         "inspection_date": "9/15/2010",
         "type": "STEEL-BACKED TIMBER WITHOUT BLOCKOUT",
-        "photo": "0010N-3.646-L.jpg"
+        "photo": "0010N-3.646-L.jpg",
+        "_sta_ft": 9431.1,
+        "_sta": "94+31.08",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -1783,7 +1786,10 @@
         },
         "inspection_date": "9/15/2010",
         "type": "STEEL-BACKED TIMBER WITHOUT BLOCKOUT",
-        "photo": "0010N-3.932-L.jpg"
+        "photo": "0010N-3.932-L.jpg",
+        "_sta_ft": 10924.3,
+        "_sta": "109+24.28",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -2068,7 +2074,10 @@
         },
         "inspection_date": "9/15/2010",
         "type": "STONE MASONRY WITHOUT CONCRETE CORE WALL",
-        "photo": "0010N-5.927-L.jpg"
+        "photo": "0010N-5.927-L.jpg",
+        "_sta_ft": 21340.1,
+        "_sta": "213+40.10",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -2446,7 +2455,10 @@
         },
         "inspection_date": "9/15/2010",
         "type": "STEEL-BACKED TIMBER WITHOUT BLOCKOUT",
-        "photo": "0010N-6.144-L.jpg"
+        "photo": "0010N-6.144-L.jpg",
+        "_sta_ft": 22473.1,
+        "_sta": "224+73.05",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -3796,7 +3808,10 @@
         },
         "inspection_date": "9/15/2010",
         "type": "STONE MASONRY WITHOUT CONCRETE CORE WALL",
-        "photo": "0010N-6.271-L.jpg"
+        "photo": "0010N-6.271-L.jpg",
+        "_sta_ft": 23132.0,
+        "_sta": "231+32.02",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -3909,7 +3924,10 @@
         },
         "inspection_date": "9/15/2010",
         "type": "STONE MASONRY WITHOUT CONCRETE CORE WALL",
-        "photo": "0010N-6.275-R.jpg"
+        "photo": "0010N-6.275-R.jpg",
+        "_sta_ft": 23157.0,
+        "_sta": "231+57.00",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -4051,7 +4069,10 @@
         },
         "inspection_date": "9/14/2010",
         "type": "STONE MASONRY WITHOUT CONCRETE CORE WALL",
-        "photo": "0010N-6.303-R.jpg"
+        "photo": "0010N-6.303-R.jpg",
+        "_sta_ft": 23303.2,
+        "_sta": "233+03.18",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
@@ -4203,7 +4224,10 @@
         },
         "inspection_date": "9/15/2010",
         "type": "STONE MASONRY WITHOUT CONCRETE CORE WALL",
-        "photo": "0010N-6.308-L.jpg"
+        "photo": "0010N-6.308-L.jpg",
+        "_sta_ft": 23329.3,
+        "_sta": "233+29.29",
+        "_dist_from_alignment_ft": 20.0
       },
       "geometry": {
         "type": "LineString",
