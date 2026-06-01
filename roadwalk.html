@@ -18995,9 +18995,13 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       guardrail: 3, wall: 5,
     };
     // Default render mode (inline = parallel bar, cross = perpendicular marker)
+    // Loops are small (a single induction sensor across the lanes) so they
+    // belong with the other transverse features rather than as a long
+    // longitudinal bar that suggests the whole stretch is sensor.
     const _DEFAULT_RENDER_AS = {
       ln_pvmt_change:'cross', pavement_change:'cross',
       ln_stop_bar:'cross', ln_crosswalk:'cross',
+      ln_loops:'cross',
     };
     const kindRenderAs = k =>
       state.settings?.styleOverrides?.[k]?.renderAs || _DEFAULT_RENDER_AS[k] || 'inline';
