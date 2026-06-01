@@ -2524,21 +2524,39 @@ a { color: inherit; text-decoration: none; }
 .strip-photo-lane {
   position: absolute;
   pointer-events: auto; z-index: 3;
+}
+/* Horizontal SLD (top/bottom dock):
+     L lane sits at the top of the canvas (gradient fades downward toward
+     the centerline), R lane sits at the bottom (gradient fades upward).
+   Vertical SLD (right/left dock):
+     L lane sits on the left, R lane on the right. */
+.alignment-strip[data-pos="top"]    .strip-photo-lane-L,
+.alignment-strip[data-pos="bottom"] .strip-photo-lane-L {
+  left: 0; right: 0; top: 4px; height: 56px;
+  background: linear-gradient(to top, rgba(255,255,255,0), rgba(255,255,255,0.75) 18%);
+}
+.alignment-strip[data-pos="top"]    .strip-photo-lane-R,
+.alignment-strip[data-pos="bottom"] .strip-photo-lane-R {
+  left: 0; right: 0; bottom: 4px; height: 56px;
   background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0.75) 18%);
 }
-.alignment-strip[data-pos="top"]    .strip-photo-lane,
-.alignment-strip[data-pos="bottom"] .strip-photo-lane {
-  left: 0; right: 0; bottom: 4px; height: 56px;
+.alignment-strip[data-pos="right"]  .strip-photo-lane-L,
+.alignment-strip[data-pos="left"]   .strip-photo-lane-L {
+  top: 0; bottom: 0; left: 4px; width: 56px;
+  background: linear-gradient(to left, rgba(255,255,255,0), rgba(255,255,255,0.75) 18%);
 }
-.alignment-strip[data-pos="right"]  .strip-photo-lane,
-.alignment-strip[data-pos="left"]   .strip-photo-lane {
+.alignment-strip[data-pos="right"]  .strip-photo-lane-R,
+.alignment-strip[data-pos="left"]   .strip-photo-lane-R {
   top: 0; bottom: 0; right: 4px; width: 56px;
+  background: linear-gradient(to right, rgba(255,255,255,0), rgba(255,255,255,0.75) 18%);
 }
-/* When photos are on the strip widens its content area slightly so the lane
-   has its own real estate next to the pin row instead of overlapping. */
-.alignment-strip.photos-on .strip-canvas { padding-bottom: 60px; }
+/* When photos are on, reserve room on BOTH sides for the L and R lanes.
+   The actual lane heights are set inline by renderStrip after the sweep
+   stacker measures how many rows it actually needed; these defaults just
+   pre-pad the canvas so a freshly-opened SLD doesn't reflow. */
+.alignment-strip.photos-on .strip-canvas { padding-top: 60px; padding-bottom: 60px; }
 .alignment-strip.photos-on[data-pos="right"] .strip-canvas,
-.alignment-strip.photos-on[data-pos="left"]  .strip-canvas { padding-right: 60px; padding-bottom: 0; }
+.alignment-strip.photos-on[data-pos="left"]  .strip-canvas { padding-left: 60px; padding-right: 60px; padding-top: 0; padding-bottom: 0; }
 .strip-photo-thumb {
   position: absolute;
   width: 56px; height: 42px; object-fit: cover;
@@ -12177,7 +12195,9 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     return 2 * _R_FT * Math.asin(Math.sqrt(h));
   }
   // Project a cursor L.LatLng onto a polyline (array of [lat, lng]).
-  // Returns [sta_ft_from_start, perpendicular_distance_ft].
+  // Returns [sta_ft_from_start, perpendicular_distance_ft, side] where
+  // side is -1 (left of forward direction of travel), +1 (right) or 0
+  // (on the centerline within a few feet).
   //
   // opts.allowExtrapolation (default false): when true, the first segment
   // accepts t < 0 (returning a NEGATIVE sta_ft for points upstream of
@@ -12187,11 +12207,12 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   // documented endpoints still place at their true station inside the
   // half-window gutter rather than clamping to the endpoint.
   function projectOntoAlignment(cursorLL, coords, opts) {
-    if (!coords || coords.length < 2) return [0, Infinity];
+    if (!coords || coords.length < 2) return [0, Infinity, 0];
     const allowExtrap = !!(opts && opts.allowExtrapolation);
     const lastIdx = coords.length - 2;
     const cos_lat = Math.cos(cursorLL.lat * Math.PI/180);
     let bestDist = Infinity, bestCum = 0, cum = 0;
+    let bestCross = 0;   // signed cross product of (forward) × (foot→photo)
     for (let i = 0; i < coords.length - 1; i++) {
       const a = coords[i], b = coords[i+1];
       const segLen = havFt(a, b);
@@ -12210,10 +12231,25 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       const projLat = a[0] + t * (b[0] - a[0]);
       const projLng = a[1] + t * (b[1] - a[1]);
       const d = havFt([cursorLL.lat, cursorLL.lng], [projLat, projLng]);
-      if (d < bestDist) { bestDist = d; bestCum = cum + t * segLen; }
+      if (d < bestDist) {
+        bestDist = d;
+        bestCum = cum + t * segLen;
+        // Signed cross product of forward × (foot→photo). Photo sits at
+        // local-XY origin; foot is at (ax + t*vx, ay + t*vy). Vector from
+        // foot to photo is (-cx, -cy). Cross_z = vx*(-cy) − vy*(-cx) =
+        // vy*cx − vx*cy. Positive ⇒ photo is to the LEFT of the
+        // forward-travel direction; negative ⇒ right.
+        const cx = ax + t * vx;
+        const cy = ay + t * vy;
+        bestCross = vy * cx - vx * cy;
+      }
       cum += segLen;
     }
-    return [bestCum, bestDist];
+    // Dead zone of 3 ft so photos right on the centerline don't flap
+    // between L and R from numerical noise.
+    let side = 0;
+    if (bestDist > 3) side = bestCross > 0 ? -1 : (bestCross < 0 ? 1 : 0);
+    return [bestCum, bestDist, side];
   }
   function fmtSta(staFt) {
     const staInt = Math.round(staFt);
@@ -18265,6 +18301,13 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     const sec = stripCurrentSec;
     const canvas = $('#strip-canvas');
     canvas.innerHTML = '';
+    // Wipe any inline padding the photo-lane phase set last render. Without
+    // this, toggling the photo lane off would leave the canvas padded as
+    // though it were still on.
+    canvas.style.paddingTop = '';
+    canvas.style.paddingBottom = '';
+    canvas.style.paddingLeft = '';
+    canvas.style.paddingRight = '';
     const _pos  = $('#alignment-strip')?.dataset.pos || 'top';
     const horiz = _pos === 'top' || _pos === 'bottom';
 
@@ -19164,9 +19207,17 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       var _stripEl = document.getElementById('alignment-strip');
       if (_stripEl) _stripEl.classList.toggle('photos-on', !!_photosOn);
       if (_photosOn && window._RW && window._RW.geophotos) {
-        var _lane = document.createElement('div');
-        _lane.className = 'strip-photo-lane';
-        inner.appendChild(_lane);
+        // Two lanes: L (top/left edge of canvas) and R (bottom/right edge).
+        // Photos go on the lane that matches the side of the road the GPS
+        // was on, computed from the signed perpendicular at the projected
+        // station. Within each lane a sweep-stacker assigns rows / columns
+        // so photos at similar stations don't cover each other.
+        var _laneL = document.createElement('div');
+        _laneL.className = 'strip-photo-lane strip-photo-lane-L';
+        var _laneR = document.createElement('div');
+        _laneR.className = 'strip-photo-lane strip-photo-lane-R';
+        inner.appendChild(_laneL);
+        inner.appendChild(_laneR);
         var _allPhotos = window._RW.geophotos.list() || [];
         // Collapse grouped photos to their cover so the lane shows ONE thumb
         // per asset group (the cover, or first member if none is flagged).
@@ -19185,41 +19236,61 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
             _laneInput.push(p);
           }
         });
+        // Phase 1: project + bucket by side. L holds photos on the left of
+        // travel direction plus on-centerline (side === 0) so they don't
+        // disappear; R gets the right-side photos.
+        var _bySide = { L: [], R: [] };
         var _added = 0, _withGps = 0, _outOfRange = 0;
         _laneInput.forEach(function (p) {
           if (!p || typeof p.lat !== 'number' || typeof p.lng !== 'number') return;
           _withGps++;
-          // Photo type filter — skip muted types entirely.
           if (window._RW && window._RW.photoFilter
               && !window._RW.photoFilter.apply(p)) return;
-          // projectOntoAlignment expects a Leaflet-LatLng-shaped object with
-          // .lat / .lng — NOT an array. Passing an array silently produced
-          // NaN dot-products and rejected every photo. (Bug in phase A.)
-          // allowExtrapolation: photos taken before STA 0+00 or after the
-          // section end get true negative / past-end stations so they
-          // place in the SLD's half-window gutter rather than clamping
-          // to the endpoint.
           var proj = projectOntoAlignment({ lat: p.lat, lng: p.lng }, sec.alignment,
                                           { allowExtrapolation: true });
           if (!proj) return;
-          var staFt = proj[0], perpFt = proj[1];
+          var staFt = proj[0], perpFt = proj[1], sideSign = proj[2];
           if (perpFt > 300 || staFt < -GUTTER_FT || staFt > totalFt + GUTTER_FT) { _outOfRange++; return; }
+          (sideSign > 0 ? _bySide.R : _bySide.L).push({ p: p, staFt: staFt, perpFt: perpFt });
+        });
+        // Phase 2: sweep-stack each side. Thumb footprint along the axis
+        // is its on-screen size (56 px) converted to feet via pxPerFt.
+        // Cap at MAX_ROWS rows per side — extra photos at a crowded
+        // station pile into the last row (they'll still cover but it's
+        // localized to that cluster).
+        var THUMB_PX  = 56;
+        var ROW_GAP_PX = 44;   // 42 px thumb + 2 px spacing
+        var MAX_ROWS  = 3;
+        var DEAD_FT   = THUMB_PX / pxPerFt;
+        var _rowsUsed = { L: 0, R: 0 };
+
+        function _addThumb(item, sideKey, rowIdx) {
+          var p = item.p, staFt = item.staFt, perpFt = item.perpFt;
           var im = document.createElement('img');
           im.className = 'strip-photo-thumb' +
             (p.asset_group_id ? ' grouped' : '') +
             (p.linked_pin_id  ? ' linked'  : '');
           im.src = p.dataUrl;
           im.style[axisKey] = axisPct(staFt) + '%';
+          // Cross-axis row/column offset. Row 0 sits at the lane's INNER
+          // edge (the side closest to the centerline / pins) so the
+          // most-common single-row case stays prominently next to the
+          // road. Extra rows fan out toward the outer edge.
+          var crossPx = rowIdx * ROW_GAP_PX;
+          if (horiz) {
+            if (sideKey === 'L') { im.style.bottom = crossPx + 'px'; im.style.top  = 'auto'; }
+            else                 { im.style.top    = crossPx + 'px'; }
+          } else {
+            if (sideKey === 'L') { im.style.right  = crossPx + 'px'; im.style.left = 'auto'; }
+            else                 { im.style.left   = crossPx + 'px'; }
+          }
           if (p.asset_group_id) {
             im.style.setProperty('--gp-group-color',
               window._RW.geophotos.groupColor(p.asset_group_id));
           }
-          // Hover meta consumed by the existing tk-hover-preview handlers.
           im.dataset.hoverDesc = p.description || '';
           var staLbl = ((staFt / 100 | 0) + '+' + ('0' + Math.round(staFt % 100)).slice(-2));
-          var _hoverParts = ['STA ' + staLbl, Math.round(perpFt) + ' ft off centerline'];
-          // Surface the link target in the hover so the user can see what
-          // this photo is linked to without having to click first.
+          var _hoverParts = ['STA ' + staLbl, Math.round(perpFt) + ' ft ' + (sideKey === 'L' ? 'L' : 'R')];
           if (p.linked_pin_id) {
             var _r = window._RW && window._RW.geophotos && window._RW.geophotos.resolveLink
               ? window._RW.geophotos.resolveLink(p.linked_pin_id) : null;
@@ -19227,8 +19298,6 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
           }
           im.dataset.hoverMeta = _hoverParts.join(' · ');
           im.dataset.photoId = p.id;
-          // Make the thumb draggable — drop onto a feature bar / pin on the
-          // SLD to link the photo to that feature.
           im.draggable = true;
           im.addEventListener('dragstart', function (e) {
             try {
@@ -19240,7 +19309,6 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
           im.addEventListener('dragend', function () {
             document.body.classList.remove('rw-sld-photo-dragging');
           });
-          // Click → action popup (open linked feature / link to feature / unlink).
           im.addEventListener('click', function (e) {
             e.stopPropagation();
             _sldHideHoverPreview();
@@ -19249,9 +19317,54 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
           im.addEventListener('mouseenter', _sldShowHoverPreview);
           im.addEventListener('mousemove',  _sldMoveHoverPreview);
           im.addEventListener('mouseleave', _sldHideHoverPreview);
-          _lane.appendChild(im);
+          (sideKey === 'L' ? _laneL : _laneR).appendChild(im);
           _added++;
+        }
+
+        ['L', 'R'].forEach(function (sideKey) {
+          var arr = _bySide[sideKey].sort(function (a, b) { return a.staFt - b.staFt; });
+          var rowLast = [];   // rowLast[r] = sta of the last thumb placed in row r
+          arr.forEach(function (item) {
+            var rowIdx = -1;
+            for (var r = 0; r < rowLast.length; r++) {
+              if (item.staFt - rowLast[r] > DEAD_FT) { rowIdx = r; break; }
+            }
+            if (rowIdx === -1) {
+              if (rowLast.length < MAX_ROWS) {
+                rowIdx = rowLast.length;
+                rowLast.push(item.staFt);
+              } else {
+                // No free row — pile into the last row. This is rare and
+                // localized; the user can widen the zoom to separate.
+                rowIdx = MAX_ROWS - 1;
+                rowLast[rowIdx] = item.staFt;
+              }
+            } else {
+              rowLast[rowIdx] = item.staFt;
+            }
+            _addThumb(item, sideKey, rowIdx);
+          });
+          _rowsUsed[sideKey] = rowLast.length;
         });
+
+        // Phase 3: size the lanes to fit the rows actually used. The CSS
+        // default sizes them for one row; expand when we placed more.
+        var _laneSize = function (rows) { return Math.max(56, rows * ROW_GAP_PX + 14); };
+        if (horiz) {
+          _laneL.style.height = _laneSize(_rowsUsed.L) + 'px';
+          _laneR.style.height = _laneSize(_rowsUsed.R) + 'px';
+          // Push the centerline area inward so the lanes don't sit on top
+          // of pins. The strip's .photos-on class adds a default pad — we
+          // override here with the actual measured lane heights.
+          canvas.style.paddingTop    = _laneSize(_rowsUsed.L) + 4 + 'px';
+          canvas.style.paddingBottom = _laneSize(_rowsUsed.R) + 4 + 'px';
+        } else {
+          _laneL.style.width  = _laneSize(_rowsUsed.L) + 'px';
+          _laneR.style.width  = _laneSize(_rowsUsed.R) + 'px';
+          canvas.style.paddingLeft  = _laneSize(_rowsUsed.L) + 4 + 'px';
+          canvas.style.paddingRight = _laneSize(_rowsUsed.R) + 4 + 'px';
+        }
+
         if (!_added) {
           // Tell the user WHY there's nothing — common cases: no photos
           // at all, photos without GPS, or photos in the project but far
@@ -19263,7 +19376,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
           else if (!_withGps)         _empty.textContent = 'No photos with GPS (of ' + _total + ' total)';
           else if (!_outOfRange)      _empty.textContent = _withGps + ' photo' + (_withGps === 1 ? '' : 's') + ' with GPS, none near this section';
           else                        _empty.textContent = '0 / ' + _total + ' photos matched · ' + _withGps + ' GPS · ' + _outOfRange + ' > 300 ft off';
-          _lane.appendChild(_empty);
+          _laneR.appendChild(_empty);
         }
       }
     } catch (_e) { /* lane is non-critical — never let it break the strip */ }
