@@ -12014,11 +12014,12 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
           : `Reading ${mainFile.name}…`;
         status.className   = 'pp-status';
         try {
-          // Defensive: warn if user picked a single >500 MB JSON file. V8's
-          // max-string-length will silently truncate the read and JSON.parse
-          // will throw "Unexpected end of JSON input". Suggest the splitter
-          // OR re-exporting from a newer build (which auto-splits past 400 MB).
-          if (!ndjsonFile && mainFile.size > 500 * 1024 * 1024) {
+          // Defensive: warn if user picked a single >500 MB JSON file WITHOUT
+          // any chunk files. V8's max-string-length will silently truncate
+          // the read and JSON.parse will throw "Unexpected end of JSON input".
+          // Suggest the splitter OR re-exporting from a newer build (which
+          // auto-splits past 400 MB).
+          if (!ndjsonFiles.length && mainFile.size > 500 * 1024 * 1024) {
             throw new Error(
               'This snapshot is ' + (mainFile.size / 1048576).toFixed(0) + ' MB, ' +
               'which exceeds the browser\'s single-string read limit. Either: ' +
