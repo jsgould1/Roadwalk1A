@@ -12938,7 +12938,12 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
 
   // Layer-toggle aliases: a feature kind that follows another kind's
   // visibility toggle (Curb & Gutter follows the Curb layer toggle).
-  const LAYER_ALIAS = { ln_cg: 'ln_curb' };
+  // Layer-toggle aliases: a feature kind that follows another kind's
+  // visibility toggle. Curb & Gutter (ln_cg) follows the Curb layer
+  // (ln_curb); the line variant of "Other" (ln_misc_other) follows the
+  // point variant (pt_misc_other) so both ride on the single Misc
+  // Other toggle in the layers panel.
+  const LAYER_ALIAS = { ln_cg: 'ln_curb', ln_misc_other: 'pt_misc_other' };
 
   // A pin is "non-AECOM" if its Source says so, else if it's a pre-walk
   // bundle pin. Drives the single "Non-AECOM data" visibility toggle.
@@ -28450,6 +28455,10 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     { label: 'Overlooks',     kind: 'overlook',      color: '#DC2626', active: true  },
     { label: 'NGS Monuments', kind: 'ngs_monument',  color: '#0EA5E9', active: false },
     { label: 'Guy Wires',     kind: 'pt_guy_wire',   color: '#C85A2B', active: true  },
+    // "Misc Other" covers both the point variant (pt_misc_other) and the
+    // line variant (ln_misc_other) — ln_misc_other is aliased to this row
+    // via LAYER_ALIAS so a single toggle controls both.
+    { label: 'Misc Other',    kind: 'pt_misc_other', color: '#C85A2B', active: true  },
     // Drawn linear features — toggles key off the catalog `value` kind.
     { label: 'Paved Swales',  kind: 'ln_paved_swale',   color: '#2563A8', active: true },
     { label: 'Pvmt Widening', kind: 'ln_pvmt_widening', color: '#9CA3AF', active: true },
