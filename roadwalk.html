@@ -8793,13 +8793,17 @@ input.fs-slider::-webkit-slider-thumb {
   cursor: pointer;
 }
 .df-photo-del {
-  position: absolute; top: 2px; right: 2px;
-  width: 16px; height: 16px; padding: 0;
-  background: rgba(0,0,0,.55); color: #fff; border: none;
-  border-radius: 50%; font-size: 9px; line-height: 1;
+  position: absolute; top: 4px; right: 4px;
+  width: 28px; height: 28px; padding: 0;
+  background: rgba(0,0,0,.7); color: #fff;
+  border: 1.5px solid rgba(255,255,255,.9);
+  border-radius: 50%; font-size: 14px; font-weight: 700; line-height: 1;
   cursor: pointer; display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 1px 4px rgba(0,0,0,.5);
+  z-index: 2;
 }
-.df-photo-del:hover { background: #c0392b; }
+.df-photo-del:hover  { background: #c0392b; }
+.df-photo-del:active { background: #c0392b; transform: scale(0.92); }
 .df-photo-empty {
   font: 400 9px/1.4 'IBM Plex Mono',monospace;
   color: var(--ink-3); font-style: italic;
@@ -34764,16 +34768,18 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       });
     });
 
-    // Delete a photo thumbnail (✕ button)
+    // Delete a photo thumbnail (✕ button). Confirm before splicing so a
+    // misrap on the tablet doesn't silently drop a captured photo.
     scroll.querySelectorAll('button.df-photo-del[data-photo-idx]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
+      btn.addEventListener('click', function (ev) {
+        ev.stopPropagation();
         var idx = parseInt(btn.dataset.photoIdx, 10);
         var photos = _ensurePhotos();
-        if (idx >= 0 && idx < photos.length) {
-          photos.splice(idx, 1);
-          _dataState.dirty = true;
-          _renderFormBody();
-        }
+        if (idx < 0 || idx >= photos.length) return;
+        if (!window.confirm('Remove this photo from the form?\n\nThis can\'t be undone.')) return;
+        photos.splice(idx, 1);
+        _dataState.dirty = true;
+        _renderFormBody();
       });
     });
 
