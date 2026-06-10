@@ -31824,8 +31824,12 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     });
     if (!rows.length) { window.alert('No features to export.'); return; }
 
-    // Union of all attribute keys (skip bulky/non-tabular fields)
-    var SKIP = { photos: 1, panels: 1, custom_fields: 1, labels: 1 };
+    // Union of all top-level attribute keys. SKIP excludes:
+    //  - photos (binary data — exported separately via the photo modal)
+    //  - posts, panels (flattened below into per-instance columns so they
+    //    actually show up as Excel cells instead of being lost in JSON)
+    //  - custom_fields, labels (free-form nested objects)
+    var SKIP = { photos: 1, posts: 1, panels: 1, custom_fields: 1, labels: 1 };
     var attrSet = {};
     rows.forEach(function (r) {
       var a = r.merged.attrs || {};
@@ -31833,8 +31837,42 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     });
     var attrKeys = Object.keys(attrSet).sort();
 
+    // Discover the max number of posts / panels across every sign in the
+    // export plus the union of their inner field names. This lets us emit
+    // post_1_type, post_1_height, ..., panel_1_sign_code, panel_1_panel_condition
+    // columns so every nested datum the user typed lands in its own cell.
+    var maxPosts = 0, maxPanels = 0;
+    var postFieldSet = {}, panelFieldSet = {};
+    rows.forEach(function (r) {
+      var a = r.merged.attrs || {};
+      if (Array.isArray(a.posts)) {
+        if (a.posts.length > maxPosts) maxPosts = a.posts.length;
+        a.posts.forEach(function (p) {
+          if (p && typeof p === 'object') {
+            Object.keys(p).forEach(function (k) { postFieldSet[k] = true; });
+          }
+        });
+      }
+      if (Array.isArray(a.panels)) {
+        if (a.panels.length > maxPanels) maxPanels = a.panels.length;
+        a.panels.forEach(function (p) {
+          if (p && typeof p === 'object') {
+            Object.keys(p).forEach(function (k) { panelFieldSet[k] = true; });
+          }
+        });
+      }
+    });
+    var postFields  = Object.keys(postFieldSet).sort();
+    var panelFields = Object.keys(panelFieldSet).sort();
+
     var header = ['field_id', 'kind', 'section_id', 'section_name', 'sta',
                   'status', 'latitude', 'longitude'].concat(attrKeys);
+    for (var _pi = 1; _pi <= maxPosts; _pi++) {
+      postFields.forEach(function (k) { header.push('post_' + _pi + '_' + k); });
+    }
+    for (var _pj = 1; _pj <= maxPanels; _pj++) {
+      panelFields.forEach(function (k) { header.push('panel_' + _pj + '_' + k); });
+    }
 
     function _cell(v) {
       if (v == null) return '';
@@ -31860,6 +31898,20 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       var row = [m.id, m.kind, r.sec.id, r.sec.name, m.sta,
                  m.status || 'pending', ll[0], ll[1]];
       attrKeys.forEach(function (k) { row.push(a[k]); });
+      // Flatten each post into its post_<i>_<field> cells; missing slots
+      // emit blank values so the column grid stays aligned across kinds
+      // (a culvert row has no posts but still emits the right number of
+      //  blank post_* cells).
+      var posts = Array.isArray(a.posts) ? a.posts : [];
+      for (var i = 0; i < maxPosts; i++) {
+        var p = posts[i] || {};
+        postFields.forEach(function (k) { row.push(p[k]); });
+      }
+      var panels = Array.isArray(a.panels) ? a.panels : [];
+      for (var j = 0; j < maxPanels; j++) {
+        var pn = panels[j] || {};
+        panelFields.forEach(function (k) { row.push(pn[k]); });
+      }
       lines.push(row.map(_cell).join(','));
     });
 
