@@ -8804,6 +8804,22 @@ input.fs-slider::-webkit-slider-thumb {
 }
 .df-photo-del:hover  { background: #c0392b; }
 .df-photo-del:active { background: #c0392b; transform: scale(0.92); }
+
+/* "Remove All" sits above the photo grid; orange outline so it reads
+   as destructive without competing with the primary capture buttons. */
+.df-photo-clear-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  margin: 8px 0 6px;
+  padding: 5px 10px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px; font-weight: 600; letter-spacing: .5px;
+  text-transform: uppercase;
+  color: #c2410c; background: transparent;
+  border: 1px solid #c2410c; border-radius: 3px;
+  cursor: pointer;
+}
+.df-photo-clear-btn:hover { background: #c2410c; color: #fff; }
+.df-photo-clear-btn:active { background: #9a3310; }
 .df-photo-empty {
   font: 400 9px/1.4 'IBM Plex Mono',monospace;
   color: var(--ink-3); font-style: italic;
@@ -33603,6 +33619,9 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
             '<span class="rw-dropzone-ico">⬇</span>' +
             '<span class="rw-dropzone-lbl">…or drop photos here</span>' +
           '</div>' +
+          (photos.length > 1
+            ? '<button type="button" class="df-photo-clear-btn" id="df-photo-clear-btn">✕ Remove All Photos (' + photos.length + ')</button>'
+            : '') +
           '<div class="df-photo-grid" id="df-photo-grid" style="margin-top:10px;">' + photoHtml + '</div>' +
         '</div>';
     }
@@ -34053,6 +34072,9 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         '<span class="rw-dropzone-ico">⬇</span>' +
         '<span class="rw-dropzone-lbl">…or drop photos here</span>' +
       '</div>' +
+      (photos.length > 1
+        ? '<button type="button" class="df-photo-clear-btn" id="df-photo-clear-btn">✕ Remove All Photos (' + photos.length + ')</button>'
+        : '') +
       '<div class="df-photo-grid" id="df-photo-grid">' + photoHtml + '</div>';
 
     return meta +
@@ -34782,6 +34804,25 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
         _renderFormBody();
       });
     });
+
+    // Remove ALL photos in one shot (button only renders when >1 photo
+    // present). Confirms with the count so an accidental tap doesn't
+    // silently wipe the day's captures.
+    var clearAllBtn = scroll.querySelector('#df-photo-clear-btn');
+    if (clearAllBtn) {
+      clearAllBtn.addEventListener('click', function (ev) {
+        ev.stopPropagation();
+        var photos = _ensurePhotos();
+        if (!photos.length) return;
+        if (!window.confirm(
+          'Remove ALL ' + photos.length + ' photo(s) from this form?\n\n' +
+          'This can\'t be undone.'
+        )) return;
+        photos.length = 0;     // empty the array in place
+        _dataState.dirty = true;
+        _renderFormBody();
+      });
+    }
 
     // Annotate: click a thumbnail image to open the annotation modal
     scroll.querySelectorAll('img.df-photo-thumb').forEach(function (img) {
