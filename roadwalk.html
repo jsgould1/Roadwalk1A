@@ -8886,6 +8886,64 @@ input.fs-slider::-webkit-slider-thumb {
 /* Photo lightbox for annotation trigger */
 .df-photo-thumb { cursor: pointer; }
 
+/* Manage Imports modal — listing of import batches with delete-per-row. */
+.rw-mi-card {
+  background: var(--paper, #fff); border: 1px solid var(--rule, #ccc);
+  width: 100%; max-width: 720px; max-height: calc(100vh - 48px);
+  display: flex; flex-direction: column;
+  box-shadow: 0 12px 48px rgba(0,0,0,0.45);
+}
+.rw-mi-card-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--rule-soft, #e6e6e6);
+}
+.rw-mi-title {
+  font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 700;
+  letter-spacing: 0.8px; text-transform: uppercase; color: var(--ink-2, #333);
+}
+.rw-mi-close {
+  border: none; background: transparent; font-size: 18px; cursor: pointer;
+  color: var(--ink-3, #888); padding: 4px 10px;
+}
+.rw-mi-close:hover { color: var(--ink, #111); }
+.rw-mi-list { overflow-y: auto; padding: 10px 18px 18px; }
+.rw-mi-empty {
+  font: 400 12px/1.6 'IBM Plex Mono', monospace;
+  color: var(--ink-3, #888); padding: 24px 4px; text-align: center;
+}
+.rw-mi-row {
+  padding: 12px 0; border-bottom: 1px solid var(--rule-soft, #e6e6e6);
+  display: flex; flex-direction: column; gap: 4px;
+}
+.rw-mi-row:last-child { border-bottom: none; }
+.rw-mi-row-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.rw-mi-row-id {
+  font: 700 11px 'IBM Plex Mono', monospace;
+  color: var(--ink, #111); word-break: break-all;
+}
+.rw-mi-row-when {
+  font: 400 10px 'IBM Plex Mono', monospace; color: var(--ink-3, #888);
+}
+.rw-mi-row-src {
+  font: 400 11px 'IBM Plex Mono', monospace; color: var(--ink-2, #555);
+}
+.rw-mi-row-counts {
+  display: flex; gap: 16px; flex-wrap: wrap;
+  font: 400 11px 'IBM Plex Mono', monospace; color: var(--ink-2, #555);
+}
+.rw-mi-delete-btn {
+  align-self: flex-start; margin-top: 6px;
+  padding: 6px 12px;
+  font: 700 10px 'IBM Plex Mono', monospace;
+  letter-spacing: 0.5px; text-transform: uppercase;
+  color: var(--orange, #c2410c); background: transparent;
+  border: 1px solid var(--orange, #c2410c); border-radius: 3px;
+  cursor: pointer;
+}
+.rw-mi-delete-btn:hover { background: var(--orange, #c2410c); color: #fff; }
+.rw-mi-delete-btn:disabled { opacity: 0.55; cursor: wait; }
+
 /* Full-size photo lightbox — shared by the SLD photo action popup and
    the geophoto-map pop-up. Replaces the old window.open('_blank') path
    so the image stays inside the app shell (matters on the field iPad
@@ -10346,6 +10404,21 @@ body.mobile-mode #app {
                   stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
           Import CL
+        </button>
+
+        <!-- Manage Imports: lists every import batch ever loaded onto this
+             device (from AECOM Features with chunked photos, etc.) and
+             lets the user delete a batch in one tap — pins + photos all
+             revert. Surfaces a panel; opens on click via initDashboard(). -->
+        <button class="dash-action-btn" id="dash-manage-imports-btn"
+                title="List recent imports and delete by batch">
+          <svg viewBox="0 0 20 20" width="15" height="15" aria-hidden="true">
+            <path d="M3 5 L17 5 M3 10 L17 10 M3 15 L17 15"
+                  fill="none" stroke="currentColor" stroke-width="1.8"
+                  stroke-linecap="round"/>
+            <circle cx="15" cy="15" r="3" fill="none" stroke="currentColor" stroke-width="1.6"/>
+          </svg>
+          Manage Imports
         </button>
 
         <!-- Clear Field Data: wipes inspection form data + photo→feature
@@ -14473,8 +14546,183 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     };
   }
 
-  window._RW.exportAecomFeatures = exportAecomFeatures;
-  window._RW.importAecomFeatures = importAecomFeatures;
+  // Stream-parse one NDJSON geophoto chunk (one record per line) and write
+  // every photo to the geophotos IDB store. _link_pin_ulid in the record
+  // gets resolved to the standard "<sec_id>::<pin_id>" linked_pin_id by
+  // walking SECTIONS for a pin matching the ULID — chunks are imported
+  // immediately after the main JSON, so the in-memory state has the new
+  // pins with their freshly-renumbered ids.
+  //
+  // Each photo also carries _import_batch_id so the Manage Imports panel
+  // can bulk-delete a batch in one shot.
+  async function importAecomGeophotoChunk(ndjsonText, batchIdHint) {
+    if (!window._RW || !window._RW.geophotos || typeof window._RW.geophotos.save !== 'function') {
+      throw new Error('Geophotos store helper not available.');
+    }
+    // Build a ulid -> { sec_id, pin_id } index from current SECTIONS so we
+    // can resolve every photo's link in O(1).
+    var ulidIdx = Object.create(null);
+    (window.SECTIONS || []).forEach(function (sec) {
+      (sec.pins || []).forEach(function (pin) {
+        if (pin && pin.ulid) ulidIdx[pin.ulid] = { sec_id: sec.id, pin_id: pin.id };
+      });
+    });
+
+    var lines = ndjsonText.split(/\r?\n/);
+    var added = 0, skipped = 0;
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i].trim();
+      if (!line) continue;
+      var rec;
+      try { rec = JSON.parse(line); }
+      catch (e) { skipped++; continue; }
+      if (!rec || !rec.id || !rec.dataUrl) { skipped++; continue; }
+      // Resolve linked_pin_id from the temp _link_pin_ulid field.
+      var linkedPin = rec._link_pin_ulid ? ulidIdx[rec._link_pin_ulid] : null;
+      var photo = {
+        id:               rec.id,
+        ts:               (typeof rec.captured_at === 'string')
+                          ? Date.parse(rec.captured_at) || null
+                          : (rec.ts || null),
+        lat:              (typeof rec.lat === 'number') ? rec.lat : null,
+        lng:              (typeof rec.lng === 'number') ? rec.lng : null,
+        bearing:          (typeof rec.bearing === 'number') ? rec.bearing : null,
+        dataUrl:          rec.dataUrl,
+        description:      rec.description || null,
+        linked_pin_id:    linkedPin
+                          ? (linkedPin.sec_id + '::' + linkedPin.pin_id)
+                          : null,
+        captured_at:      rec.captured_at || null,
+        _import_batch_id: rec._import_batch_id || batchIdHint || null,
+        _import_source:   rec._import_source || null,
+      };
+      try {
+        await window._RW.geophotos.save(photo);
+        added++;
+      } catch (e) {
+        console.warn('[Geophoto chunk] save failed for', rec.id, e);
+        skipped++;
+      }
+    }
+    if (window._RW.geophotos.refresh) window._RW.geophotos.refresh();
+    return { added: added, skipped: skipped };
+  }
+
+  // ── Manage Imports: enumerate every batch_id currently in SECTIONS (via
+  //    pin.attrs._import_batch_id) and in the geophoto store (via the
+  //    record-level _import_batch_id), aggregate counts, return one row per
+  //    batch. Used by the dashboard's Manage Imports modal.
+  function listImportBatches() {
+    var byId = Object.create(null);
+    function ensure(id) {
+      if (!byId[id]) {
+        byId[id] = { batch_id: id, pin_count: 0, photo_count: 0,
+                     source: null, first_seen: null, sections: {} };
+      }
+      return byId[id];
+    }
+    (window.SECTIONS || []).forEach(function (sec) {
+      (sec.pins || []).forEach(function (pin) {
+        var bid = pin.attrs && pin.attrs._import_batch_id;
+        if (!bid) return;
+        var b = ensure(bid);
+        b.pin_count++;
+        b.sections[sec.id] = (b.sections[sec.id] || 0) + 1;
+        if (!b.source && pin.attrs._import_source) b.source = pin.attrs._import_source;
+        if (!b.first_seen && pin.attrs._import_at)  b.first_seen = pin.attrs._import_at;
+      });
+    });
+    if (window._RW && window._RW.geophotos && typeof window._RW.geophotos.list === 'function') {
+      window._RW.geophotos.list().forEach(function (ph) {
+        if (!ph || !ph._import_batch_id) return;
+        var b = ensure(ph._import_batch_id);
+        b.photo_count++;
+      });
+    }
+    return Object.keys(byId).map(function (k) { return byId[k]; })
+      .sort(function (a, b) { return (b.first_seen || '').localeCompare(a.first_seen || ''); });
+  }
+
+  // Wipe every pin + photo carrying the matching _import_batch_id. Returns
+  // a summary so the caller can show "deleted N pins / M photos".
+  async function deleteImportBatch(batchId) {
+    if (!batchId) return { ok: false, reason: 'no batch id' };
+    var pinsRemoved = 0, photosRemoved = 0, kindsTouched = {};
+    (window.SECTIONS || []).forEach(function (sec) {
+      if (!Array.isArray(sec.pins)) return;
+      var keep = [];
+      sec.pins.forEach(function (pin) {
+        if (pin && pin.attrs && pin.attrs._import_batch_id === batchId) {
+          pinsRemoved++;
+          if (pin.kind) {
+            if (!kindsTouched[sec.id]) kindsTouched[sec.id] = {};
+            kindsTouched[sec.id][pin.kind] = true;
+          }
+        } else {
+          keep.push(pin);
+        }
+      });
+      sec.pins = keep;
+    });
+
+    // Walk the geophotos IDB store and delete matching records.
+    if (window.RWIdb && typeof window.RWIdb.openDB === 'function') {
+      await new Promise(function (resolve) {
+        // The geophotos store lives in a DIFFERENT IDB than the main RoadWalkDB
+        // — its name is "RoadWalkGeoPhotos_v1" in the Triage IIFE. Use the
+        // store's `save` API + an explicit per-record cursor instead.
+        if (!window._RW.geophotos || !window._RW.geophotos.list) return resolve();
+        var toDelete = window._RW.geophotos.list().filter(function (ph) {
+          return ph && ph._import_batch_id === batchId;
+        });
+        photosRemoved = toDelete.length;
+        if (!toDelete.length) return resolve();
+        // Geophotos store doesn't expose deleteMany — use IDB directly via
+        // the database name the photos module owns.
+        var req = indexedDB.open('RoadWalkGeoPhotos_v1');
+        req.onsuccess = function () {
+          var db = req.result;
+          if (!db.objectStoreNames.contains('photos')) return resolve();
+          var tx = db.transaction('photos', 'readwrite');
+          var store = tx.objectStore('photos');
+          toDelete.forEach(function (ph) { try { store.delete(ph.id); } catch (_) {} });
+          tx.oncomplete = function () { resolve(); };
+          tx.onerror    = function () { resolve(); };
+        };
+        req.onerror = function () { resolve(); };
+      });
+    }
+
+    // Renumber every kind touched on every section the deletion affected so
+    // the surviving pins get clean sequential ids.
+    Object.keys(kindsTouched).forEach(function (secId) {
+      var sec = (window.SECTIONS || []).find(function (s) { return s.id === secId; });
+      if (!sec) return;
+      Object.keys(kindsTouched[secId]).forEach(function (k) {
+        if (typeof renumberPinsForKind === 'function') renumberPinsForKind(sec, k);
+      });
+    });
+
+    (window.SECTIONS || []).forEach(function (sec) {
+      sec.featureCount = (sec.pins || []).length;
+    });
+    if (window._RW && typeof window._RW.persistSections === 'function') {
+      window._RW.persistSections();
+    }
+    if (window._RW && window._RW.geophotos && window._RW.geophotos.refresh) {
+      window._RW.geophotos.refresh();
+    }
+    if (typeof window.renderDashboard === 'function') window.renderDashboard('all');
+    if (window._RW && typeof window._RW.rerender === 'function') window._RW.rerender();
+
+    return { ok: true, pins_removed: pinsRemoved, photos_removed: photosRemoved };
+  }
+
+  window._RW.exportAecomFeatures      = exportAecomFeatures;
+  window._RW.importAecomFeatures      = importAecomFeatures;
+  window._RW.importAecomGeophotoChunk = importAecomGeophotoChunk;
+  window._RW.listImportBatches        = listImportBatches;
+  window._RW.deleteImportBatch        = deleteImportBatch;
 
   // ── Centerline export: dump every section's alignment so you can hand
   //    me your manual corrections without exporting the whole project.
@@ -30002,17 +30250,50 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       }
       var input = document.createElement('input');
       input.type = 'file';
-      input.accept = '.json,application/json';
+      input.accept = '.json,application/json,.ndjson';
+      input.multiple = true;     // accept main.json + N geophotos.NNN.ndjson
       input.style.display = 'none';
       input.onchange = async function (e) {
-        var file = e.target.files && e.target.files[0];
-        if (!file) return;
+        var files = Array.from(e.target.files || []);
+        if (!files.length) return;
+        // Sort: main JSON first, NDJSON chunks in numeric order.
+        var mainFile = null;
+        var ndjsonFiles = [];
+        files.forEach(function (f) {
+          var lc = (f.name || '').toLowerCase();
+          if (lc.endsWith('.ndjson')) ndjsonFiles.push(f);
+          else if (lc.endsWith('.json')) mainFile = f;
+        });
+        ndjsonFiles.sort(function (a, b) {
+          var na = (a.name.match(/\.(\d{3})\.ndjson$/i) || [])[1] || '0';
+          var nb = (b.name.match(/\.(\d{3})\.ndjson$/i) || [])[1] || '0';
+          return parseInt(na, 10) - parseInt(nb, 10);
+        });
+        if (!mainFile) {
+          alert('No main .json file selected. Pick the *.main.json plus any *.geophotos.NNN.ndjson chunks together.');
+          return;
+        }
         try {
-          var text = await file.text();
+          var text = await mainFile.text();
           var data = JSON.parse(text);
           var res = await window._RW.importAecomFeatures(data);
           var msg = 'Imported ' + res.sections_added + ' field-added section(s) and '
-                  + res.pins_assigned + ' pin(s).';
+                  + res.pins_assigned + ' pin(s) from ' + mainFile.name + '.';
+          // Stream every NDJSON chunk into the geophotos store with proper
+          // linked_pin_id resolution from the import-time pin ULID lookup.
+          if (ndjsonFiles.length && window._RW.importAecomGeophotoChunk) {
+            var totalPhotos = 0;
+            for (var i = 0; i < ndjsonFiles.length; i++) {
+              var nf = ndjsonFiles[i];
+              var ntext = await nf.text();
+              var nres = await window._RW.importAecomGeophotoChunk(ntext, data._batch_id || null);
+              totalPhotos += (nres && nres.added) || 0;
+              console.log('[AECOM Import] chunk ' + (i + 1) + '/' + ndjsonFiles.length
+                + ' (' + nf.name + '): +' + ((nres && nres.added) || 0) + ' photos');
+            }
+            msg += '\n+ ' + totalPhotos + ' photo(s) loaded from '
+              + ndjsonFiles.length + ' chunk(s).';
+          }
           if (res.pins_flagged) {
             msg += '\n\n' + res.pins_flagged + ' pin(s) flagged for review:\n'
                 + (res.flagged_details || []).slice(0, 10).map(function (f) {
@@ -30025,6 +30306,10 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
               console.warn('[AECOM Import] Flagged pins:', res.flagged_details);
             }
           }
+          if (data._batch_id) {
+            msg += '\n\nBatch id: ' + data._batch_id +
+              '\n(Dashboard → Manage Imports → 🗑 Delete batch to revert.)';
+          }
           alert(msg);
         } catch (err) {
           console.error('[Dashboard] AECOM import failed:', err);
@@ -30033,8 +30318,6 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       };
       document.body.appendChild(input);
       input.click();
-      // Cleanup happens after the user picks a file (or cancels — onchange
-      // doesn't fire for cancel but the input element is harmless if it lingers).
       setTimeout(function () { try { document.body.removeChild(input); } catch (_) {} }, 60000);
     });
 
@@ -30102,6 +30385,104 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       document.body.appendChild(input);
       input.click();
       setTimeout(function () { try { document.body.removeChild(input); } catch (_) {} }, 60000);
+    });
+
+    // ── Manage Imports ───────────────────────────────────────────
+    // Opens a modal listing every import batch (AECOM Features +
+    // chunked geophotos, plus any future import flow that stamps an
+    // _import_batch_id) with pin/photo counts and a per-row Delete
+    // button. Delete walks SECTIONS and the geophoto store removing
+    // anything tagged with that batch id, then persists + re-renders.
+    document.getElementById('dash-manage-imports-btn')?.addEventListener('click', function () {
+      if (!window._RW || typeof window._RW.listImportBatches !== 'function') {
+        alert('Manage Imports helper not available.');
+        return;
+      }
+      var batches = window._RW.listImportBatches();
+      // Build a simple full-screen overlay modal. Keeps the markup self-
+      // contained so we don't need a separate static <div> in the HTML.
+      var existing = document.getElementById('rw-mi-overlay');
+      if (existing) { try { existing.remove(); } catch (_) {} }
+      var ov = document.createElement('div');
+      ov.id = 'rw-mi-overlay';
+      ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);' +
+        'z-index:10001;display:flex;align-items:center;justify-content:center;padding:24px;';
+      function dismiss() { try { ov.remove(); } catch (_) {} }
+      ov.addEventListener('click', function (e) { if (e.target === ov) dismiss(); });
+
+      function _esc(s) {
+        return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+          return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+        });
+      }
+
+      function renderCard() {
+        var rows = batches.length
+          ? batches.map(function (b) {
+              var secList = Object.keys(b.sections || {})
+                .map(function (k) { return _esc(k) + ' (' + b.sections[k] + ')'; })
+                .join(', ') || '—';
+              return '<div class="rw-mi-row" data-bid="' + _esc(b.batch_id) + '">'
+                + '<div class="rw-mi-row-head">'
+                + '<span class="rw-mi-row-id">' + _esc(b.batch_id) + '</span>'
+                + (b.first_seen ? '<span class="rw-mi-row-when">' + _esc(b.first_seen) + '</span>' : '')
+                + '</div>'
+                + (b.source ? '<div class="rw-mi-row-src">📁 ' + _esc(b.source) + '</div>' : '')
+                + '<div class="rw-mi-row-counts">'
+                + '<span><strong>' + b.pin_count + '</strong> pin(s)</span>'
+                + '<span><strong>' + b.photo_count + '</strong> photo(s)</span>'
+                + '<span>sections: ' + secList + '</span>'
+                + '</div>'
+                + '<button type="button" class="rw-mi-delete-btn" data-bid="'
+                + _esc(b.batch_id) + '">🗑 Delete batch</button>'
+                + '</div>';
+            }).join('')
+          : '<div class="rw-mi-empty">No import batches on this device.<br>'
+            + 'Imports done before the Manage Imports feature shipped won\'t appear here.</div>';
+        return '<div class="rw-mi-card">'
+          + '<div class="rw-mi-card-hdr">'
+          + '<span class="rw-mi-title">MANAGE IMPORTS</span>'
+          + '<button type="button" class="rw-mi-close" aria-label="Close">✕</button>'
+          + '</div>'
+          + '<div class="rw-mi-list">' + rows + '</div>'
+          + '</div>';
+      }
+      ov.innerHTML = renderCard();
+      ov.querySelector('.rw-mi-close').addEventListener('click', dismiss);
+      ov.querySelectorAll('.rw-mi-delete-btn').forEach(function (btn) {
+        btn.addEventListener('click', async function () {
+          var bid = btn.dataset.bid;
+          var batch = batches.find(function (x) { return x.batch_id === bid; });
+          if (!batch) return;
+          var msg = 'Delete batch "' + bid + '"?\n\n'
+            + 'This removes ' + batch.pin_count + ' pin(s) and ' + batch.photo_count + ' photo(s)'
+            + ' that were imported in this batch.\n\nThis cannot be undone.';
+          if (!window.confirm(msg)) return;
+          btn.disabled = true;
+          btn.textContent = '… deleting';
+          try {
+            var res = await window._RW.deleteImportBatch(bid);
+            if (res && res.ok) {
+              // Re-list and re-render the modal so the deleted row drops out.
+              batches = window._RW.listImportBatches();
+              ov.innerHTML = renderCard();
+              ov.querySelector('.rw-mi-close').addEventListener('click', dismiss);
+              ov.querySelectorAll('.rw-mi-delete-btn').forEach(function (b2) {
+                b2.addEventListener('click', arguments.callee, true);
+              });
+              alert('Deleted ' + res.pins_removed + ' pin(s) and ' + res.photos_removed + ' photo(s).');
+            } else {
+              alert('Delete failed: ' + (res && res.reason ? res.reason : 'unknown'));
+              btn.disabled = false; btn.textContent = '🗑 Delete batch';
+            }
+          } catch (err) {
+            console.error('[Manage Imports] delete failed:', err);
+            alert('Delete failed: ' + (err && err.message ? err.message : err));
+            btn.disabled = false; btn.textContent = '🗑 Delete batch';
+          }
+        });
+      });
+      document.body.appendChild(ov);
     });
 
     // ── Clear Field Data ─────────────────────────────────────────
