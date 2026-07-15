@@ -30597,26 +30597,54 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     kinds.forEach(function (k) {
       if (_sldrEnabled[k] == null) _sldrEnabled[k] = (kindCounts[k] || 0) > 0;
     });
+    // ── Group kinds by display label so 'culvert' + 'ln_culvert' render as
+    //    ONE chip 'Culvert' rather than two. Same for sign / pt_sign,
+    //    monument / pt_monument, etc. The chip aggregates the count of
+    //    every slug that maps to that label; toggling the chip flips
+    //    every slug's enabled state together. Pin-render filter still
+    //    checks per-slug in _sldrEnabled, so a chip-off hides every
+    //    variant of that feature type across bundle + user-drawn kinds.
+    var kindsByLabel = {};
+    kinds.forEach(function (k) {
+      var lbl = _sldrKindLabel(k);
+      if (!kindsByLabel[lbl]) kindsByLabel[lbl] = [];
+      kindsByLabel[lbl].push(k);
+    });
+    var labels = Object.keys(kindsByLabel).sort();
     if (chipsEl) {
-      chipsEl.innerHTML = kinds.map(function (k) {
-        var style = (window.PIN_STYLE || {})[k] || {};
+      chipsEl.innerHTML = labels.map(function (lbl) {
+        var slugs = kindsByLabel[lbl];
+        // Pick the first slug that has a PIN_STYLE color (fall back to first slug
+        // then to grey). Prefer a slug with count > 0 so the color of the
+        // active kind wins over the never-drawn variant.
+        slugs.sort(function (a, b) { return (kindCounts[b] || 0) - (kindCounts[a] || 0); });
+        var repSlug = slugs[0];
+        var style = (window.PIN_STYLE || {})[repSlug] || {};
         var color = style.color || '#888';
-        var lbl = _sldrKindLabel(k);
-        var count = kindCounts[k] || 0;
-        var on = _sldrEnabled[k] !== false;
-        var extraCls = count === 0 ? ' sldr-chip-empty' : '';
-        return '<button type="button" class="sldr-chip ' + (on ? 'on' : 'off') + extraCls + '" data-kind="' + _esc(k) + '" title="' + _esc(k) + '">'
+        var totalCount = slugs.reduce(function (s, k) { return s + (kindCounts[k] || 0); }, 0);
+        var anyOn = slugs.some(function (k) { return _sldrEnabled[k] !== false; });
+        var extraCls = totalCount === 0 ? ' sldr-chip-empty' : '';
+        var title = slugs.length === 1 ? slugs[0] : ('slugs: ' + slugs.join(', '));
+        // Encode ALL slugs on the chip so the click handler can flip
+        // every variant in lockstep.
+        return '<button type="button" class="sldr-chip ' + (anyOn ? 'on' : 'off') + extraCls
+          + '" data-slugs="' + _esc(slugs.join('|')) + '" title="' + _esc(title) + '">'
           +      '<span class="sldr-chip-sw" style="background:' + color + '"></span>'
-          +      _esc(lbl) + ' <span style="opacity:.6">(' + count + ')</span>'
+          +      _esc(lbl) + ' <span style="opacity:.6">(' + totalCount + ')</span>'
           +    '</button>';
       }).join('');
       if (!chipsEl._sldrWired) {
         chipsEl._sldrWired = true;
         chipsEl.addEventListener('click', function (e) {
-          var btn = e.target.closest('.sldr-chip[data-kind]');
+          var btn = e.target.closest('.sldr-chip[data-slugs]');
           if (!btn) return;
-          var k = btn.dataset.kind;
-          _sldrEnabled[k] = !(_sldrEnabled[k] !== false);
+          var slugs = String(btn.dataset.slugs || '').split('|').filter(Boolean);
+          // Determine current aggregate state — if ANY slug is on, we're
+          // "on" and the click turns them ALL off; otherwise, all off →
+          // turn them all on.
+          var anyOn = slugs.some(function (k) { return _sldrEnabled[k] !== false; });
+          var newState = !anyOn;
+          slugs.forEach(function (k) { _sldrEnabled[k] = newState; });
           renderSldReport();
         });
       }
