@@ -1,12 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <!-- Full-bleed navy background — safe for both "any" and "maskable" use -->
-  <rect width="512" height="512" fill="#0B3D66"/>
-  <!-- Perspective road -->
-  <path d="M210 152 L302 152 L398 402 L114 402 Z" fill="#EAE5D8"/>
+  <!-- V1A uses an earth-brown background instead of the main app's navy so
+       both PWAs read as distinct thumbnails in the taskbar / launcher. -->
+  <rect width="512" height="512" fill="#8A5A2B"/>
+  <!-- Perspective road (same silhouette as main so shape reads as RoadWalk) -->
+  <path d="M210 152 L302 152 L398 402 L114 402 Z" fill="#F5F1EA"/>
   <!-- Dashed centre line -->
-  <path d="M256 170 L256 388" fill="none" stroke="#0B3D66"
+  <path d="M256 170 L256 388" fill="none" stroke="#8A5A2B"
         stroke-width="22" stroke-dasharray="38 30"/>
-  <!-- Location pin sitting at the head of the road -->
-  <circle cx="256" cy="120" r="52" fill="#E8A838"/>
-  <circle cx="256" cy="120" r="21" fill="#0B3D66"/>
+  <!-- Yellow "V1A" tag chip in the top-right so a glance at the icon
+       identifies the lite version. -->
+  <rect x="322" y="52" width="140" height="80" rx="12" fill="#E8A838"/>
+  <text x="392" y="112" text-anchor="middle"
+        font-family="Verdana, sans-serif" font-weight="900" font-size="52"
+        fill="#3A2410">V1A</text>
 </svg>

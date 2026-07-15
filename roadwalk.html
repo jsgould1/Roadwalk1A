@@ -10,13 +10,13 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#F5F1EA">
-<title>RoadWalk · AECOM Pavement · v20260514</title>
+<title>RoadWalk V1A · AECOM Pavement · v20260514 (V1A snapshot 06-10 + SLD)</title>
 
 <!-- PWA: installable to the home screen + offline-capable app shell -->
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon.svg">
 <link rel="icon" href="icon.svg">
-<meta name="apple-mobile-web-app-title" content="RoadWalk">
+<meta name="apple-mobile-web-app-title" content="RoadWalk V1A">
 <script>
   /* Register the service worker (offline app-shell cache), surface an
      "update available" banner when a newer version is deployed, and ask the
@@ -9170,6 +9170,205 @@ body.mobile-mode #app {
   border-left: 1px solid var(--rule);
   border-right: 1px solid var(--rule);
 }
+/* ============================================================
+   STRAIGHT-LINE DIAGRAM (SLD) MODULE
+   Landscape letter (11 x 8.5) with three 500-ft strips per
+   sheet. Head bar with section picker + chip row. All chip /
+   header state hidden in print; only the .sldr-page sheets
+   land on paper. ============================================ */
+#mod-sld_report { flex-direction: column; overflow: hidden; }
+.sldr-head {
+  padding: 8px 12px; border-bottom: 1px solid var(--rule);
+  background: var(--paper-1); flex-shrink: 0;
+}
+.sldr-head-row {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 4px 0;
+}
+.sldr-head-lbl {
+  font: 700 10px 'IBM Plex Mono', monospace;
+  color: var(--ink-2); text-transform: uppercase; letter-spacing: .4px;
+}
+.sldr-count {
+  font: 400 11px 'IBM Plex Mono', monospace; color: var(--ink-2);
+  margin-left: 6px;
+}
+.sldr-btn {
+  padding: 6px 12px; border: 1px solid var(--rule); background: #fff;
+  color: var(--ink); font: 600 11px 'IBM Plex Mono', monospace;
+  cursor: pointer; letter-spacing: .4px;
+}
+.sldr-btn:hover { background: var(--paper-2); border-color: var(--ink); }
+.sldr-chips {
+  display: flex; flex-wrap: wrap; gap: 4px; align-items: center;
+  flex: 1 1 auto; min-width: 0;
+}
+.sldr-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 8px; border: 1px solid var(--rule); border-radius: 3px;
+  background: #fff; cursor: pointer;
+  font: 600 10px 'IBM Plex Mono', monospace; color: var(--ink);
+  user-select: none;
+}
+.sldr-chip .sldr-chip-sw {
+  display: inline-block; width: 8px; height: 8px; border-radius: 2px;
+  background: #888;
+}
+.sldr-chip.on  { background: var(--paper-2); border-color: var(--ink-2); }
+.sldr-chip.off { opacity: 0.35; text-decoration: line-through; }
+/* Zero-count chip — the kind isn't drawn in the picked section yet,
+   but the user can still toggle it on (say, before doing a walk).
+   Slightly dimmed + italicized so it reads as "available, but empty"
+   at a glance. Overrides .off's line-through so the label stays
+   readable when the chip is off. */
+.sldr-chip.sldr-chip-empty { opacity: 0.55; font-style: italic; }
+.sldr-chip.sldr-chip-empty.off { text-decoration: none; }
+.sldr-chip-all {
+  padding: 3px 8px; border: 1px solid var(--rule); background: #fff;
+  color: var(--ink); font: 600 10px 'IBM Plex Mono', monospace;
+  cursor: pointer; text-transform: uppercase; letter-spacing: .4px;
+}
+.sldr-chip-all:hover { background: var(--paper-2); }
+
+.sldr-pages {
+  flex: 1 1 auto; overflow-y: auto; overflow-x: hidden;
+  padding: 12px; background: var(--paper-1);
+}
+/* One landscape letter sheet — 11" x 8.5" at 96 dpi = 1056 x 816 CSS px.
+   Screen preview uses those exact dimensions so the on-screen page
+   matches the print output; the box-shadow makes the sheet look like
+   a physical page floating on the panel background. */
+.sldr-page {
+  width: 1056px; height: 816px;
+  margin: 0 auto 20px; padding: 40px 48px;
+  background: #fff; color: #111;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+  box-sizing: border-box;
+  display: flex; flex-direction: column;
+  page-break-after: always; break-after: page;
+}
+.sldr-page:last-child { page-break-after: auto; break-after: auto; }
+.sldr-page-hdr {
+  display: flex; justify-content: space-between; align-items: baseline;
+  border-bottom: 2px solid #111; padding-bottom: 6px; margin-bottom: 10px;
+  font-family: sans-serif;
+}
+.sldr-page-title {
+  font: 700 15px sans-serif; letter-spacing: .5px; color: #111;
+}
+.sldr-page-sub {
+  font: 600 11px 'IBM Plex Mono', monospace; color: #555;
+}
+.sldr-page-strips {
+  flex: 1 1 auto; display: flex; flex-direction: column; gap: 12px;
+  /* Bias children to the top of the container so the last page —
+     which may only carry 1 or 2 strips — leaves the unused vertical
+     space below rather than stretching each strip to fill it. */
+  justify-content: flex-start;
+}
+.sldr-strip {
+  border: 1px solid #ddd; background: #fafafa; padding: 8px 12px;
+  display: flex; flex-direction: column; min-height: 0;
+  /* Fixed 1/3-of-container height regardless of how many strips are
+     on this page, so proportions match pages with 3 strips exactly.
+     24 px = 2 × gap:12px. flex-basis: auto with a fixed height on
+     the box makes flex-shrink irrelevant. */
+  flex: 0 0 calc((100% - 24px) / 3);
+}
+.sldr-strip-hdr {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font: 700 10px 'IBM Plex Mono', monospace; color: #333;
+  padding-bottom: 4px; margin-bottom: 4px; letter-spacing: .3px;
+}
+.sldr-strip svg {
+  width: 100%; height: 100%; display: block; overflow: visible;
+}
+
+/* Section-summary table — only rendered on .sldr-page-first (page 1).
+   Flex-slot lives between .sldr-page-hdr and .sldr-page-strips, so
+   the strips below auto-shrink to fill remaining space when the
+   summary block is present. */
+.sldr-summary {
+  border: 1px solid #ccc; background: #fafafa;
+  padding: 6px 10px; margin-bottom: 10px;
+  font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #111;
+  flex-shrink: 0;
+}
+.sldr-summary-hdr {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font: 700 11px sans-serif; color: #111; letter-spacing: .3px;
+  border-bottom: 1px solid #ccc; padding-bottom: 3px; margin-bottom: 4px;
+}
+.sldr-summary-tbl {
+  width: 100%; border-collapse: collapse;
+  font: 400 10px 'IBM Plex Mono', monospace;
+}
+.sldr-summary-tbl th, .sldr-summary-tbl td {
+  padding: 2px 6px; text-align: right; vertical-align: middle;
+  border-bottom: 1px solid #e5e5e5;
+}
+.sldr-summary-tbl th {
+  font-weight: 700; color: #333; text-align: right;
+  border-bottom: 1px solid #999;
+}
+.sldr-summary-tbl .c-kind  { text-align: left; }
+.sldr-summary-tbl .c-geom  { text-align: left; color: #555; }
+.sldr-summary-tbl .c-cnt,
+.sldr-summary-tbl .c-len,
+.sldr-summary-tbl .c-area  { font-variant-numeric: tabular-nums; }
+.sldr-summary-tbl .c-pct   {
+  font-variant-numeric: tabular-nums; color: #1d4ed8; font-weight: 600;
+}
+.sldr-summary-tbl tfoot td {
+  border-top: 2px solid #333; border-bottom: none;
+  padding-top: 3px;
+}
+.sldr-summary-tbl .sldr-sw {
+  display: inline-block; width: 8px; height: 8px; margin-right: 4px;
+  border-radius: 2px; vertical-align: -1px;
+}
+.sldr-summary-tbl .sldr-code {
+  display: inline-block; min-width: 20px; padding: 0 3px; margin-right: 4px;
+  border: 1px solid #999; border-radius: 2px; background: #fff;
+  font: 700 9px 'IBM Plex Mono', monospace; color: #111; text-align: center;
+}
+/* Cover page — summary alone, no strips. Give the summary block room
+   to breathe: bigger padding, slightly larger type, header takes some
+   air. */
+.sldr-page-summary .sldr-summary { flex: 1 1 auto; padding: 14px 18px; font-size: 11px; }
+.sldr-page-summary .sldr-summary-hdr { font-size: 13px; padding-bottom: 6px; margin-bottom: 8px; }
+.sldr-page-summary .sldr-summary-tbl { font-size: 11px; }
+.sldr-page-summary .sldr-summary-tbl th,
+.sldr-page-summary .sldr-summary-tbl td { padding: 4px 8px; }
+
+/* Print: only the .sldr-page sheets go to paper — everything else
+   in this module (chips, headers, section picker) stays on screen
+   only. The umbrella @media print block below already hides the
+   inactive modules and app chrome; these rules refine for SLD. */
+@media print {
+  #mod-sld_report .sldr-head { display: none !important; }
+  #mod-sld_report .sldr-pages {
+    overflow: visible !important; padding: 0 !important; background: #fff !important;
+  }
+  #mod-sld_report .sldr-page {
+    margin: 0 !important; box-shadow: none !important;
+    /* Native landscape letter — Print dialog needs to be set to
+       Landscape orientation for the 1056 x 816 sheet to fit
+       edge-to-edge without scaling. */
+    width: 100% !important; height: 100vh !important;
+  }
+  /* Force landscape orientation regardless of last-used media */
+  #mod-sld_report ~ * .sldr-page { break-inside: avoid; }
+}
+/* One @page rule per module scope wouldn't work cross-browser, so
+   the SLD module uses a body-level attribute switch triggered by
+   renderSldReport() right before print: body[data-sld-print] flips
+   the @page size to landscape letter. See the JS wiring in
+   renderSldReport() for the toggle. */
+body[data-sld-print="1"] { }
+@media print {
+  body[data-sld-print="1"] { }
+}
 
 </style>
 </head>
@@ -9236,6 +9435,9 @@ body.mobile-mode #app {
       <button class="app-tab" data-module="tracks" role="tab" aria-selected="false"
               title="Photo tracks — station &times; visit grid for grouping across passes">
         <span class="app-tab-icon">🎞</span><span class="app-tab-label">Tracks</span></button>
+      <button class="app-tab" data-module="sld_report" role="tab" aria-selected="false"
+              title="Straight-Line Diagram — 3 strips per landscape page, toggle features for print">
+        <span class="app-tab-icon">📏</span><span class="app-tab-label">SLD</span></button>
       <button class="app-tab app-tab-gear" id="header-styleguide-btn" type="button"
               title="Style Guide &amp; Labels" aria-label="Style Guide">
         <span class="app-tab-icon">◈</span><span class="app-tab-label">Style</span></button>
@@ -10781,6 +10983,45 @@ body.mobile-mode #app {
           <div class="tk-pp-sub" id="tk-pp-sub">Nearest pins to the selected photos' centroid:</div>
           <div class="tk-pp-list" id="tk-pp-list"></div>
         </div>
+      </div>
+    </div>
+
+    <!-- ============================================================
+         MODULE: STRAIGHT-LINE DIAGRAM (SLD)
+         Print-focused: renders three 500-ft strips per landscape sheet
+         (0-500, 500-1000, 1000-1500 on the first page, and so on),
+         one section per print run. A toggle chip per pin-kind controls
+         which features appear on the strips before hitting Print. All
+         renderers live in renderSldReport() — SVG, no Leaflet — so
+         window.print() from this module hits the printer directly.
+         ============================================================ -->
+    <div id="mod-sld_report" class="module-view">
+      <div class="sldr-head">
+        <div class="sldr-head-row">
+          <label class="sldr-head-lbl">Section</label>
+          <select id="sldr-section"><option value="">(pick section)</option></select>
+          <label class="sldr-head-lbl">Strip length</label>
+          <select id="sldr-strip-len" title="How much station each strip covers">
+            <option value="500" selected>500 ft</option>
+            <option value="250">250 ft</option>
+            <option value="1000">1000 ft</option>
+          </select>
+          <span class="sldr-count" id="sldr-count">— pick a section</span>
+          <span style="margin-left:auto;display:flex;gap:6px;">
+            <button class="sldr-btn" id="sldr-print-btn" title="Open the browser Print dialog (landscape letter, 3 strips per sheet)">🖨 Print</button>
+          </span>
+        </div>
+        <div class="sldr-head-row" id="sldr-chip-row">
+          <label class="sldr-head-lbl">Show</label>
+          <div class="sldr-chips" id="sldr-chips">
+            <!-- One chip per pin.kind. Click to toggle visibility on strips. -->
+          </div>
+          <button type="button" class="sldr-chip-all" id="sldr-chips-all" title="Show every feature kind">All</button>
+          <button type="button" class="sldr-chip-all" id="sldr-chips-none" title="Hide every feature kind">None</button>
+        </div>
+      </div>
+      <div class="sldr-pages" id="sldr-pages">
+        <!-- Populated by renderSldReport() once a section is picked. -->
       </div>
     </div>
 
@@ -12598,6 +12839,15 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     const h = Math.sin(dlat/2)**2 + Math.cos(la1)*Math.cos(la2)*Math.sin(dlon/2)**2;
     return 2 * _R_FT * Math.asin(Math.sqrt(h));
   }
+  // Expose so sibling <script> blocks (SLD report, etc) can use the
+  // same haversine implementation without duplicating it. Takes
+  // [lat, lng] pairs and returns feet. projectOntoAlignment is
+  // exposed the same way — function declarations are hoisted so the
+  // reference here works even though its source-order definition is
+  // a few lines below.
+  window.havFt = havFt;
+  window.projectOntoAlignment = projectOntoAlignment;
+
   // Project a cursor L.LatLng onto a polyline (array of [lat, lng]).
   // Returns [sta_ft_from_start, perpendicular_distance_ft, side] where
   // side is -1 (left of forward direction of travel), +1 (right) or 0
@@ -13794,6 +14044,14 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   PIN_STYLE.pavement     = { code: 'PV', color: '#9CA3AF', kind: 'polygon', weight: 2 };
   PIN_STYLE.overlook     = { code: 'OV', color: '#DC2626', kind: 'point' };
   PIN_STYLE.ngs_monument = { code: 'NG', color: '#0EA5E9', kind: 'point',   shape: 'triangle' };
+
+  // Expose PIN_STYLE + FEATURE_CATALOG on window so modules living in
+  // sibling <script> blocks (SLD report, etc) can pull colors + kind
+  // labels without needing to duplicate the catalog. Both are live
+  // references, so any late-added kinds (see the pre-walk bundle
+  // extensions above) are visible immediately.
+  window.PIN_STYLE       = PIN_STYLE;
+  window.FEATURE_CATALOG = FEATURE_CATALOG;
 
   // Expose showView + showProjectPicker globally so the Phase 1 Dashboard
   // module can navigate into sections and trigger the project picker without
@@ -28902,7 +29160,7 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
 
   function showModule(name) {
     // Guard: ignore unknown module names
-    const VALID = ['map', 'dashboard', 'data', 'safety', 'log', 'settings', 'project', 'triage', 'tracks'];
+    const VALID = ['map', 'dashboard', 'data', 'safety', 'log', 'settings', 'project', 'triage', 'tracks', 'sld_report'];
     if (!VALID.includes(name)) {
       console.warn('[RoadWalk] showModule: unknown module "' + name + '"');
       return;
@@ -28981,6 +29239,19 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     // ── Photo Tracks module: rebuild the station × visit grid on tab switch ──
     if (name === 'tracks' && typeof window.renderTracks === 'function') {
       window.renderTracks();
+    }
+
+    // ── SLD Report: render on tab entry ────────────────────────
+    // Same "render only if empty" pattern used by the other report
+    // modules — SVG-heavy pages are moderately expensive to build so
+    // we skip the rebuild on a tab switch when the pages are already
+    // present. Chip toggles + section-change trigger their own
+    // re-render from renderSldReport()'s event wiring.
+    if (name === 'sld_report' && typeof window.renderSldReport === 'function') {
+      var _sldrPages = document.getElementById('sldr-pages');
+      if (!_sldrPages || !_sldrPages.children.length) {
+        window.renderSldReport();
+      }
     }
 
     // ── Map module switch: resize + re-render once the panel is visible ──
@@ -30147,7 +30418,844 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
   // Expose renderDashboard globally so the main IIFE can call it after bundle loads
   window.renderDashboard = renderDashboard;
 
-  /** Wire Dashboard tab buttons and the three action-bar buttons. */
+  /** Wire Dashboard tab buttons 
+
+/* ==================================================================
+     SLD REPORT — renderSldReport()
+     Print-focused Straight-Line Diagram: renders three N-ft strips per
+     landscape letter sheet (default N = 500 ft, first-page ranges
+     0-500, 500-1000, 1000-1500, and so on across the alignment). Each
+     strip is a self-contained SVG with a centered horizontal
+     centerline, station tick marks every 50 ft (labeled every 100),
+     and one marker per pin whose sta_ft falls in the window. Kind
+     visibility is driven by chip toggles above the pages, and the
+     chip set is auto-built from every kind currently present in the
+     picked section — kinds with zero pins are omitted so the chip
+     row stays tight for lean sections. Print CSS + a JIT @page rule
+     injected around window.print() force landscape letter regardless
+     of the browser's remembered orientation from the last print job.
+     ================================================================== */
+  function renderSldReport() {
+    var pagesEl = document.getElementById('sldr-pages');
+    if (!pagesEl) return;
+    var secSel   = document.getElementById('sldr-section');
+    var lenSel   = document.getElementById('sldr-strip-len');
+    var countEl  = document.getElementById('sldr-count');
+    var chipsEl  = document.getElementById('sldr-chips');
+    var printBtn = document.getElementById('sldr-print-btn');
+    var allBtn   = document.getElementById('sldr-chips-all');
+    var noneBtn  = document.getElementById('sldr-chips-none');
+    if (!secSel) return;
+
+    // ── One-shot control wiring — guard so a re-entry doesn't stack
+    //    handlers on top of the previous ones.
+    if (!secSel._sldrWired) {
+      secSel._sldrWired = true;
+      // Populate section dropdown from window.SECTIONS. Only include
+      // sections that carry ≥ 2 alignment coords (a bare pin dump
+      // section can't render an SLD).
+      var _secs = (window.SECTIONS || []).filter(function (s) {
+        return s && Array.isArray(s.alignment) && s.alignment.length >= 2;
+      });
+      var _opts = ['<option value="">(pick section)</option>'].concat(_secs.map(function (s) {
+        var info = (window._SR_SECTION_INFO || {})[s.id];
+        var lbl  = s.id + ' — ' + (info ? info.route : (s.name || ''));
+        return '<option value="' + _esc(s.id) + '">' + _esc(lbl) + '</option>';
+      }));
+      secSel.innerHTML = _opts.join('');
+      secSel.addEventListener('change', renderSldReport);
+      if (lenSel)   lenSel.addEventListener('change', renderSldReport);
+      if (allBtn)   allBtn.addEventListener('click',  function () { _sldrChipsSetAll(true);  });
+      if (noneBtn)  noneBtn.addEventListener('click', function () { _sldrChipsSetAll(false); });
+      if (printBtn) printBtn.addEventListener('click', _sldrPrint);
+    }
+
+    if (!secSel.value) {
+      pagesEl.innerHTML = '';
+      if (countEl) countEl.textContent = '— pick a section';
+      if (chipsEl) chipsEl.innerHTML = '';
+      return;
+    }
+
+    var sec = (window.SECTIONS || []).find(function (s) { return s && s.id === secSel.value; });
+    if (!sec || !Array.isArray(sec.alignment) || sec.alignment.length < 2) {
+      pagesEl.innerHTML = '<div style="padding:20px;color:var(--ink-2)">Section has no alignment — SLD cannot render.</div>';
+      if (countEl) countEl.textContent = '';
+      return;
+    }
+
+    // Merged pins so any field edits (condition changes, added notes,
+    // moved coords) land on the SLD too. Filter is per-geom:
+    //  · Point pins need pin.sta_ft to render a marker at a station.
+    //  · Line / polygon pins can be positioned from their geometry
+    //    via projectOntoAlignment when sta_ft isn't set, so we keep
+    //    any that carry either sta_ft OR coordinates.
+    var pins = (sec.pins || []).map(function (p) {
+      return (window._RW && window._RW.mergedPin) ? window._RW.mergedPin(p) : p;
+    }).filter(function (p) {
+      if (!p || !p.kind) return false;
+      var style = (window.PIN_STYLE || {})[p.kind] || {};
+      var geom = style.kind || (
+        p.kind.indexOf('ln_') === 0 ? 'line' :
+        p.kind.indexOf('pg_') === 0 ? 'polygon' : 'point'
+      );
+      if (geom === 'point') return p.sta_ft != null && isFinite(+p.sta_ft);
+      return (p.sta_ft != null && isFinite(+p.sta_ft))
+          || (p.geometry && p.geometry.coordinates);
+    });
+
+    // ── Build / refresh chip row ───────────────────────────────────
+    // Every catalog kind gets a chip, not just kinds present in the
+    // picked section — otherwise edge-drop / paved-edge-drop / pvmt-
+    // widening / edge-drop-area chips never appear until someone has
+    // already drawn one, which defeats the point of a "toggle
+    // features for print" preview. Present kinds default ON; absent
+    // kinds default OFF so the summary + strips don't fill with
+    // zero-count rows the user has to un-check every time.
+    var kindCounts = {};
+    pins.forEach(function (p) { kindCounts[p.kind] = (kindCounts[p.kind] || 0) + 1; });
+
+    // Catalog kinds = every kind the map knows how to draw. Pulls
+    // FEATURE_CATALOG (user-drawn) + PIN_STYLE (pre-walk bundle
+    // kinds like culvert/sign/gate) and de-dupes.
+    var catalogSet = {};
+    (window.FEATURE_CATALOG || []).forEach(function (cat) {
+      (cat.items || []).forEach(function (it) { catalogSet[it.value] = true; });
+    });
+    Object.keys(window.PIN_STYLE || {}).forEach(function (k) { catalogSet[k] = true; });
+    Object.keys(kindCounts).forEach(function (k) { catalogSet[k] = true; });
+    // 'point' / 'line' / 'polygon' are FALLBACK style keys in
+    // PIN_STYLE, not real kinds — skip them so they don't turn into
+    // chips.
+    delete catalogSet.point; delete catalogSet.line; delete catalogSet.polygon;
+    var kinds = Object.keys(catalogSet).sort();
+
+    _sldrEnabled = _sldrEnabled || {};
+    // Default: present kinds ON, absent kinds OFF.
+    kinds.forEach(function (k) {
+      if (_sldrEnabled[k] == null) _sldrEnabled[k] = (kindCounts[k] || 0) > 0;
+    });
+    if (chipsEl) {
+      chipsEl.innerHTML = kinds.map(function (k) {
+        var style = (window.PIN_STYLE || {})[k] || {};
+        var color = style.color || '#888';
+        var lbl = _sldrKindLabel(k);
+        var count = kindCounts[k] || 0;
+        var on = _sldrEnabled[k] !== false;
+        var extraCls = count === 0 ? ' sldr-chip-empty' : '';
+        return '<button type="button" class="sldr-chip ' + (on ? 'on' : 'off') + extraCls + '" data-kind="' + _esc(k) + '" title="' + _esc(k) + '">'
+          +      '<span class="sldr-chip-sw" style="background:' + color + '"></span>'
+          +      _esc(lbl) + ' <span style="opacity:.6">(' + count + ')</span>'
+          +    '</button>';
+      }).join('');
+      if (!chipsEl._sldrWired) {
+        chipsEl._sldrWired = true;
+        chipsEl.addEventListener('click', function (e) {
+          var btn = e.target.closest('.sldr-chip[data-kind]');
+          if (!btn) return;
+          var k = btn.dataset.kind;
+          _sldrEnabled[k] = !(_sldrEnabled[k] !== false);
+          renderSldReport();
+        });
+      }
+    }
+
+    // ── Compute alignment length + pagination ─────────────────────
+    // havFt is defined in a sibling <script> block; access via
+    // window.havFt (exposed at its definition site).
+    var _havFt = window.havFt || function () { return 0; };
+    var totalFt = 0;
+    for (var _i = 0; _i < sec.alignment.length - 1; _i++) {
+      totalFt += _havFt(sec.alignment[_i], sec.alignment[_i + 1]);
+    }
+    var stripLen = +((lenSel && lenSel.value) || 500) || 500;
+    var STRIPS_PER_PAGE = 3;
+    var pageStrip = stripLen * STRIPS_PER_PAGE;
+    // Page 1 is a summary-only cover page; the strip pages start on
+    // page 2. Total page count = 1 (summary) + ceil(route / 1500ft).
+    var stripPageCount = Math.max(1, Math.ceil(totalFt / pageStrip));
+    var pageCount = 1 + stripPageCount;
+    var info = (window._SR_SECTION_INFO || {})[sec.id];
+    var mpStart = info ? info.mp_start : null;
+
+    if (countEl) {
+      countEl.textContent = pins.length + ' pins · ' + Math.round(totalFt) + ' ft · '
+                          + pageCount + ' page' + (pageCount === 1 ? '' : 's');
+    }
+
+    // ── Diagnostic: cross-section scan for pavement-QC feature kinds
+    //    (edge drop / paved edge drop / pvmt widening / edge drop area).
+    //    When the picked section has 0 of a kind but another section
+    //    has some, surface that so the user can jump to the right
+    //    section instead of wondering why the chip stays at (0).
+    //    Skipped silently when every section is empty for those kinds.
+    var PAVEMENT_KINDS = [
+      'ln_edge_drop','ln_paved_edge_drop','ln_pvmt_widening','pg_edge_drop'
+    ];
+    var crossHits = {};
+    (window.SECTIONS || []).forEach(function (s) {
+      if (!s || !s.pins || s.id === sec.id) return;
+      var found = {};
+      s.pins.forEach(function (p) {
+        if (PAVEMENT_KINDS.indexOf(p.kind) >= 0) {
+          found[p.kind] = (found[p.kind] || 0) + 1;
+        }
+      });
+      if (Object.keys(found).length) crossHits[s.id] = found;
+    });
+    var pickedSectionPavementCount = pins.filter(function (p) {
+      return PAVEMENT_KINDS.indexOf(p.kind) >= 0;
+    }).length;
+    var diagEl = document.getElementById('sldr-diag');
+    if (!diagEl) {
+      diagEl = document.createElement('div');
+      diagEl.id = 'sldr-diag';
+      diagEl.style.cssText = 'padding:6px 12px; font: 11px "IBM Plex Mono",monospace; color:#7c2d12; background:#fef3c7; border-bottom:1px solid #d97706;';
+      var headEl = document.querySelector('.sldr-head');
+      if (headEl) headEl.parentNode.insertBefore(diagEl, headEl.nextSibling);
+    }
+    if (pickedSectionPavementCount === 0 && Object.keys(crossHits).length > 0) {
+      var msg = '⚠ Section ' + sec.id + ' has 0 pavement-QC features. Found in: ';
+      msg += Object.keys(crossHits).map(function (sid) {
+        var f = crossHits[sid];
+        return sid + ' (' + Object.keys(f).map(function (k) {
+          return _sldrKindLabel(k) + ':' + f[k];
+        }).join(', ') + ')';
+      }).join(' · ');
+      diagEl.textContent = msg;
+      diagEl.style.display = '';
+    } else if (pickedSectionPavementCount === 0 && Object.keys(crossHits).length === 0) {
+      diagEl.textContent = 'ⓘ No pavement-QC features (edge drop / paved edge drop / pvmt widening / edge drop area) found in ANY section of this project. They may still be in localStorage backup or need to be re-drawn on the map.';
+      diagEl.style.display = '';
+    } else {
+      diagEl.style.display = 'none';
+    }
+    // Also expose a console-callable diagnostic so we can see the full
+    // kind-by-section table if needed. Type window._sldrDiag() in dev
+    // tools to get the table.
+    window._sldrDiag = function () {
+      var t = {};
+      (window.SECTIONS || []).forEach(function (s) {
+        var c = {};
+        (s.pins || []).forEach(function (p) { c[p.kind] = (c[p.kind] || 0) + 1; });
+        t[s.id] = c;
+      });
+      console.log('Sections in memory:', (window.SECTIONS || []).length);
+      console.table(t);
+      return t;
+    };
+
+    // Async IDB scan — walks the entire safety IDB store looking for
+    // every rw_sections_<pid> record, not just the current project's.
+    // Every step is console-logged with the [SLD-diag] prefix so we
+    // can trace what's happening in the browser dev tools.
+    var currentPid = (window.PROJECT && window.PROJECT.id) || 'default';
+    console.log('[SLD-diag] Starting IDB scan. Current PROJECT.id =', currentPid);
+    console.log('[SLD-diag] window.RWIdb =', !!window.RWIdb, 'openDB =', typeof (window.RWIdb && window.RWIdb.openDB));
+    if (window.RWIdb && typeof window.RWIdb.openDB === 'function') {
+      window.RWIdb.openDB().then(function (db) {
+        console.log('[SLD-diag] IDB opened. Object stores:', Array.from(db.objectStoreNames));
+        return new Promise(function (resolve) {
+          if (Array.from(db.objectStoreNames).indexOf('safety') < 0) {
+            console.warn('[SLD-diag] No safety store in this IDB.');
+            return resolve({});
+          }
+          var tx    = db.transaction('safety', 'readonly');
+          var store = tx.objectStore('safety');
+          var req   = store.openCursor();
+          var perProject = {};
+          var everyKey = [];
+          req.onsuccess = function (e) {
+            var cur = e.target.result;
+            if (!cur) return;
+            var key = String(cur.key || '');
+            everyKey.push(key);
+            if (key.indexOf('rw_sections_') === 0) {
+              var rec = cur.value;
+              var pid = key.substring('rw_sections_'.length);
+              var pav = {};
+              var totalPins = 0;
+              (rec && rec.sections || []).forEach(function (s) {
+                totalPins += (s.pins || []).length;
+                (s.pins || []).forEach(function (p) {
+                  if (PAVEMENT_KINDS.indexOf(p && p.kind) >= 0) {
+                    pav[p.kind] = (pav[p.kind] || 0) + 1;
+                  }
+                });
+              });
+              perProject[pid] = { total: totalPins, pav: pav, saved_at: rec && rec.saved_at };
+              console.log('[SLD-diag] Found rw_sections_' + pid + ':', totalPins, 'total pins, pavement:', pav);
+            }
+            cur.continue();
+          };
+          req.onerror = function (e) {
+            console.error('[SLD-diag] Cursor error:', e.target.error);
+          };
+          tx.oncomplete = function () {
+            console.log('[SLD-diag] Cursor complete. All safety-store keys:', everyKey);
+            console.log('[SLD-diag] Per-project pavement summary:', perProject);
+            resolve(perProject);
+          };
+          tx.onerror = function (e) {
+            console.error('[SLD-diag] Transaction error:', e.target.error);
+            resolve(perProject);
+          };
+        });
+      }).then(function (perProject) {
+        var diag = document.getElementById('sldr-diag');
+        if (!diag) { console.warn('[SLD-diag] No diag element to update.'); return; }
+        var projectsWithPav = Object.keys(perProject).filter(function (pid) {
+          return perProject[pid].pav && Object.keys(perProject[pid].pav).length > 0;
+        });
+        if (projectsWithPav.length) {
+          var msg = '‼ Pavement-QC features found in a DIFFERENT project\'s IDB record (not the one currently loaded — "' + currentPid + '"). ';
+          msg += projectsWithPav.map(function (pid) {
+            var p = perProject[pid];
+            var pavStr = Object.keys(p.pav).map(function (k) {
+              return _sldrKindLabel(k) + ':' + p.pav[k];
+            }).join(', ');
+            return 'Project "' + pid + '" (' + p.total + ' total pins, saved ' + (p.saved_at || '?') + ') — ' + pavStr;
+          }).join(' · ');
+          msg += ' — switch to that project via Dashboard → Project picker.';
+          diag.textContent = msg;
+          diag.style.background = '#fee2e2';
+          diag.style.color = '#7f1d1d';
+          diag.style.borderBottomColor = '#dc2626';
+        } else {
+          var pids = Object.keys(perProject);
+          var extra = pids.length
+            ? (' Every rw_sections_<pid> record in IDB: '
+                + pids.map(function (pid) {
+                    return pid + '(' + perProject[pid].total + ' pins)';
+                  }).join(', '))
+            : ' No rw_sections_<pid> records in IDB at all.';
+          diag.textContent += ' [IDB scan: 0 pavement-QC pins across all projects.' + extra + ']';
+        }
+      }).catch(function (err) {
+        console.error('[SLD-diag] Scan chain rejected:', err);
+        var diag = document.getElementById('sldr-diag');
+        if (diag) diag.textContent += ' [IDB scan errored — see console for [SLD-diag] logs.]';
+      });
+    }
+
+    // ── Summary aggregation (page-1 table): count / length / % / area
+    //    per kind. Line pins get length + %-of-route; polygon pins get
+    //    area; point-inventory pins get count only. Only ENABLED kinds
+    //    are counted so the table matches what the user is about to
+    //    print.
+    var summary = _sldrBuildSummary(pins, totalFt, sec.alignment);
+
+    // ── Render every page ─────────────────────────────────────────
+    // Page 0 (printed as "Page 1") is the summary-only cover.
+    // Pages 1..stripPageCount (printed as "Page 2..N") each carry
+    // three station strips.
+    var html = '';
+    for (var p = 0; p < pageCount; p++) {
+      var isSummary = (p === 0);
+      html += '<div class="sldr-page' + (isSummary ? ' sldr-page-first sldr-page-summary' : '') + '">';
+      html +=   '<div class="sldr-page-hdr">';
+      html +=     '<div>';
+      html +=       '<div class="sldr-page-title">Straight-Line Diagram · ' + _esc(sec.id)
+                  + (info ? ' — ' + _esc(info.route) : '') + '</div>';
+      if (info) {
+        html +=     '<div class="sldr-page-sub">' + _esc(info.route_id) + ' · FMSS ' + info.fmss
+                  + ' · MP ' + info.mp_start.toFixed(2) + ' – ' + info.mp_end.toFixed(2) + '</div>';
+      }
+      html +=     '</div>';
+      html +=     '<div class="sldr-page-sub">Page ' + (p + 1) + ' of ' + pageCount + '</div>';
+      html +=   '</div>';
+      if (isSummary) {
+        html += _sldrSummaryHtml(summary, totalFt);
+      } else {
+        html += '<div class="sldr-page-strips">';
+        for (var s = 0; s < STRIPS_PER_PAGE; s++) {
+          // Subtract 1 for the summary page so the first strip page
+          // starts at STA 0+00 (not 0+00 + one page of offset).
+          var staStart = ((p - 1) * STRIPS_PER_PAGE + s) * stripLen;
+          var staEnd   = staStart + stripLen;
+          if (staStart >= totalFt) break;
+          html += _sldrStripSvg(sec, pins, staStart, staEnd, mpStart);
+        }
+        html += '</div>';
+      }
+      html += '</div>';
+    }
+    pagesEl.innerHTML = html;
+  }
+  window.renderSldReport = renderSldReport;
+
+  // ── Geometry helpers ────────────────────────────────────────────
+  // Coordinates in pin.geometry follow GeoJSON convention: [lng, lat].
+  // havFt expects [lat, lng] pairs, so every call swaps first.
+  function _sldrLineLengthFt(pin) {
+    var g = pin.geometry || {};
+    var coords = g.coordinates || [];
+    if (!Array.isArray(coords) || coords.length < 2) return 0;
+    var total = 0;
+    for (var i = 0; i < coords.length - 1; i++) {
+      var a = coords[i], b = coords[i + 1];
+      if (!Array.isArray(a) || !Array.isArray(b)) continue;
+      total += (window.havFt || function(){return 0;})([+a[1], +a[0]], [+b[1], +b[0]]);
+    }
+    return total;
+  }
+  // Shoelace formula on the outer ring, in local ft-space (equirect at
+  // the ring's mean latitude). GeoJSON polygons are nested — the outer
+  // ring is coordinates[0]; if the caller stored a flat ring array
+  // (older pre-walk kinds), we fall back to using coords directly.
+  function _sldrPolyAreaSqFt(pin) {
+    var g = pin.geometry || {};
+    var coords = g.coordinates || [];
+    if (!Array.isArray(coords) || !coords.length) return 0;
+    var ring = Array.isArray(coords[0]) && Array.isArray(coords[0][0])
+             ? coords[0]     // GeoJSON Polygon: coordinates[0] = outer ring
+             : coords;       // flat [ [lng, lat], … ] array
+    if (!Array.isArray(ring) || ring.length < 3) return 0;
+    var meanLat = 0, n = 0;
+    for (var i = 0; i < ring.length; i++) {
+      if (Array.isArray(ring[i])) { meanLat += +ring[i][1]; n++; }
+    }
+    if (!n) return 0;
+    meanLat /= n;
+    var cosLat = Math.cos(meanLat * Math.PI / 180);
+    var FT_PER_DEG = 364000;
+    var area = 0;
+    for (var j = 0; j < ring.length; j++) {
+      var k = (j + 1) % ring.length;
+      var p1 = ring[j], p2 = ring[k];
+      if (!Array.isArray(p1) || !Array.isArray(p2)) continue;
+      var x1 = (+p1[0]) * cosLat * FT_PER_DEG;
+      var y1 = (+p1[1]) * FT_PER_DEG;
+      var x2 = (+p2[0]) * cosLat * FT_PER_DEG;
+      var y2 = (+p2[1]) * FT_PER_DEG;
+      area += x1 * y2 - x2 * y1;
+    }
+    return Math.abs(area / 2);
+  }
+
+  // ── Summary aggregation ─────────────────────────────────────────
+  // Returns an array of { kind, label, code, color, geom, count,
+  // lengthFt, areaSqFt, pctRoute } sorted first by geom (line >
+  // polygon > point — length/area rows read at the top) then by
+  // -count. Only ENABLED kinds are counted, matching what the user
+  // sees on the strips.
+  function _sldrBuildSummary(pins, totalRouteFt) {
+    var byKind = {};
+    pins.forEach(function (p) {
+      if (_sldrEnabled[p.kind] === false) return;
+      var style = (window.PIN_STYLE || {})[p.kind] || {};
+      var geom = style.kind || (
+        p.kind && p.kind.indexOf('ln_') === 0 ? 'line' :
+        p.kind && p.kind.indexOf('pg_') === 0 ? 'polygon' : 'point'
+      );
+      if (!byKind[p.kind]) {
+        byKind[p.kind] = {
+          kind: p.kind, label: _sldrKindLabel(p.kind),
+          code: style.code || '?', color: style.color || '#888',
+          geom: geom, count: 0, lengthFt: 0, areaSqFt: 0
+        };
+      }
+      var row = byKind[p.kind];
+      row.count += 1;
+      if (geom === 'line')    row.lengthFt += _sldrLineLengthFt(p);
+      if (geom === 'polygon') row.areaSqFt += _sldrPolyAreaSqFt(p);
+    });
+    var rows = Object.keys(byKind).map(function (k) {
+      var r = byKind[k];
+      r.pctRoute = (r.geom === 'line' && totalRouteFt > 0)
+        ? (r.lengthFt / totalRouteFt * 100) : null;
+      return r;
+    });
+    var geomOrder = { line: 0, polygon: 1, point: 2 };
+    rows.sort(function (a, b) {
+      var ga = geomOrder[a.geom] || 3;
+      var gb = geomOrder[b.geom] || 3;
+      if (ga !== gb) return ga - gb;
+      return b.count - a.count;
+    });
+    return rows;
+  }
+
+  // ── Summary table HTML ──────────────────────────────────────────
+  function _sldrSummaryHtml(rows, totalRouteFt) {
+    if (!rows.length) return '';
+    var head = ''
+      + '<div class="sldr-summary">'
+      +   '<div class="sldr-summary-hdr">'
+      +     '<span>Section Summary</span>'
+      +     '<span style="font-weight:400;color:#555">'
+      +       'Route ' + Math.round(totalRouteFt).toLocaleString() + ' ft'
+      +       ' &nbsp;·&nbsp; ' + rows.reduce(function (s, r) { return s + r.count; }, 0) + ' pins'
+      +     '</span>'
+      +   '</div>'
+      +   '<table class="sldr-summary-tbl">'
+      +   '<thead><tr>'
+      +     '<th class="c-kind">Kind</th>'
+      +     '<th class="c-geom">Type</th>'
+      +     '<th class="c-cnt">Count</th>'
+      +     '<th class="c-len">Length (ft)</th>'
+      +     '<th class="c-pct">% Route</th>'
+      +     '<th class="c-area">Area (sq ft)</th>'
+      +   '</tr></thead><tbody>';
+    var body = rows.map(function (r) {
+      var lenCell = r.geom === 'line'    ? Math.round(r.lengthFt).toLocaleString() : '—';
+      var pctCell = r.pctRoute != null   ? r.pctRoute.toFixed(1) + '%'             : '—';
+      var areaCell= r.geom === 'polygon' ? Math.round(r.areaSqFt).toLocaleString() : '—';
+      var geomTxt = r.geom === 'line' ? 'Line' : r.geom === 'polygon' ? 'Area' : 'Point';
+      return ''
+        + '<tr>'
+        +   '<td class="c-kind">'
+        +     '<span class="sldr-sw" style="background:' + r.color + '"></span>'
+        +     '<span class="sldr-code">' + _esc(r.code) + '</span> '
+        +     _esc(r.label)
+        +   '</td>'
+        +   '<td class="c-geom">' + geomTxt + '</td>'
+        +   '<td class="c-cnt">' + r.count + '</td>'
+        +   '<td class="c-len">' + lenCell + '</td>'
+        +   '<td class="c-pct">' + pctCell + '</td>'
+        +   '<td class="c-area">' + areaCell + '</td>'
+        + '</tr>';
+    }).join('');
+    // Totals footer — line-features total length + % of route, polygon
+    // total area, grand count.
+    var totLen = rows.filter(function (r) { return r.geom === 'line'; }).reduce(function (s, r) { return s + r.lengthFt; }, 0);
+    var totArea= rows.filter(function (r) { return r.geom === 'polygon'; }).reduce(function (s, r) { return s + r.areaSqFt; }, 0);
+    var totCnt = rows.reduce(function (s, r) { return s + r.count; }, 0);
+    var totPct = totalRouteFt > 0 ? (totLen / totalRouteFt * 100).toFixed(1) + '%' : '—';
+    var foot = ''
+      + '<tfoot><tr>'
+      +   '<td class="c-kind" colspan="2"><b>Total</b></td>'
+      +   '<td class="c-cnt"><b>' + totCnt + '</b></td>'
+      +   '<td class="c-len"><b>' + Math.round(totLen).toLocaleString() + '</b></td>'
+      +   '<td class="c-pct"><b>' + totPct + '</b></td>'
+      +   '<td class="c-area"><b>' + Math.round(totArea).toLocaleString() + '</b></td>'
+      + '</tr></tfoot>';
+    return head + body + foot + '</tbody></table></div>';
+  }
+
+  // ── Chip / kind label helpers ───────────────────────────────────
+  // Enabled-kind map, module-scoped so the state survives re-renders.
+  var _sldrEnabled = {};
+  // Station formatter — this <script> block is a sibling IIFE of the
+  // one that defines the app-wide fmtSta, so we can't reach fmtSta
+  // by name. Inlined here to avoid piping it through window.*.
+  function _sldrFmtSta(ft) {
+    if (ft == null || !isFinite(+ft)) return '';
+    var h = Math.floor(ft / 100), r = Math.round(ft % 100);
+    if (r >= 100) { h += 1; r -= 100; }
+    return String(h) + '+' + String(r).padStart(2, '0');
+  }
+  function _sldrChipsSetAll(on) {
+    Object.keys(_sldrEnabled).forEach(function (k) { _sldrEnabled[k] = on; });
+    renderSldReport();
+  }
+  // Map internal kind slug → human label. Prefers FEATURE_CATALOG
+  // (user-drawn kinds like ln_edge_drop → "Edge Drop"), falls back
+  // to unprefixed pre-walk kinds (culvert → "Culvert").
+  function _sldrKindLabel(kind) {
+    var cat = window.FEATURE_CATALOG || [];
+    for (var i = 0; i < cat.length; i++) {
+      var items = cat[i].items || [];
+      for (var j = 0; j < items.length; j++) {
+        if (items[j].value === kind) return items[j].label;
+      }
+    }
+    if (!kind) return '';
+    return kind.charAt(0).toUpperCase() + kind.slice(1).replace(/_/g, ' ');
+  }
+
+  // ── One strip SVG ───────────────────────────────────────────────
+  // Fixed 900 x 210 viewBox — the .sldr-strip CSS scales it to fill
+  // width. Layout: axis at y=110 (centered vertically), pins render
+  // as colored markers above the axis with the 2-letter code + STA
+  // label; station ticks below with STA numbers every 100 ft. Line
+  // and polygon features that span the window render as thin bars
+  // along the axis showing their in-window extent.
+  function _sldrStripSvg(sec, pins, staStart, staEnd, mpStart) {
+    var W = 900, H = 210;
+    var AXIS_Y = 110, PAD_L = 32, PAD_R = 24;
+    var innerW = W - PAD_L - PAD_R;
+    var lengthFt = staEnd - staStart;
+    var xForSta = function (sta) {
+      var clamped = Math.max(staStart, Math.min(staEnd, sta));
+      return PAD_L + (clamped - staStart) / lengthFt * innerW;
+    };
+
+    var svg = '';
+    svg += '<div class="sldr-strip">';
+    svg +=   '<div class="sldr-strip-hdr">';
+    svg +=     '<span>STA ' + _sldrFmtSta(staStart) + ' → ' + _sldrFmtSta(staEnd)
+             + (mpStart != null ? ' &nbsp;·&nbsp; MP ' + (mpStart + staStart/5280).toFixed(3)
+                                 + ' – ' + (mpStart + staEnd/5280).toFixed(3)
+                                 : '') + '</span>';
+    svg +=     '<span>' + Math.round(lengthFt) + ' ft</span>';
+    svg +=   '</div>';
+    svg += '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none">';
+
+    // ── Pavement band — light gray so STA labels can sit ON the
+    //    centerline and still read clearly. Bars above the band =
+    //    Left of road; bars below = Right of road.
+    var BAND_H = 22;
+    var BAND_FILL = '#d4d4d4';
+    svg += '<rect x="' + PAD_L + '" y="' + (AXIS_Y - BAND_H / 2) + '" '
+         + 'width="' + (W - PAD_L - PAD_R) + '" height="' + BAND_H + '" '
+         + 'fill="' + BAND_FILL + '" stroke="#888" stroke-width="0.6"/>';
+    // Dashed yellow centerline down the middle of the band — the STA
+    // labels land ON the centerline, interrupting the dashes so the
+    // text reads (each label gets a matching-band rectangle punched
+    // through the line behind it below).
+    svg += '<line x1="' + PAD_L + '" y1="' + AXIS_Y + '" x2="' + (W - PAD_R) + '" y2="' + AXIS_Y + '" '
+         + 'stroke="#c99515" stroke-width="1.4" stroke-dasharray="10 6"/>';
+
+    // Station ticks — every 50 ft, labeled every 100 ft. Ticks are
+    // short marks INSIDE the pavement band (dropping from the top
+    // edge inward). STA labels land ON the centerline itself,
+    // vertically centered inside the band with a small band-colored
+    // rectangle punched behind them so the yellow dashes don't run
+    // through the text.
+    var TICK_STEP = 50;
+    var BAND_TOP  = AXIS_Y - BAND_H / 2;
+    var firstTick = Math.ceil(staStart / TICK_STEP) * TICK_STEP;
+    for (var f = firstTick; f <= staEnd + 0.001; f += TICK_STEP) {
+      var xt = xForSta(f);
+      var isMajor = (Math.round(f) % 100) === 0;
+      // Tick length: 6 px inside the band for major, 3 px for minor.
+      var tickH = isMajor ? 6 : 3;
+      svg += '<line x1="' + xt + '" y1="' + BAND_TOP + '" x2="' + xt + '" y2="' + (BAND_TOP + tickH) + '" '
+           + 'stroke="#555" stroke-width="0.9"/>';
+      if (isMajor) {
+        var staText = _sldrFmtSta(f);
+        // Approx text width in this font (8.5 px chars) so the
+        // knock-out rectangle covers the label. dominant-baseline
+        // centers vertically at the STA line.
+        var textHalf = Math.max(14, staText.length * 3.4);
+        svg += '<rect x="' + (xt - textHalf) + '" y="' + (AXIS_Y - 5) + '" '
+             + 'width="' + (2 * textHalf) + '" height="10" fill="' + BAND_FILL + '"/>';
+        svg += '<text x="' + xt + '" y="' + AXIS_Y + '" text-anchor="middle" dominant-baseline="middle" '
+             + 'font-family="\'IBM Plex Mono\',monospace" font-size="9" font-weight="700" fill="#222">'
+             + staText + '</text>';
+      }
+    }
+    // End caps — bold vertical bars at strip start + end.
+    svg += '<line x1="' + PAD_L + '" y1="' + (AXIS_Y - BAND_H / 2 - 10) + '" x2="' + PAD_L + '" y2="' + (AXIS_Y + BAND_H / 2 + 10) + '" stroke="#111" stroke-width="2"/>';
+    svg += '<line x1="' + (W - PAD_R) + '" y1="' + (AXIS_Y - BAND_H / 2 - 10) + '" x2="' + (W - PAD_R) + '" y2="' + (AXIS_Y + BAND_H / 2 + 10) + '" stroke="#111" stroke-width="2"/>';
+
+    // ── Line features — horizontal bars offset above (L side) or
+    //    below (R side) the pavement band, mirroring the map SLD's
+    //    layout. Each linear pin's [startSta, endSta] range is
+    //    clipped to the strip window; anything outside is skipped.
+    //    Same color palette as the map SLD via PIN_STYLE. Side comes
+    //    from pin.attrs.side, falling back to projectOntoAlignment
+    //    on the pin's midpoint when unset. Slot levels stack multiple
+    //    bars on the same side without overlap.
+    var linePins = pins.filter(function (p) {
+      if (_sldrEnabled[p.kind] === false) return false;
+      var style = (window.PIN_STYLE || {})[p.kind] || {};
+      var geom = style.kind || (
+        p.kind.indexOf('ln_') === 0 ? 'line' :
+        p.kind.indexOf('pg_') === 0 ? 'polygon' : 'point'
+      );
+      return geom === 'line';
+    });
+    // Sort so we lay bars in stable STA order and can lane-pack
+    // both sides independently.
+    linePins.sort(function (a, b) {
+      var sa = +(a.sta_ft != null ? a.sta_ft : 0);
+      var sb = +(b.sta_ft != null ? b.sta_ft : 0);
+      return sa - sb;
+    });
+    // Two-pass render:
+    //   1. Place every bar (lane-packed per side so bars never
+    //      overlap).
+    //   2. Place labels last, checking a global bounding-box list to
+    //      skip any label that would collide with a previously-placed
+    //      one. Ensures no two labels overlap regardless of how many
+    //      bars share a stretch of station.
+    var laneOccL = [], laneOccR = [];
+    var placedBars = [];
+    linePins.forEach(function (pin) {
+      var extent = _sldrLineExtent(pin, sec, mpStart);
+      if (!extent) return;
+      var pinStart = extent[0], pinEnd = extent[1];
+      if (pinEnd < staStart || pinStart > staEnd) return;
+      var xL = xForSta(Math.max(pinStart, staStart));
+      var xR = xForSta(Math.min(pinEnd, staEnd));
+      if (xR - xL < 1.5) xR = xL + 1.5;   // guarantee visible width
+      var style = (window.PIN_STYLE || {})[pin.kind] || {};
+      var color = style.color || '#666';
+      var code  = style.code  || '?';
+      var side  = _sldrPinSide(pin, sec);
+      var SLOT_H = 8, BASE_GAP = 4;
+      var laneArr = side === 'L' ? laneOccL : laneOccR;
+      var lane = 0;
+      for (; lane < laneArr.length; lane++) {
+        if (xL - laneArr[lane] > 4) break;
+      }
+      laneArr[lane] = xR;
+      var y = side === 'L'
+        ? (AXIS_Y - BAND_H / 2 - BASE_GAP - SLOT_H - lane * (SLOT_H + 2))
+        : (AXIS_Y + BAND_H / 2 + BASE_GAP + lane * (SLOT_H + 2));
+      svg += '<rect x="' + xL + '" y="' + y + '" width="' + (xR - xL) + '" height="' + SLOT_H + '" '
+           + 'fill="' + color + '" stroke="#111" stroke-width="0.4"/>';
+      placedBars.push({
+        pin: pin, xL: xL, xR: xR, y: y, side: side, color: color, code: code,
+        pinLen: pinEnd - pinStart,
+      });
+    });
+
+    // Label pass — global collision guard. Each candidate label has
+    // an approximate bounding box; any that overlaps an already-
+    // placed label is dropped. Labels only render when the bar is
+    // wide enough to hold the text (> 40 px).
+    var placedLabels = [];
+    function _rectsOverlap(a, b) {
+      return !(a.x1 <= b.x0 || b.x1 <= a.x0 || a.y1 <= b.y0 || b.y1 <= a.y0);
+    }
+    placedBars.forEach(function (bar) {
+      if (bar.xR - bar.xL <= 40) return;
+      var lenText = bar.code;
+      if (isFinite(bar.pinLen)) lenText += ' · ' + Math.round(bar.pinLen) + '\'';
+      var midX = (bar.xL + bar.xR) / 2;
+      var labelY = bar.side === 'L' ? (bar.y - 2) : (bar.y + 8 + 8);   // 8 = SLOT_H
+      var halfW = Math.max(14, lenText.length * 2.8);
+      var box = { x0: midX - halfW, x1: midX + halfW,
+                  y0: labelY - 5,   y1: labelY + 4 };
+      // Bump vertically up to 2 slots if it would collide.
+      var yOffsets = bar.side === 'L' ? [0, -10, -20] : [0, 10, 20];
+      var placed = false;
+      for (var oi = 0; oi < yOffsets.length; oi++) {
+        var trial = {
+          x0: box.x0, x1: box.x1,
+          y0: box.y0 + yOffsets[oi], y1: box.y1 + yOffsets[oi],
+        };
+        var hit = placedLabels.some(function (p) { return _rectsOverlap(trial, p); });
+        if (!hit) {
+          placedLabels.push(trial);
+          svg += '<text x="' + midX + '" y="' + (labelY + yOffsets[oi]) + '" text-anchor="middle" '
+               + 'font-family="\'IBM Plex Mono\',monospace" font-size="8" font-weight="700" fill="' + bar.color + '">'
+               + _esc(lenText) + '</text>';
+          placed = true;
+          break;
+        }
+      }
+      // Dropped label — no space; the bar itself still conveys
+      // position + color, so silence over clutter.
+    });
+
+    // ── Point markers — one per point-kind pin whose sta_ft falls in
+    //    the window and whose kind is enabled. Vertical lane-stacking
+    //    prevents overlap when pins cluster at the same station.
+    var pointPins = pins.filter(function (p) {
+      if (_sldrEnabled[p.kind] === false) return false;
+      var style = (window.PIN_STYLE || {})[p.kind] || {};
+      var geom = style.kind || (
+        p.kind.indexOf('ln_') === 0 ? 'line' :
+        p.kind.indexOf('pg_') === 0 ? 'polygon' : 'point'
+      );
+      if (geom !== 'point') return false;
+      var sta = +p.sta_ft;
+      return sta >= staStart && sta <= staEnd;
+    }).sort(function (a, b) { return (+a.sta_ft) - (+b.sta_ft); });
+
+    var LANE_H = 22;
+    var lanes = [];
+    pointPins.forEach(function (pin) {
+      var x = xForSta(+pin.sta_ft);
+      var lane = 0;
+      for (; lane < lanes.length; lane++) {
+        if (x - lanes[lane] > 18) break;
+      }
+      lanes[lane] = x;
+      var yBase = AXIS_Y - BAND_H / 2 - 20 - (lane * LANE_H);
+      var style = (window.PIN_STYLE || {})[pin.kind] || {};
+      var color = style.color || '#888';
+      var code  = style.code  || '?';
+      // Stem from axis edge to the marker.
+      svg += '<line x1="' + x + '" y1="' + (AXIS_Y - BAND_H / 2) + '" x2="' + x + '" y2="' + (yBase + 8) + '" '
+           + 'stroke="' + color + '" stroke-width="1.2"/>';
+      svg += '<circle cx="' + x + '" cy="' + yBase + '" r="9" fill="' + color + '" stroke="#fff" stroke-width="1.5"/>';
+      svg += '<text x="' + x + '" y="' + (yBase + 3) + '" text-anchor="middle" '
+           + 'font-family="\'IBM Plex Mono\',monospace" font-size="9" font-weight="700" fill="#fff">'
+           + _esc(code) + '</text>';
+    });
+
+    svg += '</svg></div>';
+    return svg;
+  }
+
+  // Compute a linear pin's [startSta, endSta] along the alignment.
+  // Preferred: pin.sta_ft (start) + pin.attrs.length_ft (span).
+  // Fallback 1: attrs.mp_start / mp_end shifted by the section's MP
+  //             origin (so a plain pathweb-imported segment still
+  //             lands at the right station).
+  // Fallback 2: project pin.geometry endpoints onto sec.alignment via
+  //             window.projectOntoAlignment (exposed elsewhere).
+  function _sldrLineExtent(pin, sec, mpStart) {
+    var a = pin.attrs || {};
+    var s0 = null, s1 = null;
+    if (pin.sta_ft != null && isFinite(+pin.sta_ft)) {
+      s0 = +pin.sta_ft;
+      if (a.length_ft && isFinite(+a.length_ft)) s1 = s0 + +a.length_ft;
+    }
+    if (s0 == null && a.mp_start != null && mpStart != null) {
+      s0 = (+a.mp_start - mpStart) * 5280;
+    }
+    if (s1 == null && a.mp_end != null && mpStart != null) {
+      s1 = (+a.mp_end - mpStart) * 5280;
+    }
+    if ((s0 == null || s1 == null) && typeof window.projectOntoAlignment === 'function'
+        && sec && sec.alignment && pin.geometry) {
+      var c = pin.geometry.coordinates || [];
+      if (Array.isArray(c) && c.length >= 2) {
+        try {
+          var p0 = c[0], pN = c[c.length - 1];
+          var sa = window.projectOntoAlignment({ lat: +p0[1], lng: +p0[0] }, sec.alignment)[0];
+          var sb = window.projectOntoAlignment({ lat: +pN[1], lng: +pN[0] }, sec.alignment)[0];
+          if (s0 == null) s0 = Math.min(sa, sb);
+          if (s1 == null) s1 = Math.max(sa, sb);
+        } catch (_) {}
+      }
+    }
+    if (s0 == null || s1 == null) return null;
+    return s0 <= s1 ? [s0, s1] : [s1, s0];
+  }
+
+  // Determine which side of the road a linear pin sits on.
+  //  · pin.attrs.side is authoritative when set to 'L' or 'R'.
+  //  · Otherwise project the pin's midpoint onto sec.alignment and
+  //    use the signed cross-product returned in the [sta, dist, side]
+  //    triple (-1 = left, +1 = right).
+  //  · Falls back to 'R' when everything else fails, so at least the
+  //    bar renders somewhere.
+  function _sldrPinSide(pin, sec) {
+    var a = pin.attrs || {};
+    if (a.side === 'L' || a.side === 'R') return a.side;
+    if (typeof window.projectOntoAlignment === 'function'
+        && sec && sec.alignment && pin.geometry) {
+      var c = pin.geometry.coordinates;
+      var pt = null;
+      if (Array.isArray(c)) {
+        if (Array.isArray(c[0]) && Array.isArray(c[0][0])) {
+          // Polygon: outer ring centroid
+          var ring = c[0], sx = 0, sy = 0;
+          ring.forEach(function (v) { sx += +v[0]; sy += +v[1]; });
+          pt = [sx / ring.length, sy / ring.length];
+        } else if (Array.isArray(c[0])) {
+          // LineString: midpoint vertex
+          pt = c[Math.floor(c.length / 2)];
+        }
+      }
+      if (pt) {
+        try {
+          var res = window.projectOntoAlignment({ lat: +pt[1], lng: +pt[0] }, sec.alignment);
+          if (res && res[2] === -1) return 'L';
+          if (res && res[2] === 1)  return 'R';
+        } catch (_) {}
+      }
+    }
+    return 'R';
+  }
+and the three action-bar buttons. */
   function initDashboard() {
 
     // ── Section filter tabs ──────────────────────────────────────

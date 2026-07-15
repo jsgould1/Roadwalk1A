@@ -1,13 +1,13 @@
 {
-  "name": "RoadWalk — AECOM Pavement Inspection",
-  "short_name": "RoadWalk",
-  "description": "Field data collection for roadway and parking-lot pavement inspections.",
+  "name": "RoadWalk V1A — Pavement Lite",
+  "short_name": "RoadWalk V1A",
+  "description": "Lean fork of RoadWalk snapshotted 2026-06-10 (pre-Signs/Culverts modules) with the SLD print module grafted on. Same field data collection for roadway pavement inspections, ~25% smaller than main.",
   "start_url": "./roadwalk.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
   "background_color": "#F5F1EA",
-  "theme_color": "#0B3D66",
+  "theme_color": "#8A5A2B",
   "icons": [
     {
       "src": "./icon.svg",
