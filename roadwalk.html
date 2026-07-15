@@ -13561,17 +13561,23 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
       // everything until the user actually flips a toggle.
       let _layersVis = {};
       let _hideBundle = false;
+      let _sourceVis = {};
       try {
         var _lsFn = typeof lsLoad === 'function' ? lsLoad : window.RWLsLoad;
         var _ls = (_lsFn && _lsFn()) || {};
         _layersVis  = _ls.layersVis || {};
         _hideBundle = !!_ls.hideBundle;
+        _sourceVis  = _ls.sourceVis || {};
       } catch (_) { _layersVis = {}; }
       console.log('[initOrUpdateMap] _layersVis=', JSON.stringify(_layersVis), 'total pins=', pins.length);
       for (const pin of pins) {
         if (pin._editingVertices) continue;   // shown via the vertex-edit overlay
         if (pin.kind && _layersVis[LAYER_ALIAS[pin.kind] || pin.kind] === false) continue;   // hidden via Layers panel
         if (_hideBundle && _pinIsNonAecom(pin)) continue;            // non-AECOM data hidden
+        // Per-source visibility: false in _sourceVis hides the pin.
+        // Unknown / undefined stays visible so newly-arrived sources
+        // don't disappear before the user knows they exist.
+        if (pin.attrs && pin.attrs.source && _sourceVis[pin.attrs.source] === false) continue;
         const marker = buildPinLayer(pin);
         if (!marker) continue;
         // Double-stroke lines attach a non-interactive inner (white) sibling layer
@@ -19641,15 +19647,19 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
     // both the Leaflet map and the SLD simultaneously.
     let _sldLayersVis = {};
     let _sldHideBundle = false;
+    let _sldSourceVis = {};
     try {
       var _sldLsFn = typeof lsLoad === 'function' ? lsLoad : window.RWLsLoad;
       var _sldLs = (_sldLsFn && _sldLsFn()) || {};
       _sldLayersVis  = _sldLs.layersVis || {};
       _sldHideBundle = !!_sldLs.hideBundle;
+      _sldSourceVis  = _sldLs.sourceVis || {};
     } catch (_) { _sldLayersVis = {}; }
     const _sldKindVisible = k => _sldLayersVis[LAYER_ALIAS[k] || k] !== false;
-    // Pin-aware visibility — also drops non-AECOM pins when that toggle is off.
-    const _sldPinVisible = p => _sldKindVisible(p.kind) && !(_sldHideBundle && _pinIsNonAecom(p));
+    // Pin-aware visibility — respects layer, non-AECOM, AND per-source chips.
+    const _sldPinVisible = p => _sldKindVisible(p.kind)
+      && !(_sldHideBundle && _pinIsNonAecom(p))
+      && !(p.attrs && p.attrs.source && _sldSourceVis[p.attrs.source] === false);
 
     // ── Pre-pass: project sta_ft for any pin that doesn't have it yet ──────────
     // Covers point pins and cross-type line features that skip the trackPins path.
@@ -29094,6 +29104,58 @@ console.log('%c[RoadWalk] BUILD v20260514 loaded OK', 'color:#16a34a;font-weight
 
       list.appendChild(row);
     });
+
+    // ── Sources section — one chip per unique attrs.source found across
+    //    every pin in every section. Clicking a chip toggles that source's
+    //    visibility (stored in lsLoad().sourceVis). Independent of the
+    //    per-kind toggles above and the "Non-AECOM data" master, so the
+    //    user can e.g. keep 'AECOM_Final' visible while hiding the
+    //    original pre-walk 'SF_KML_070126' pins of the same kind.
+    (function () {
+      var sourceCounts = {};
+      (window.SECTIONS || []).forEach(function (sec) {
+        (sec.pins || []).forEach(function (p) {
+          var s = p && p.attrs && p.attrs.source;
+          if (s) sourceCounts[s] = (sourceCounts[s] || 0) + 1;
+        });
+      });
+      var sourceNames = Object.keys(sourceCounts).sort();
+      if (!sourceNames.length) return;   // no sources anywhere, skip section
+      var srcVis = (lsLoad().sourceVis) || {};
+      // Section header divider — matches the visual weight of the existing
+      // layer rows but reads as a subhead.
+      var hdr = document.createElement('div');
+      hdr.className = 'layer-row';
+      hdr.style.cssText = 'font-weight:700;color:var(--ink-2);pointer-events:none;padding-top:8px;';
+      hdr.innerHTML = '<span class="layer-label" style="font-size:10px;letter-spacing:.6px;">SOURCES</span>';
+      list.appendChild(hdr);
+      sourceNames.forEach(function (name) {
+        var isOn = srcVis[name] !== false;
+        var srow = document.createElement('div');
+        srow.className = 'layer-row' + (isOn ? '' : ' layer-off');
+        srow.dataset.source = name;
+        srow.title = (isOn ? 'Hide' : 'Show') + ' pins with source "' + name + '"';
+        srow.innerHTML =
+          '<span class="layer-dot" style="background:#4b5563"></span>'
+          + '<span class="layer-label">' + name
+          + ' <span style="opacity:.55;font-weight:400">(' + sourceCounts[name] + ')</span></span>'
+          + '<span class="layer-toggle"></span>';
+        srow.addEventListener('click', function () {
+          var nowOn = srow.classList.contains('layer-off');
+          srow.classList.toggle('layer-off', !nowOn);
+          srow.title = (nowOn ? 'Hide' : 'Show') + ' pins with source "' + name + '"';
+          var st = lsLoad();
+          if (!st.sourceVis) st.sourceVis = {};
+          st.sourceVis[name] = nowOn;
+          lsSave(st);
+          _rerenderMap();
+          if (typeof renderStrip === 'function' && typeof stripCurrentSec !== 'undefined' && stripCurrentSec) {
+            renderStrip();
+          }
+        });
+        list.appendChild(srow);
+      });
+    })();
   }
 
   /**
